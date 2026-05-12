@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Django
+/static/
+media/
+*.log
+*.pot
+*.py[cod]
+*.env
+.env
+*.secret
+
+# Node / Frontend
+node_modules/
+.npm-cache/
+dist/
+build/
+
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
