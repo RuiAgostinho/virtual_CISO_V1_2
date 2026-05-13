@@ -27,7 +27,7 @@ A arquitetura pode ser descrita em cinco camadas:
 | Inventario e risco | `risk` | Ativos, software, vulnerabilidades, ocorrencias em ativos, configuracao de risco, scores, tratamentos e historico. |
 | Governance e conformidade | `governance` | Frameworks, secoes, controlos, mappings, mecanismos, evidencias, gaps, politicas, stakeholders e contexto regulatorio. |
 | Integracoes | `integrations` | Configuracao e estado de sincronizacao de Wazuh, EPSS, NIST/NVD e Nmap. |
-| Assistente IA | `ciso_assistant` | Base de conhecimento vetorial, recuperacao semantica, routing de intencao, consultas estruturadas e resposta por LLM. |
+| Assistente IA | `ciso_assistant` | Base de conhecimento vetorial, pesquisa semantica, routing de intencao, consultas estruturadas e resposta por LLM. |
 | Interface | `frontend/src/pages` | Dashboards e ecras operacionais para o CISO consultar, validar e agir sobre os dados. |
 
 ## Modelo de dados aplicado
@@ -81,7 +81,7 @@ O `QueryOrchestrator` e o ponto central da componente de IA. O fluxo inicia-se c
 
 ## Texto curto sugerido para abrir o capitulo 4
 
-O presente capitulo descreve a concecao, arquitetura e desenvolvimento do artefacto Virtual CISO, deixando de o apresentar apenas como uma proposta conceptual e passando a caracterizar a sua implementacao concreta. A aplicacao foi desenvolvida como uma plataforma web modular, composta por um backend em Django REST Framework, uma interface frontend em React e uma base de dados PostgreSQL com suporte pgvector para recuperacao semantica de conhecimento. A arquitetura integra ainda servicos de recolha e enriquecimento de dados provenientes de Wazuh, Nmap, EPSS e NIST/NVD, bem como uma componente de Inteligencia Artificial baseada em modelos locais executados via Ollama.
+O presente capitulo descreve a concecao, arquitetura e desenvolvimento do artefacto Virtual CISO, deixando de o apresentar apenas como uma proposta conceptual e passando a caracterizar a sua implementacao concreta. A aplicacao foi desenvolvida como uma plataforma web modular, composta por um backend em Django REST Framework, uma interface frontend em React e uma base de dados PostgreSQL com suporte pgvector para pesquisa semantica de conhecimento. A arquitetura integra ainda servicos de recolha e enriquecimento de dados provenientes de Wazuh, Nmap, EPSS e NIST/NVD, bem como uma componente de Inteligencia Artificial baseada em modelos locais executados via Ollama.
 
 Enquanto artefacto de apoio a decisao para CISOs, o Virtual CISO articula informacao organizacional, inventario de ativos, vulnerabilidades, scores de risco, frameworks normativas, controlos, mecanismos de implementacao, evidencia e gaps de conformidade. Esta articulacao permite que a plataforma nao se limite a apresentar indicadores tecnicos isolados, mas produza uma visao integrada da postura de ciberseguranca da organizacao, suportando priorizacao, explicabilidade, rastreabilidade e validacao humana.
 

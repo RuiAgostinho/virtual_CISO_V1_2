@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Discovery() {
-  return <RecoveredPlaceholder title="Descoberta de ativos" />;
+  return <ModulePlaceholder title="Descoberta de ativos" />;
 }

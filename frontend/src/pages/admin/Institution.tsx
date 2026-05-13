@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Institution() {
-  return <RecoveredPlaceholder title="Instituicao" />;
+  return <ModulePlaceholder title="Instituicao" />;
 }

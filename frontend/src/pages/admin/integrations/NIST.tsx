@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../../RecoveredPlaceholder";
+import ModulePlaceholder from "../../ModulePlaceholder";
 
 export default function NIST() {
-  return <RecoveredPlaceholder title="Integracao NIST NVD" />;
+  return <ModulePlaceholder title="Integracao NIST NVD" />;
 }

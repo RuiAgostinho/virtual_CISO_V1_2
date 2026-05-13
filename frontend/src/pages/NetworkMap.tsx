@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "./RecoveredPlaceholder";
+import ModulePlaceholder from "./ModulePlaceholder";
 
 export default function NetworkMap() {
-  return <RecoveredPlaceholder title="Mapa de rede" />;
+  return <ModulePlaceholder title="Mapa de rede" />;
 }

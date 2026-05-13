@@ -1,12 +1,10 @@
 # Virtual CISO V1.2
 
-Recovered working copy of the Virtual CISO application.
-
 The project is split into:
 
 - `backend/`: Django REST API with authentication, governance, risk, integrations and CISO assistant modules.
 - `frontend/`: React 19 + Vite + Tailwind interface.
-- `docs/`: recovery notes and chapter/application traceability material.
+- `docs/`: chapter/application traceability material.
 - `Scripts SQL/`: SQL support scripts used during framework import and cleanup.
 
 ## Requirements
@@ -78,4 +76,4 @@ npm.cmd run build
 
 Runtime secrets are loaded from `.env` files and should not be committed.
 
-The recovered copy previously contained development credentials in source configuration before this cleanup. Treat those recovered credentials as exposed, keep the GitHub repository private, and rotate real database/API credentials before using the project outside the local development environment.
+Keep the GitHub repository private and rotate real database/API credentials before using the project outside the local development environment.

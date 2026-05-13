@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Procedures() {
-  return <RecoveredPlaceholder title="Procedimentos" />;
+  return <ModulePlaceholder title="Procedimentos" />;
 }

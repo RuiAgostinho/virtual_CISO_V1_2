@@ -19,7 +19,7 @@ class OllamaClient:
         }
 
         if not url:
-            return "O serviço LLM não está configurado nesta cópia recuperada."
+            return "O serviço LLM não está configurado nesta instalação."
 
         try:
             response = requests.post(url, json=payload, timeout=60)
@@ -28,7 +28,7 @@ class OllamaClient:
             return data.get("response", "")
         except Exception as exc:
             logger.warning("Ollama call failed: %s", exc)
-            return "Não foi possível contactar o serviço LLM nesta cópia recuperada."
+            return "Não foi possível contactar o serviço LLM nesta instalação."
 
     @classmethod
     def generate_json(cls, prompt: str, model: str | None = None) -> dict:
@@ -37,4 +37,3 @@ class OllamaClient:
             return json.loads(raw)
         except Exception:
             return {}
-

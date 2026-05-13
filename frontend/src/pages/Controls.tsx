@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "./RecoveredPlaceholder";
+import ModulePlaceholder from "./ModulePlaceholder";
 
 export default function Controls() {
-  return <RecoveredPlaceholder title="Controlos" />;
+  return <ModulePlaceholder title="Controlos" />;
 }

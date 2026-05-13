@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Environments() {
-  return <RecoveredPlaceholder title="Ambientes" />;
+  return <ModulePlaceholder title="Ambientes" />;
 }

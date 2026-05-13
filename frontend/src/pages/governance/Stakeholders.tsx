@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Stakeholders() {
-  return <RecoveredPlaceholder title="Partes interessadas" />;
+  return <ModulePlaceholder title="Partes interessadas" />;
 }

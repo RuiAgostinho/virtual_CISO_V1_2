@@ -1,4 +1,4 @@
-# Generated during local recovery on 2026-05-12
+# Generated during local development on 2026-05-12
 
 import uuid
 from django.db import migrations, models

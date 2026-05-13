@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "./RecoveredPlaceholder";
+import ModulePlaceholder from "./ModulePlaceholder";
 
 export default function NmapSettings() {
-  return <RecoveredPlaceholder title="Configuracao Nmap" />;
+  return <ModulePlaceholder title="Configuracao Nmap" />;
 }

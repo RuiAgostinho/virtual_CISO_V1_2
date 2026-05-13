@@ -1,4 +1,4 @@
 class IntelService:
-    """Compatibility placeholder for recovered views."""
+    """Compatibility placeholder for optional intelligence integrations."""
 
     pass

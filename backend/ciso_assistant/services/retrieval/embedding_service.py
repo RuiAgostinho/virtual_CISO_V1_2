@@ -4,11 +4,10 @@ import math
 
 class EmbeddingService:
     """
-    Local fallback embedding service for the recovered workspace.
+    Local fallback embedding service for development.
 
-    The original project used an Ollama-backed embedding path. This deterministic
-    fallback keeps imports, diagnostics and tests running until that integration
-    is reconnected.
+    This deterministic fallback keeps imports, diagnostics and tests running
+    until the Ollama-backed embedding integration is enabled.
     """
 
     DIMENSIONS = 4096
@@ -23,4 +22,3 @@ class EmbeddingService:
 
         norm = math.sqrt(sum(value * value for value in values)) or 1.0
         return [value / norm for value in values]
-

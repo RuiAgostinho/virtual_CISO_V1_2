@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Classification() {
-  return <RecoveredPlaceholder title="Classificacao de ativos" />;
+  return <ModulePlaceholder title="Classificacao de ativos" />;
 }

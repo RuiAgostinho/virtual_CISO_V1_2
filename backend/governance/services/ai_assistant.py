@@ -37,7 +37,7 @@ class GovernanceAIAssistant:
                 "title": control.title,
                 "framework": control.framework.name if control.framework_id else "",
                 "confidence": 0.62,
-                "rationale": "Sugestao baseada em semelhanca textual com a politica recuperada.",
+                "rationale": "Sugestao baseada em semelhanca textual com a politica analisada.",
             })
 
         return {

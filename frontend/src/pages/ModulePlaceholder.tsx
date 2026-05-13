@@ -1,10 +1,10 @@
 import { AlertTriangle } from "lucide-react";
 
-type RecoveredPlaceholderProps = {
+type ModulePlaceholderProps = {
   title: string;
 };
 
-export default function RecoveredPlaceholder({ title }: RecoveredPlaceholderProps) {
+export default function ModulePlaceholder({ title }: ModulePlaceholderProps) {
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-16">
       <section className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
@@ -14,12 +14,12 @@ export default function RecoveredPlaceholder({ title }: RecoveredPlaceholderProp
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
-              Recuperacao parcial
+              Modulo em desenvolvimento
             </p>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{title}</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-600">
-              Esta rota existia na versao perdida, mas o ficheiro original nao apareceu nos registos locais
-              recuperaveis. A entrada fica preservada para a aplicacao arrancar enquanto reconstruimos o ecran.
+              Esta area faz parte do roteiro funcional da aplicacao e sera disponibilizada quando o ecran
+              estiver concluido.
             </p>
           </div>
         </div>

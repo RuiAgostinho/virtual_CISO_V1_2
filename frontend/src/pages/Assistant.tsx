@@ -228,7 +228,7 @@ export default function Assistant() {
 
                                 {msg.role === "assistant" && msg.used_rag && (!msg.sources || msg.sources.length === 0) && (
                                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-                                        RAG ativo, mas sem fontes recuperadas para esta pergunta.
+                                        RAG ativo, mas sem fontes encontradas para esta pergunta.
                                     </div>
                                 )}
 

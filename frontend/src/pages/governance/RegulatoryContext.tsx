@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function RegulatoryContext() {
-  return <RecoveredPlaceholder title="Contexto regulatorio" />;
+  return <ModulePlaceholder title="Contexto regulatorio" />;
 }

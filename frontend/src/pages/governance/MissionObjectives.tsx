@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function MissionObjectives() {
-  return <RecoveredPlaceholder title="Missao e objetivos" />;
+  return <ModulePlaceholder title="Missao e objetivos" />;
 }

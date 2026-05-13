@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../../RecoveredPlaceholder";
+import ModulePlaceholder from "../../ModulePlaceholder";
 
 export default function EPSS() {
-  return <RecoveredPlaceholder title="Integracao EPSS" />;
+  return <ModulePlaceholder title="Integracao EPSS" />;
 }

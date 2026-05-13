@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../../RecoveredPlaceholder";
+import ModulePlaceholder from "../../ModulePlaceholder";
 
 export default function Wazuh() {
-  return <RecoveredPlaceholder title="Integracao Wazuh" />;
+  return <ModulePlaceholder title="Integracao Wazuh" />;
 }

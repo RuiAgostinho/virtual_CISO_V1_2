@@ -1,5 +1,5 @@
-import RecoveredPlaceholder from "../RecoveredPlaceholder";
+import ModulePlaceholder from "../ModulePlaceholder";
 
 export default function Locations() {
-  return <RecoveredPlaceholder title="Localizacoes" />;
+  return <ModulePlaceholder title="Localizacoes" />;
 }

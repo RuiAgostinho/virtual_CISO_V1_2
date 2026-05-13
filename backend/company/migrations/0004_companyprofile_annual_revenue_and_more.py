@@ -1,4 +1,4 @@
-# Generated during local recovery on 2026-05-13
+# Generated during local development on 2026-05-13
 
 from django.db import migrations
 
