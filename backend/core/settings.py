@@ -22,15 +22,34 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 
 
+import os
 from pathlib import Path
 
 from datetime import timedelta
+from dotenv import load_dotenv
 
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name: str, default: list[str]) -> list[str]:
+    value = os.getenv(name)
+    if not value:
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 
@@ -43,18 +62,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
-SECRET_KEY = 'django-insecure-drg1=tar7%rz1=8+p8tehu-x^$oojl92u*ox$&gom4qaj*0m(k'
-
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-only-change-me")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-
-DEBUG = True
-
+DEBUG = env_bool("DJANGO_DEBUG", True)
 
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 
 
 
@@ -104,9 +119,9 @@ INSTALLED_APPS = [
 
 ]
 
-OLLAMA_URL = "http://192.168.2.3:11434/api/generate"
-
-OLLAMA_MODEL = "llama3.2:3b"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "llama3.1:8b")
 
 
 
@@ -134,29 +149,20 @@ MIDDLEWARE = [
 
 # Frontend (Vite) â€“ ajusta domÃ­nios
 
-CORS_ALLOWED_ORIGINS = [
-
-    "http://localhost:5173",
-
-    "http://127.0.0.1:5173",
-
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    ["http://localhost:5173", "http://127.0.0.1:5173"],
+)
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-
-    "http://localhost:5173",
-
-    "http://127.0.0.1:5173",
-
-]
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", CORS_ALLOWED_ORIGINS)
 
 
 
 CSRF_COOKIE_SAMESITE = "Lax"      # em prod: "Strict" (ou "None" + Secure)
 
-CSRF_COOKIE_SECURE = False        # em prod: True (HTTPS)
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", False)        # em prod: True (HTTPS)
 
 
 
@@ -267,23 +273,14 @@ WSGI_APPLICATION = 'core.wsgi.application'
 #}
 
 DATABASES = {
-
-  'default': {
-
-  'ENGINE': 'django.db.backends.postgresql_psycopg2',
-
-  'NAME': 'virtualciso',
-
-  'USER' : 'virtualciso',
-
-  'PASSWORD' : 'P123456p@localhost',
-
-  'HOST' : '192.168.2.2',
-
-  'PORT' : '5432',
-
-  }
-
+    "default": {
+        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql_psycopg2"),
+        "NAME": os.getenv("DB_NAME", "virtualciso"),
+        "USER": os.getenv("DB_USER", "virtualciso"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
 }
 
 
@@ -372,11 +369,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-# Ollama Configuration
-
-OLLAMA_URL = 'http://192.168.2.3:11434'
-
-OLLAMA_EMBED_MODEL = 'llama3.1:8b'
+# Ollama configuration is loaded from environment variables above.
 
 
 
