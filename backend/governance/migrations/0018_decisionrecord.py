@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("governance", "0004_frameworklevel_frameworksection_level_ref_and_more"),
+        ("governance", "0005_alter_control_section"),
     ]
 
     operations = [

@@ -10,8 +10,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('company', '0008_alter_companyprofile_nis2_sector_and_more'),
-        ('governance', '0019_alter_control_section_mechanism_controlmechanism_and_more'),
+        ('company', '0007_companyprofile_onboarding'),
+        ('governance', '0018_decisionrecord'),
     ]
 
     operations = [

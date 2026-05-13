@@ -7,7 +7,7 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("company", "0002_companyprofile_governance_fields"),
+        ("company", "0001_initial"),
     ]
 
     operations = [

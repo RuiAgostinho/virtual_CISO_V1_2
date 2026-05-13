@@ -8,8 +8,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('company', '0008_alter_companyprofile_nis2_sector_and_more'),
-        ('governance', '0018_decisionrecord'),
+        ('company', '0007_companyprofile_onboarding'),
+        ('governance', '0004_frameworklevel_frameworksection_level_ref_and_more'),
     ]
 
     operations = [

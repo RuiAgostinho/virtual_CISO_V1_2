@@ -1,11 +1,11 @@
-# Generated during local recovery on 2026-05-12
+# Generated during local recovery on 2026-05-13
 
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("company", "0001_initial"),
+        ("company", "0002_orgunit_person"),
     ]
 
     operations = [
