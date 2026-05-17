@@ -262,41 +262,80 @@ export type DecisionRecord = {
     updated_at: string;
 };
 
+export interface RegulatoryContextRecord {
+    id?: string;
+    organization?: string;
+    nis2_classification: "Essential" | "Important" | "Out of Scope" | "Pending";
+    classification_criteria?: string | null;
+    applicable_obligations?: string | null;
+    competent_authority?: string | null;
+    last_reviewed_at?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface TechnicalRegulation {
+    id: string;
+    policy: string;
+    code: string;
+    title: string;
+    description?: string;
+    status: "draft" | "active" | "review" | "obsolete";
+    version: string;
+    technical_owner?: string;
+    approved_at?: string;
+    next_review_at?: string;
+    technical_objective?: string;
+    covered_systems?: string;
+    technical_requirements?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Procedure {
+    id: string;
+    policy?: string;
+    technical_regulation?: string;
+    code: string;
+    title: string;
+    description?: string;
+    status: "draft" | "active" | "review" | "obsolete";
+    version: string;
+    owner?: string;
+    periodicity?: string;
+    next_review_at?: string;
+    steps?: string;
+    expected_evidence?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Stakeholder {
+    id: string;
+    organization?: string;
+    name: string;
+    stakeholder_type: "Internal" | "External" | "Regulator" | "Supplier" | "Partner";
+    responsibility?: string | null;
+    contact?: string | null;
+    security_relevance?: string | null;
+    critical_process_relation?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export const governanceApi = {
     // Organization Context
     getOrganizationContext: () => request<any>("/api/governance/organization-context/current/"),
-    updateOrganizationContext: (id: string, data: any) => request<any>(`/api/governance/organization-context/${id}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
+    updateOrganizationContext: (id: string, payload: any) => request<any>(`/api/governance/organization-context/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload)
     }),
 
     // Regulatory Context
-    getRegulatoryContext: () => request<any>("/api/governance/regulatory-context/current/"),
-    updateRegulatoryContext: (id: string, data: any) => request<any>(`/api/governance/regulatory-context/${id}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-    }),
-
-    // Stakeholders
-    listStakeholders: (params?: Record<string, any>) => {
-        let url = "/api/governance/stakeholders/";
-        if (params) {
-            const query = new URLSearchParams(params).toString();
-            url += `?${query}`;
-        }
-        return request<PaginatedResponse<any>>(url);
-    },
-    getStakeholder: (id: string) => request<any>(`/api/governance/stakeholders/${id}/`),
-    createStakeholder: (data: any) => request<any>("/api/governance/stakeholders/", {
-        method: 'POST',
-        body: JSON.stringify(data)
-    }),
-    updateStakeholder: (id: string, data: any) => request<any>(`/api/governance/stakeholders/${id}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-    }),
-    deleteStakeholder: (id: string) => request<any>(`/api/governance/stakeholders/${id}/`, {
-        method: 'DELETE'
+    getRegulatoryContext: () => request<RegulatoryContextRecord>("/api/governance/regulatory-context/current/"),
+    updateRegulatoryContext: (id: string, payload: Partial<RegulatoryContextRecord>) => request<RegulatoryContextRecord>(`/api/governance/regulatory-context/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload)
     }),
 
     // Policies
@@ -424,24 +463,6 @@ export const governanceApi = {
         method: 'DELETE'
     }),
 
-    // Frameworks & Controls (Read-only)
-    listTechnicalRegulations: (params?: Record<string, any>) => {
-        let url = "/api/governance/technical-regulations/";
-        if (params) {
-            const query = new URLSearchParams(params).toString();
-            url += `?${query}`;
-        }
-        return request<PaginatedResponse<any>>(url);
-    },
-    listProcedures: (params?: Record<string, any>) => {
-        let url = "/api/governance/procedures/";
-        if (params) {
-            const query = new URLSearchParams(params).toString();
-            url += `?${query}`;
-        }
-        return request<PaginatedResponse<any>>(url);
-    },
-
     // Compliance Gaps
     getComplianceSummary: (params?: Record<string, any>) => {
         let url = "/api/governance/gaps/summary/";
@@ -545,6 +566,47 @@ export const governanceApi = {
             url += `?framework=${frameworkId}`;
         }
         return request<PaginatedResponse<any>>(url);
+    },
+
+    // Stakeholders
+    listStakeholders: (params?: Record<string, any>) => {
+        let url = "/api/governance/stakeholders/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<Stakeholder>>(url);
+    },
+    createStakeholder: (data: Partial<Stakeholder>) => request<Stakeholder>("/api/governance/stakeholders/", {
+        method: "POST",
+        body: JSON.stringify(data)
+    }),
+    updateStakeholder: (id: string, data: Partial<Stakeholder>) => request<Stakeholder>(`/api/governance/stakeholders/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(data)
+    }),
+    deleteStakeholder: (id: string) => request(`/api/governance/stakeholders/${id}/`, {
+        method: "DELETE"
+    }),
+
+    // Technical Regulations
+    listTechnicalRegulations: (params?: Record<string, any>) => {
+        let url = "/api/governance/technical-regulations/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<TechnicalRegulation>>(url);
+    },
+
+    // Procedures
+    listProcedures: (params?: Record<string, any>) => {
+        let url = "/api/governance/procedures/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<Procedure>>(url);
     },
 };
 

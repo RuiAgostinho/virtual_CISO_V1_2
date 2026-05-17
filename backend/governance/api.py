@@ -426,7 +426,7 @@ class OrganizationContextViewSet(viewsets.ModelViewSet):
     def get_object(self):
         obj = CompanyProfile.objects.first()
         if not obj:
-            obj = CompanyProfile.objects.create(legal_name="Nova OrganizaÃ§Ã£o")
+            obj = CompanyProfile.objects.create(legal_name="Nova Organização")
         return obj
 
     @action(detail=False, methods=['get'])
@@ -443,7 +443,7 @@ class RegulatoryContextViewSet(viewsets.ModelViewSet):
     def get_object(self):
         org = CompanyProfile.objects.first()
         if not org:
-            org = CompanyProfile.objects.create(legal_name="Nova OrganizaÃ§Ã£o")
+            org = CompanyProfile.objects.create(legal_name="Nova Organização")
         obj, created = RegulatoryContext.objects.get_or_create(organization=org)
         return obj
 

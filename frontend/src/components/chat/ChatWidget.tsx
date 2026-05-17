@@ -102,14 +102,14 @@ export default function ChatWidget() {
                 >
                   {message.content}
                   {message.role === "assistant" && message.model_used && (
-                    <div className="mt-2 flex flex-wrap gap-1 border-t border-slate-200 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <div className="mt-2 flex flex-wrap gap-1 border-t border-slate-200 pt-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       <span>{message.task_type}</span>
                       <span>{message.model_used}</span>
                       <span>{message.used_rag ? `${message.sources?.length || 0} fonte(s)` : "sem RAG"}</span>
                     </div>
                   )}
                   {message.role === "assistant" && message.sources && message.sources.length > 0 && (
-                    <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <div className="mt-2 border-t border-slate-200 pt-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {message.sources.length} fonte(s)
                     </div>
                   )}

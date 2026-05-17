@@ -6,7 +6,7 @@ export type NavItemType = {
 
   icon: React.ReactNode;
 
-  roles?: string[]; // opcional: para permissÃµes futuras
+  roles?: string[]; // opcional: para permissões futuras
 
 };
 

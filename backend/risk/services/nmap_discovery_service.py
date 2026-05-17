@@ -16,7 +16,7 @@ class NmapDiscoveryService:
             self.username = self.username or config.username
             self.password = self.password or config.password
         except IntegrationConfig.DoesNotExist:
-            # Fallback para o host do Wazuh se o Nmap nÃ£o estiver configurado explicitamente
+            # Fallback para o host do Wazuh se o Nmap não estiver configurado explicitamente
             try:
                 wazuh_config = IntegrationConfig.objects.get(provider='wazuh', is_active=True)
                 if wazuh_config.api_url:
@@ -29,11 +29,11 @@ class NmapDiscoveryService:
         import xml.etree.ElementTree as ET
         
         if not self.host or not self.username or not self.password:
-            raise Exception("ConfiguraÃ§Ã£o Nmap/SSH incompleta (Host, Utilizador ou Password em falta).")
+            raise Exception("Configuração Nmap/SSH incompleta (Host, Utilizador ou Password em falta).")
 
         networks = NetworkRange.objects.filter(is_active=True)
         if not networks.exists():
-            raise Exception("Nenhuma rede organizacional definida para scan. Adicione redes no menu de ConfiguraÃ§Ãµes.")
+            raise Exception("Nenhuma rede organizacional definida para scan. Adicione redes no menu de Configurações.")
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -60,10 +60,10 @@ class NmapDiscoveryService:
 
     def enrich_single_host(self, ip):
         """
-        Executa scan detalhado para um Ãºnico IP com deteÃ§Ã£o de vulnerabilidades.
+        Executa scan detalhado para um único IP com deteção de vulnerabilidades.
         """
         if not self.host or not self.username or not self.password:
-            raise Exception("ConfiguraÃ§Ã£o SSH incompleta.")
+            raise Exception("Configuração SSH incompleta.")
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -71,7 +71,7 @@ class NmapDiscoveryService:
         try:
             ssh.connect(self.host, username=self.username, password=self.password)
             
-            # -sV: VersÃµes, -O: SO, --script vulners: DeteÃ§Ã£o de vulnerabilidades
+            # -sV: Versões, -O: SO, --script vulners: Deteção de vulnerabilidades
             command = f"sudo nmap -sV -O --script vulners --osscan-limit --osscan-guess -oX - {ip}"
             stdin, stdout, stderr = ssh.exec_command(command, timeout=300) # Vulnerabilidades levam mais tempo
             
@@ -212,7 +212,7 @@ class NmapDiscoveryService:
             os_name = host["os_name"]
             services = ", ".join(host["services"])
             
-            # Verifica se jÃ¡ existe um ativo com este IP
+            # Verifica se já existe um ativo com este IP
             existing_asset = Asset.objects.filter(wazuh_ip=ip).first()
             if existing_asset:
                 existing_asset.last_sync_at = timezone.now()
@@ -220,7 +220,7 @@ class NmapDiscoveryService:
                 stats["ignored"] += 1
                 continue
                 
-            # Define o nome (Hostname se existir, senÃ£o o formato IP)
+            # Define o nome (Hostname se existir, senão o formato IP)
             asset_name = hostname if hostname else f"Nmap-Host-{ip.replace('.', '-')}"
             
             description = f"[NMAP ENRICHED] Ativo detetado via scan ativo.\n"
@@ -229,9 +229,9 @@ class NmapDiscoveryService:
             if os_name and os_name != "Unknown":
                 description += f"Sistema Operativo: {os_name}\n"
             if services:
-                description += f"ServiÃ§os Abertos: {services}"
+                description += f"Serviços Abertos: {services}"
             else:
-                description += "Nenhum serviÃ§o comum aberto detetado."
+                description += "Nenhum serviço comum aberto detetado."
 
             # Cria novo ativo na aba de descobertas
             Asset.objects.create(
@@ -251,7 +251,7 @@ class NmapDiscoveryService:
 
     def purge_missing_assets(self, found_ips):
         """
-        Remove ativos de 'discovery' que nÃ£o foram encontrados no scan atual.
+        Remove ativos de 'discovery' que não foram encontrados no scan atual.
         """
         to_delete = Asset.objects.filter(source='discovery').exclude(wazuh_ip__in=found_ips)
         count = to_delete.count()
@@ -260,14 +260,14 @@ class NmapDiscoveryService:
 
     def cleanup_ghost_assets(self):
         """
-        Remove ativos de 'discovery' que nÃ£o tÃªm serviÃ§os nem hostname (lixo de scans anteriores).
+        Remove ativos de 'discovery' que não têm serviços nem hostname (lixo de scans anteriores).
         """
         ghosts = Asset.objects.filter(
             source='discovery',
-            description__icontains="Nenhum serviÃ§o comum aberto detetado."
-        ).exclude(name__contains=".") # Geralmente hostnames resolvidos tÃªm pontos ou nÃ£o seguem o padrÃ£o Nmap-Host-IP
+            description__icontains="Nenhum serviço comum aberto detetado."
+        ).exclude(name__contains=".") # Geralmente hostnames resolvidos têm pontos ou não seguem o padrão Nmap-Host-IP
 
-        # Refinar: se o nome comeÃ§ar por Nmap-Host e a descriÃ§Ã£o disser que nÃ£o hÃ¡ serviÃ§os, Ã© fantasma
+        # Refinar: se o nome começar por Nmap-Host e a descrição disser que não há serviços, é fantasma
         count = 0
         for asset in ghosts:
             if asset.name.startswith("Nmap-Host-"):

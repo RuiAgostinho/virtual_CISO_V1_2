@@ -13,10 +13,10 @@ export default function ModulePlaceholder({ title }: ModulePlaceholderProps) {
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
               Modulo em desenvolvimento
             </p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{title}</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">{title}</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-600">
               Esta area faz parte do roteiro funcional da aplicacao e sera disponibilizada quando o ecran
               estiver concluido.

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(extract-text \"D:\\\\virtual_ciso\\\\virtual_CISO_V1_2\\\\docs\\\\Relatorio_Rui_Agostinho_08_05_2026.docx\")",
+      "PowerShell(pandoc \"D:\\\\virtual_ciso\\\\virtual_CISO_V1_2\\\\docs\\\\Relatorio_Rui_Agostinho_08_05_2026.docx\" -t markdown 2>&1)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s --max-time 8 http://127.0.0.1:11434/api/tags)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:11434/api/tags\" -TimeoutSec 8 -UseBasicParsing; Write-Host \"OLLAMA UP\"; Write-Host $r.Content } catch { Write-Host \"OLLAMA DOWN: $\\($_.Exception.Message\\)\" })",
+      "Bash(./.venv/Scripts/python.exe -m py_compile ciso_assistant/management/commands/ingest_knowledge.py ciso_assistant/services/knowledge_ingestion.py ciso_assistant/models.py)",
+      "Bash(./.venv/Scripts/python.exe manage.py check)",
+      "Bash(./.venv/Scripts/python.exe -m py_compile ciso_assistant/views.py ciso_assistant/permissions.py ciso_assistant/urls.py ciso_assistant/services/rag_ingestion_runner.py authapi/views.py)",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,1\\)\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/assistant/rag/overview/)",
+      "Bash(echo \"rag/overview: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/assistant/rag/overview/\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/assistant/rag/reindex/)",
+      "Bash(echo \"rag/reindex \\(GET\\): $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/assistant/rag/reindex/\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/auth/me/)",
+      "Bash(./.venv/Scripts/python.exe manage.py shell -c ' *)",
+      "Bash(./.venv/Scripts/python.exe manage.py shell -c \"import inspect; from authapi.views import MeView; print\\(inspect.getsource\\(MeView.get\\)\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(./.venv/Scripts/python.exe -m py_compile risk/models/asset.py risk/serializers.py)"
+    ]
+  }
+}

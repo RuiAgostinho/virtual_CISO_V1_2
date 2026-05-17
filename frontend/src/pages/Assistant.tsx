@@ -6,13 +6,13 @@ import { chatApi, type ChatMessage, type ChatSource } from "@/lib/chatApi";
 function sourceTypeLabel(type: string) {
     const labels: Record<string, string> = {
         structured_query: "Consulta estruturada",
-        vulnerability_prioritization: "Priorizacao",
+        vulnerability_prioritization: "Priorização",
         policy: "Politica",
         asset: "Ativo",
         vulnerability: "Vulnerabilidade",
         control: "Controlo",
         mechanism: "Mecanismo",
-        technical_regulation: "Regulamento tecnico",
+        technical_regulation: "Regulamento técnico",
         procedure: "Procedimento",
         evidence: "Evidencia",
         compliance_gap: "Gap de conformidade",
@@ -25,12 +25,12 @@ function sourceTypeLabel(type: string) {
 function taskTypeLabel(type?: string) {
     const labels: Record<string, string> = {
         structured_query: "Consulta estruturada",
-        vulnerability_prioritization: "Priorizacao",
+        vulnerability_prioritization: "Priorização",
         control_mapping: "Mapeamento de controlos",
         evidence_drafting: "Evidencia",
         executive_advisory: "Aconselhamento executivo",
         risk_analysis: "Analise de risco",
-        technical_implementation: "Implementacao tecnica",
+        technical_implementation: "Implementação técnica",
         general_qa: "Pergunta geral"
     };
     return type ? labels[type] || type : "Sem classificacao";
@@ -61,16 +61,16 @@ function SourceCard({ source }: { source: ChatSource }) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-left">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-indigo-600">
                         {sourceIcon(source.source_type)}
                         {sourceTypeLabel(source.source_type)}
                     </div>
-                    <h4 className="truncate text-xs font-black text-slate-900" title={source.title}>
+                    <h4 className="truncate text-xs font-bold text-slate-900" title={source.title}>
                         {source.title}
                     </h4>
                 </div>
                 {score && (
-                    <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-black text-slate-500">
+                    <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-500">
                         {score}
                     </span>
                 )}
@@ -170,8 +170,8 @@ export default function Assistant() {
                         <Bot className="h-6 w-6" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-slate-900">Virtual CISO</h1>
-                        <p className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-slate-500">
+                        <h1 className="text-xl font-bold text-slate-900">Virtual CISO</h1>
+                        <p className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500">
                             <span className="h-2 w-2 rounded-full bg-emerald-500" />
                             H-RAG Engine | Fontes rastreaveis
                         </p>
@@ -209,17 +209,17 @@ export default function Assistant() {
 
                                 {msg.role === "assistant" && msg.model_used && (
                                     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                                             {taskTypeLabel(msg.task_type)}
                                         </span>
-                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                                             {msg.model_used}
                                         </span>
-                                        <span className={msg.used_rag ? "rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700" : "rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500"}>
+                                        <span className={msg.used_rag ? "rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700" : "rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500"}>
                                             {msg.used_rag ? `RAG: ${msg.sources?.length || 0} fontes` : "RAG: nao usado"}
                                         </span>
                                         {confidenceLabel(msg.confidence) && (
-                                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
                                                 Confianca: {confidenceLabel(msg.confidence)}
                                             </span>
                                         )}
@@ -235,9 +235,9 @@ export default function Assistant() {
                                 {msg.role === "assistant" && msg.sources && msg.sources.length > 0 && (
                                     <div className="mt-4 border-t border-slate-100 pt-4">
                                         <div className="mb-3 flex items-center justify-between gap-3">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fontes utilizadas</p>
+                                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Fontes utilizadas</p>
                                             {msg.used_context && (
-                                                <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                                                <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-600">
                                                     {msg.used_context}
                                                 </span>
                                             )}

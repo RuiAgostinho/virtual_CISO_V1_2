@@ -26,8 +26,8 @@ function Metric({ icon: Icon, label, value, tone }: { icon: any; label: string; 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <Icon className={`h-5 w-5 ${tone}`} />
-      <p className="mt-3 text-2xl font-black text-slate-950">{value || "-"}</p>
-      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-3 text-2xl font-bold text-slate-950">{value || "-"}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
 }
@@ -112,7 +112,7 @@ export default function OrganizationContext() {
   };
 
   if (loading) {
-    return <div className="p-10 text-sm font-black uppercase tracking-widest text-slate-400">A carregar contexto organizacional...</div>;
+    return <div className="p-10 text-sm font-bold uppercase tracking-wide text-slate-400">A carregar contexto organizacional...</div>;
   }
 
   return (
@@ -120,18 +120,18 @@ export default function OrganizationContext() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Contexto de negocio</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Contexto organizacional</h1>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Contexto de negocio</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Contexto organizacional</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
               Perfil da organizacao usado para governanca, analise NIS2, priorizacao de risco e recomendacoes do Virtual CISO.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-700">
+            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>
-            <button onClick={save} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-800 disabled:bg-slate-300">
+            <button onClick={save} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800 disabled:bg-slate-300">
               <Save className="h-4 w-4" />
               {saving ? "A guardar..." : "Guardar"}
             </button>
@@ -153,23 +153,23 @@ export default function OrganizationContext() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Building2 className="h-5 w-5 text-indigo-700" />
-            <h2 className="text-lg font-black text-slate-950">Identidade da organizacao</h2>
+            <h2 className="text-lg font-bold text-slate-950">Identidade da organizacao</h2>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <label className="block md:col-span-2">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Nome legal</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Nome legal</span>
               <input value={form.legal_name || ""} onChange={(event) => updateField("legal_name", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">NIF</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">NIF</span>
               <input value={form.tax_id || ""} onChange={(event) => updateField("tax_id", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Setor</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Setor</span>
               <input value={form.sector || ""} onChange={(event) => updateField("sector", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Tipo</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tipo</span>
               <select value={form.org_type || "Private"} onChange={(event) => updateField("org_type", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
                 <option value="Private">Privada</option>
                 <option value="Public">Publica</option>
@@ -177,23 +177,23 @@ export default function OrganizationContext() {
               </select>
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Ambito geografico</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ambito geografico</span>
               <input value={form.geographic_scope || ""} onChange={(event) => updateField("geographic_scope", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Pais</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Pais</span>
               <input value={form.country || ""} onChange={(event) => updateField("country", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Cidade</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Cidade</span>
               <input value={form.city || ""} onChange={(event) => updateField("city", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Colaboradores</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Colaboradores</span>
               <input type="number" value={form.employee_count || ""} onChange={(event) => updateField("employee_count", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Receita anual</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Receita anual</span>
               <input value={form.annual_revenue || ""} onChange={(event) => updateField("annual_revenue", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
           </div>
@@ -202,19 +202,19 @@ export default function OrganizationContext() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Globe2 className="h-5 w-5 text-cyan-700" />
-            <h2 className="text-lg font-black text-slate-950">Contactos</h2>
+            <h2 className="text-lg font-bold text-slate-950">Contactos</h2>
           </div>
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Website</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Website</span>
               <input value={form.website || ""} onChange={(event) => updateField("website", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Email principal</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Email principal</span>
               <input value={form.main_email || ""} onChange={(event) => updateField("main_email", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Telefone principal</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Telefone principal</span>
               <input value={form.main_phone || ""} onChange={(event) => updateField("main_phone", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100" />
             </label>
           </div>
@@ -225,19 +225,19 @@ export default function OrganizationContext() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Target className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-lg font-black text-slate-950">Direcao estrategica</h2>
+            <h2 className="text-lg font-bold text-slate-950">Direcao estrategica</h2>
           </div>
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Missao</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Missao</span>
               <textarea value={form.mission || ""} onChange={(event) => updateField("mission", event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Visao</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Visão</span>
               <textarea value={form.vision || ""} onChange={(event) => updateField("vision", event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Objetivos estrategicos</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Objetivos estrategicos</span>
               <textarea value={form.strategic_objectives || ""} onChange={(event) => updateField("strategic_objectives", event.target.value)} className="mt-2 min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100" />
             </label>
           </div>
@@ -246,19 +246,19 @@ export default function OrganizationContext() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <ShieldAlert className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-black text-slate-950">Contexto de seguranca</h2>
+            <h2 className="text-lg font-bold text-slate-950">Contexto de seguranca</h2>
           </div>
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Servicos criticos</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Servicos criticos</span>
               <textarea value={form.critical_services || ""} onChange={(event) => updateField("critical_services", event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Objetivos de seguranca</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Objetivos de seguranca</span>
               <textarea value={form.security_objectives || ""} onChange={(event) => updateField("security_objectives", event.target.value)} className="mt-2 min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Apetite de risco</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Apetite de risco</span>
               <select value={form.risk_appetite || "balanced"} onChange={(event) => updateField("risk_appetite", event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100">
                 <option value="conservative">Conservador</option>
                 <option value="balanced">Equilibrado</option>
@@ -271,21 +271,21 @@ export default function OrganizationContext() {
 
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black text-slate-950">Preferencias do programa</h2>
+          <h2 className="text-lg font-bold text-slate-950">Preferencias do programa</h2>
           <div className="mt-5 space-y-4">
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Objetivos principais</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Objetivos principais</span>
               <textarea value={goalsText} onChange={(event) => setGoalsText(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Separar por virgulas" />
             </label>
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Frameworks preferidas</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Frameworks preferidas</span>
               <textarea value={frameworksText} onChange={(event) => setFrameworksText(event.target.value)} className="mt-2 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="ISO 27001, NIS2, CIS Controls" />
             </label>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-black text-slate-950">Notas</h2>
+          <h2 className="text-lg font-bold text-slate-950">Notas</h2>
           <textarea value={form.notes || ""} onChange={(event) => updateField("notes", event.target.value)} className="mt-5 min-h-[220px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
         </div>
       </section>

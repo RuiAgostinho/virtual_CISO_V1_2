@@ -1,24 +1,80 @@
-import hashlib
-import math
+"""
+Embedding generation for the RAG component — Cap. 4.9.3 of the dissertation.
+
+`EmbeddingService` calls the local Ollama runtime's `/api/embeddings` endpoint
+with the configured embedding model (settings.OLLAMA_EMBED_MODEL) to produce
+dense semantic vectors for both knowledge ingestion and query-time retrieval.
+
+It returns ``None`` on any failure so the callers degrade gracefully:
+  - SemanticRetrievalService.semantic_search() returns no chunks;
+  - KnowledgeIngestionService.embed() skips the chunk.
+This is deliberate — a failed embedding must never be silently replaced by a
+meaningless vector, which would pollute the pgvector similarity space.
+"""
+
+import logging
+
+import requests
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _embeddings_url() -> str:
+    """Derive the Ollama /api/embeddings URL from the configured OLLAMA_URL."""
+    base = (getattr(settings, "OLLAMA_URL", "") or "").strip()
+    if not base:
+        return ""
+    # OLLAMA_URL usually points at the generation endpoint (.../api/generate);
+    # reuse only its host:port and swap to the embeddings endpoint.
+    if "/api/" in base:
+        base = base.rsplit("/api/", 1)[0]
+    return f"{base.rstrip('/')}/api/embeddings"
 
 
 class EmbeddingService:
-    """
-    Local fallback embedding service for development.
+    """Ollama-backed embedding service for the hybrid RAG pipeline."""
 
-    This deterministic fallback keeps imports, diagnostics and tests running
-    until the Ollama-backed embedding integration is enabled.
-    """
-
+    # Must match the dimension of KnowledgeChunk.embedding (pgvector VectorField).
     DIMENSIONS = 4096
 
     @classmethod
     def get_embedding(cls, text: str):
-        seed = hashlib.sha256((text or "").encode("utf-8")).digest()
-        values = []
-        for idx in range(cls.DIMENSIONS):
-            byte = seed[idx % len(seed)]
-            values.append((byte / 255.0) * 2.0 - 1.0)
+        """Return the embedding vector for ``text`` or None when unavailable."""
+        text = (text or "").strip()
+        if not text:
+            return None
 
-        norm = math.sqrt(sum(value * value for value in values)) or 1.0
-        return [value / norm for value in values]
+        url = _embeddings_url()
+        if not url:
+            logger.warning("[EMBEDDING] OLLAMA_URL not configured; cannot embed.")
+            return None
+
+        model = getattr(settings, "OLLAMA_EMBED_MODEL", "llama3.1:8b")
+        try:
+            response = requests.post(
+                url,
+                json={"model": model, "prompt": text},
+                timeout=30,
+            )
+            response.raise_for_status()
+            embedding = response.json().get("embedding")
+        except Exception as exc:
+            logger.warning("[EMBEDDING] Ollama embedding call failed: %s", exc)
+            return None
+
+        if not embedding or not isinstance(embedding, list):
+            logger.warning("[EMBEDDING] Ollama returned an empty embedding.")
+            return None
+
+        if len(embedding) != cls.DIMENSIONS:
+            logger.error(
+                "[EMBEDDING] Dimension mismatch: model '%s' returned %s, expected %s. "
+                "Check OLLAMA_EMBED_MODEL.",
+                model,
+                len(embedding),
+                cls.DIMENSIONS,
+            )
+            return None
+
+        return embedding

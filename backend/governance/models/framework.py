@@ -80,9 +80,9 @@ class FrameworkLevel(TimeStampedModel):
 
     """
 
-    DicionÃ¡rio de nÃ­veis por framework.
+    Dicionário de níveis por framework.
 
-    Ex: ISO27002 -> 1=DomÃ­nio, 2=Tema, 3=Controlo
+    Ex: ISO27002 -> 1=Domínio, 2=Tema, 3=Controlo
 
     """
 
@@ -92,15 +92,15 @@ class FrameworkLevel(TimeStampedModel):
 
 
 
-    # nÃ­vel numÃ©rico para mapear dados existentes
+    # nível numérico para mapear dados existentes
 
     level = models.PositiveSmallIntegerField()  # 1..n
 
 
 
-    # significado/label do nÃ­vel
+    # significado/label do nível
 
-    name = models.CharField(max_length=100)      # ex: DomÃ­nio, Categoria...
+    name = models.CharField(max_length=100)      # ex: Domínio, Categoria...
 
     description = models.TextField(blank=True, default="")
 
@@ -194,7 +194,7 @@ class FrameworkSection(TimeStampedModel):
 
         if self.parent and self.parent.framework_id != self.framework_id:
 
-            raise ValidationError("A secÃ§Ã£o parent tem de pertencer Ã  mesma framework.")
+            raise ValidationError("A secção parent tem de pertencer à mesma framework.")
 
 
 
@@ -206,7 +206,7 @@ class FrameworkProfile(TimeStampedModel):
 
     """
 
-    Baseline/Target/Regulatory, com maturidade configurÃ¡vel por profile.
+    Baseline/Target/Regulatory, com maturidade configurável por profile.
 
     """
 
@@ -228,7 +228,7 @@ class FrameworkProfile(TimeStampedModel):
 
     maturity_model = models.CharField(max_length=100, blank=True)  # ex: "CMMI", "NIST Tiers", "Custom"
 
-    max_level = models.PositiveSmallIntegerField(default=5)  # configurÃ¡vel
+    max_level = models.PositiveSmallIntegerField(default=5)  # configurável
 
 
 

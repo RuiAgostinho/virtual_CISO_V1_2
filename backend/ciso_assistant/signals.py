@@ -5,7 +5,8 @@ from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from ciso_assistant.services.knowledge_ingestion import KnowledgeIngestionService
-from governance.models import ComplianceGap, Policy, PolicyEvidence, PolicySection, Procedure, TechnicalRegulation
+from governance.models import ComplianceGap, Control, Policy, PolicyEvidence, PolicySection, Procedure, TechnicalRegulation
+from governance.models.mechanism import Mechanism, SuggestedMechanism
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,14 @@ def schedule_policy_evidence_index(evidence_id):
 
 def schedule_compliance_gap_index(gap_id):
     transaction.on_commit(lambda: KnowledgeIngestionService.upsert_compliance_gap(gap_id))
+
+
+def schedule_control_index(control_id):
+    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_control(control_id))
+
+
+def schedule_mechanism_index(mechanism_id):
+    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_mechanism(mechanism_id))
 
 
 @receiver(post_save, sender=Policy)
@@ -106,3 +115,41 @@ def index_compliance_gap_after_save(sender, instance, **kwargs):
 @receiver(post_delete, sender=ComplianceGap)
 def delete_compliance_gap_chunk_after_delete(sender, instance, **kwargs):
     transaction.on_commit(lambda: KnowledgeIngestionService.delete_compliance_gap(instance.id))
+
+
+# --- Control and Mechanism: incremental indexing ------------------------------
+# Asset and Vulnerability are deliberately excluded: they are imported in bulk by
+# scanners / network discovery, so a synchronous per-row embedding call would be
+# prohibitively slow. They remain on the `ingest_knowledge` management command.
+
+
+@receiver(post_save, sender=Control)
+def index_control_after_save(sender, instance, **kwargs):
+    schedule_control_index(instance.id)
+
+
+@receiver(post_delete, sender=Control)
+def delete_control_chunk_after_delete(sender, instance, **kwargs):
+    transaction.on_commit(lambda: KnowledgeIngestionService.delete_control(instance.id))
+
+
+@receiver(post_save, sender=Mechanism)
+def index_mechanism_after_save(sender, instance, **kwargs):
+    schedule_mechanism_index(instance.id)
+
+
+@receiver(post_delete, sender=Mechanism)
+def delete_mechanism_chunk_after_delete(sender, instance, **kwargs):
+    transaction.on_commit(lambda: KnowledgeIngestionService.delete_mechanism(instance.id))
+
+
+@receiver(post_save, sender=SuggestedMechanism)
+def reindex_mechanism_after_suggested_control_save(sender, instance, **kwargs):
+    # A mechanism chunk embeds its linked controls, so a change to the
+    # SuggestedMechanism link table must re-index the parent mechanism.
+    schedule_mechanism_index(instance.mechanism_id)
+
+
+@receiver(post_delete, sender=SuggestedMechanism)
+def reindex_mechanism_after_suggested_control_delete(sender, instance, **kwargs):
+    schedule_mechanism_index(instance.mechanism_id)

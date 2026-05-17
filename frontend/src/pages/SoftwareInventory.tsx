@@ -61,15 +61,15 @@ export default function SoftwareInventory() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-700">Gestao de ativos</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Inventario de software</h1>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">Gestao de ativos</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Inventario de software</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
               Software consolidado por versao, fabricante, ativos afetados e exposicao a vulnerabilidades.
             </p>
           </div>
           <button
             onClick={load}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:border-cyan-200 hover:text-cyan-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-cyan-200 hover:text-cyan-700"
           >
             <RefreshCw className="h-4 w-4" />
             Atualizar
@@ -80,23 +80,23 @@ export default function SoftwareInventory() {
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Boxes className="h-5 w-5 text-cyan-700" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.total}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Pacotes</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.total}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Pacotes</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Bug className="h-5 w-5 text-red-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.vulnerable}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Com CVE</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.vulnerable}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Com CVE</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <ShieldAlert className="h-5 w-5 text-orange-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.critical}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Criticos ou altos</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.critical}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Criticos ou altos</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-slate-700" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.assets}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Instalacoes</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.assets}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Instalacoes</p>
         </div>
       </section>
 
@@ -116,7 +116,7 @@ export default function SoftwareInventory() {
           </div>
           <button
             onClick={load}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-cyan-900"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-cyan-900"
           >
             <Search className="h-4 w-4" />
             Filtrar
@@ -138,21 +138,21 @@ export default function SoftwareInventory() {
                 className="grid gap-4 p-5 transition hover:bg-slate-50 lg:grid-cols-[1.4fr_1fr_.7fr_.7fr]"
               >
                 <div>
-                  <p className="text-base font-black text-slate-950">{item.name}</p>
+                  <p className="text-base font-bold text-slate-950">{item.name}</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
                     {[item.vendor, item.version, item.architecture].filter(Boolean).join(" / ") || "Sem fabricante ou versao"}
                   </p>
                 </div>
                 <div className="text-sm font-semibold text-slate-600">
                   <span className="text-slate-400">Origem</span>
-                  <p className="mt-1 font-black text-slate-800">{item.source || "manual"}</p>
+                  <p className="mt-1 font-bold text-slate-800">{item.source || "manual"}</p>
                 </div>
                 <div className="text-sm font-semibold text-slate-600">
                   <span className="text-slate-400">Ativos</span>
-                  <p className="mt-1 font-black text-slate-800">{item.assets_count || 0}</p>
+                  <p className="mt-1 font-bold text-slate-800">{item.assets_count || 0}</p>
                 </div>
                 <div className="flex items-center justify-start lg:justify-end">
-                  <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-widest ${severityTone(item.max_severity)}`}>
+                  <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${severityTone(item.max_severity)}`}>
                     {item.max_severity || "None"}
                   </span>
                 </div>

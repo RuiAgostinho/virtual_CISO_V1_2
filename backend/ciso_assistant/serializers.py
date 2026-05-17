@@ -14,7 +14,7 @@ class ChatRequestSerializer(serializers.Serializer):
 
         default=list,
 
-        help_text="Lista opcional do histÃ³rico de mensagens anteriores"
+        help_text="Lista opcional do histórico de mensagens anteriores"
 
     )
 

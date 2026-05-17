@@ -212,7 +212,7 @@ export default function ComplianceGaps() {
     return (
       <div className="flex h-full min-h-[50vh] flex-col items-center justify-center p-6 text-slate-400">
         <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <span className="text-sm font-bold uppercase tracking-widest">A carregar motor de conformidade...</span>
+        <span className="text-sm font-bold uppercase tracking-wide">A carregar motor de conformidade...</span>
       </div>
     );
   }
@@ -222,7 +222,7 @@ export default function ComplianceGaps() {
       <div className="mx-auto max-w-5xl p-8">
         <div className="flex min-h-[30vh] flex-col items-center justify-center rounded-3xl border border-red-100 bg-red-50 p-6 text-red-600">
           <ShieldAlert className="mb-4 h-12 w-12" />
-          <h2 className="mb-2 text-xl font-black">Erro de comunicacao</h2>
+          <h2 className="mb-2 text-xl font-bold">Erro de comunicacao</h2>
           <p className="text-sm font-medium">{error}</p>
           <button
             onClick={() => loadData()}
@@ -240,7 +240,7 @@ export default function ComplianceGaps() {
       <div className="mx-auto max-w-5xl p-8">
         <div className="flex flex-col items-center rounded-3xl border border-slate-100 bg-slate-50 p-12 text-center text-slate-500">
           <LayoutDashboard className="mb-4 h-16 w-16 text-slate-300" />
-          <h2 className="mb-2 text-2xl font-black text-slate-900">Nenhum dado disponivel</h2>
+          <h2 className="mb-2 text-2xl font-bold text-slate-900">Nenhum dado disponivel</h2>
           <p className="text-sm">
             O Compliance Gap Engine ainda nao avaliou nenhuma framework ou nao existem controlos ativos na plataforma.
           </p>
@@ -264,12 +264,12 @@ export default function ComplianceGaps() {
       <header className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
               <Sparkles className="h-3.5 w-3.5" />
               Motor de analise de desvios
             </span>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Compliance gaps</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Compliance gaps</h1>
               <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-slate-500">
                 Painel operacional para transformar controlos em falta em mecanismos, evidencias e decisoes rastreaveis.
               </p>
@@ -278,7 +278,7 @@ export default function ComplianceGaps() {
           <button
             onClick={runAnalysis}
             disabled={analyzing}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {analyzing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
             {analyzing ? "A recalcular..." : "Recalcular motor"}
@@ -302,14 +302,14 @@ export default function ComplianceGaps() {
         <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {selectedFrameworkScore ? `${selectedFrameworkScore.framework_code} ${selectedFrameworkScore.version || ""}` : "Conformidade global"}
               </p>
               <div className="mt-4 flex items-end gap-3">
-                <span className={`text-6xl font-black tracking-tight ${summary.score >= 80 ? "text-emerald-400" : summary.score >= 50 ? "text-amber-300" : "text-red-400"}`}>
+                <span className={`text-6xl font-bold tracking-tight ${summary.score >= 80 ? "text-emerald-400" : summary.score >= 50 ? "text-amber-300" : "text-red-400"}`}>
                   {formatPercent(summary.score)}
                 </span>
-                <span className="pb-3 text-xs font-bold uppercase tracking-widest text-slate-500">score</span>
+                <span className="pb-3 text-xs font-bold uppercase tracking-wide text-slate-500">score</span>
               </div>
             </div>
             <ShieldCheck className="h-12 w-12 text-slate-700" />
@@ -320,7 +320,7 @@ export default function ComplianceGaps() {
           </p>
 
           <div className="mt-6">
-            <div className="mb-2 flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
               <span>Desvio</span>
               <span>Conformidade</span>
             </div>
@@ -341,8 +341,8 @@ export default function ComplianceGaps() {
 
       <section className="space-y-4">
         <div className="flex flex-col gap-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Frameworks avaliadas</p>
-          <h2 className="text-xl font-black text-slate-950">Score operacional por referencial</h2>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Frameworks avaliadas</p>
+          <h2 className="text-xl font-bold text-slate-950">Score operacional por referencial</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {measuredFrameworks.map((framework) => (
@@ -359,14 +359,14 @@ export default function ComplianceGaps() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                     {framework.framework_code} {framework.version ? `| ${framework.version}` : ""}
                   </p>
-                  <h3 className="mt-2 truncate text-base font-black text-slate-950" title={framework.framework_name}>
+                  <h3 className="mt-2 truncate text-base font-bold text-slate-950" title={framework.framework_name}>
                     {framework.framework_name}
                   </h3>
                 </div>
-                <span className={`shrink-0 text-3xl font-black tracking-tight ${scoreClass(framework.score)}`}>
+                <span className={`shrink-0 text-3xl font-bold tracking-tight ${scoreClass(framework.score)}`}>
                   {formatPercent(framework.score)}
                 </span>
               </div>
@@ -388,8 +388,8 @@ export default function ComplianceGaps() {
       <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fila de trabalho</p>
-            <h2 className="mt-1 text-lg font-black text-slate-950">Gaps a tratar</h2>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Fila de trabalho</p>
+            <h2 className="mt-1 text-lg font-bold text-slate-950">Gaps a tratar</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.4fr_1fr_auto] xl:w-[820px]">
             <div className="relative">
@@ -422,7 +422,7 @@ export default function ComplianceGaps() {
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
             >
               <Filter className="h-4 w-4" />
               Limpar
@@ -443,7 +443,7 @@ export default function ComplianceGaps() {
                 setStatusFilter(item.value);
                 setPage(1);
               }}
-              className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
                 statusFilter === item.value
                   ? "border-slate-950 bg-slate-950 text-white"
                   : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:text-slate-900"
@@ -460,7 +460,7 @@ export default function ComplianceGaps() {
           {gaps.length === 0 ? (
             <div className="rounded-3xl border border-slate-100 bg-white p-10 text-center shadow-sm">
               <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" />
-              <h3 className="mt-4 text-lg font-black text-slate-950">Sem gaps para os filtros atuais</h3>
+              <h3 className="mt-4 text-lg font-bold text-slate-950">Sem gaps para os filtros atuais</h3>
               <p className="mt-2 text-sm font-semibold text-slate-500">Ajuste os filtros ou reexecute a analise de conformidade.</p>
             </div>
           ) : (
@@ -476,15 +476,15 @@ export default function ComplianceGaps() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(gap.status)}`}>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(gap.status)}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${statusDot(gap.status)}`} />
                         {statusLabel(gap.status)}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {gap.framework_code} {gap.framework_version}
                       </span>
                     </div>
-                    <h3 className="mt-3 text-base font-black text-slate-950">
+                    <h3 className="mt-3 text-base font-bold text-slate-950">
                       {gap.control_code} - {gap.control_title}
                     </h3>
                     <p className="mt-2 line-clamp-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
@@ -551,9 +551,9 @@ function MetricCard({
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between">
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>{icon}</div>
-        <span className="text-3xl font-black tracking-tighter text-slate-900">{value}</span>
+        <span className="text-3xl font-bold tracking-tighter text-slate-900">{value}</span>
       </div>
-      <h3 className={`text-sm font-black uppercase tracking-widest ${textTones[tone]}`}>{label}</h3>
+      <h3 className={`text-sm font-bold uppercase tracking-wide ${textTones[tone]}`}>{label}</h3>
       <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">{text}</p>
     </div>
   );
@@ -562,8 +562,8 @@ function MetricCard({
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
+      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
 }
@@ -596,7 +596,7 @@ function PaginationControls({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
           >
             {[10, 25, 50, 100].map((size) => (
               <option key={size} value={size}>{size}</option>
@@ -613,7 +613,7 @@ function PaginationControls({
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-xs font-black uppercase tracking-widest text-slate-600">
+          <span className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
             {page} / {totalPages}
           </span>
           <button
@@ -636,7 +636,7 @@ function GapActionPanel({ gap }: { gap: ComplianceGapRecord | null }) {
     return (
       <aside className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <ListChecks className="h-10 w-10 text-slate-300" />
-        <h3 className="mt-4 text-lg font-black text-slate-950">Selecione um gap</h3>
+        <h3 className="mt-4 text-lg font-bold text-slate-950">Selecione um gap</h3>
         <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
           Ao selecionar um controlo, o painel mostra a evidencia minima, a proxima acao e um prompt preparado para o Virtual CISO.
         </p>
@@ -648,10 +648,10 @@ function GapActionPanel({ gap }: { gap: ComplianceGapRecord | null }) {
     <aside className="sticky top-6 self-start rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plano de acao do gap</p>
-          <h3 className="mt-2 text-xl font-black leading-tight text-slate-950">{gap.control_code}</h3>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Plano de acao do gap</p>
+          <h3 className="mt-2 text-xl font-bold leading-tight text-slate-950">{gap.control_code}</h3>
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(gap.status)}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(gap.status)}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${statusDot(gap.status)}`} />
           {statusLabel(gap.status)}
         </span>
@@ -679,14 +679,14 @@ function GapActionPanel({ gap }: { gap: ComplianceGapRecord | null }) {
 
       {gap.notes && (
         <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notas do motor</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Notas do motor</p>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-600">{gap.notes}</p>
         </div>
       )}
 
       <Link
         to={`/ciso-assistant?q=${encodeURIComponent(assistantPrompt(gap))}`}
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700"
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700"
       >
         <MessageCircle className="h-4 w-4" />
         Perguntar ao Virtual CISO
@@ -702,7 +702,7 @@ function ActionStep({ icon, label, text }: { icon: ReactNode; label: string; tex
         {icon}
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
         <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-600">{text}</p>
       </div>
     </div>

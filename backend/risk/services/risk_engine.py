@@ -58,12 +58,12 @@ class RiskEngineService:
         # 4. Generate Explanation
         factors_text = []
         if cvss > 7.0: factors_text.append("severidade CVSS elevada")
-        if epss > 0.5: factors_text.append("probabilidade de exploraÃ§Ã£o (EPSS) ativa")
+        if epss > 0.5: factors_text.append("probabilidade de exploração (EPSS) ativa")
         if asset_crit >= 4: factors_text.append("elevada criticidade do ativo")
-        if asset_exp >= 4: factors_text.append("exposiÃ§Ã£o direta Ã  rede pÃºblica")
-        if asset_dep >= 4: factors_text.append("forte dependÃªncia de outros sistemas")
+        if asset_exp >= 4: factors_text.append("exposição direta à rede pública")
+        if asset_dep >= 4: factors_text.append("forte dependência de outros sistemas")
 
-        explanation = f"Risco {level.label} ({int(risk_score)}/100) devido a: " + ", ".join(factors_text) + "." if factors_text else f"Risco calculado em {int(risk_score)}/100 baseado em fatores padrÃ£o de negÃ³cio."
+        explanation = f"Risco {level.label} ({int(risk_score)}/100) devido a: " + ", ".join(factors_text) + "." if factors_text else f"Risco calculado em {int(risk_score)}/100 baseado em fatores padrão de negócio."
 
         # 5. Create or Update Risk Object
         risk, created = Risk.objects.update_or_create(
@@ -84,8 +84,8 @@ class RiskEngineService:
             ("Severidade (CVSS)", cvss, w_cvss, n_cvss * w_cvss),
             ("Explorabilidade (EPSS)", epss, w_epss, n_epss * w_epss),
             ("Criticidade do Ativo", asset.criticality, w_crit, n_crit * w_crit),
-            ("ExposiÃ§Ã£o", asset_exp, w_exp, n_exp * w_exp),
-            ("Valor e DependÃªncia", (asset_val + asset_dep)/2, w_other, n_other * w_other),
+            ("Exposição", asset_exp, w_exp, n_exp * w_exp),
+            ("Valor e Dependência", (asset_val + asset_dep)/2, w_other, n_other * w_other),
         ]
         
         for name, val, w, cont in factors:
@@ -121,8 +121,8 @@ class RiskEngineService:
             defaults={
                 'overall_score': avg_score,
                 'overall_level': level,
-                'summary': f"Este ativo apresenta {risks.count()} riscos em aberto com uma mÃ©dia de severidade de {int(avg_score)}/100.",
-                'recommendations': "Recomenda-se priorizar a correÃ§Ã£o das vulnerabilidades crÃ­ticas e rever os controlos de exposiÃ§Ã£o."
+                'summary': f"Este ativo apresenta {risks.count()} riscos em aberto com uma média de severidade de {int(avg_score)}/100.",
+                'recommendations': "Recomenda-se priorizar a correção das vulnerabilidades críticas e rever os controlos de exposição."
             }
         )
         return assessment

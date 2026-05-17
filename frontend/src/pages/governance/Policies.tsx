@@ -70,18 +70,18 @@ export default function Policies() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Governo documental</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Politicas de seguranca</h1>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Governo documental</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Politicas de seguranca</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
               Corpo normativo com estado, donos, controlos associados, mecanismos de implementacao e score evidenciavel.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-700">
+            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>
-            <Link to="/governance/policies/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-800">
+            <Link to="/governance/policies/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
               <FilePlus2 className="h-4 w-4" />
               Nova politica
             </Link>
@@ -92,23 +92,23 @@ export default function Policies() {
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <BookOpen className="h-5 w-5 text-indigo-700" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.total}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Politicas</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.total}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Politicas</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.active}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Ativas</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.active}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Ativas</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.review}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Em revisao</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.review}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Em revisao</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <FileText className="h-5 w-5 text-slate-700" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.averageScore}%</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Score medio</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.averageScore}%</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Score medio</p>
         </div>
       </section>
 
@@ -133,7 +133,7 @@ export default function Policies() {
             <option value="review">Em revisao</option>
             <option value="obsolete">Obsoleta</option>
           </select>
-          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-800">
+          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
             Filtrar
           </button>
         </div>
@@ -143,7 +143,7 @@ export default function Policies() {
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
             {loading ? "A carregar..." : `${policies.length} politicas encontradas`}
           </p>
         </div>
@@ -153,32 +153,32 @@ export default function Policies() {
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusTone(policy.status)}`}>
+                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(policy.status)}`}>
                       {statusLabel(policy.status)}
                     </span>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {policy.code || "SEM-CODIGO"}
                     </span>
                   </div>
-                  <h2 className="mt-3 text-base font-black text-slate-950">{policy.title}</h2>
+                  <h2 className="mt-3 text-base font-bold text-slate-950">{policy.title}</h2>
                   <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{policy.description || policy.objective || "Sem descricao."}</p>
                 </div>
                 <div className="grid grid-cols-4 gap-3 text-center sm:min-w-[460px]">
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{policy.control_count || 0}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Controlos</p>
+                    <p className="text-lg font-bold text-slate-950">{policy.control_count || 0}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Controlos</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{policy.mechanism_count || 0}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Mecanismos</p>
+                    <p className="text-lg font-bold text-slate-950">{policy.mechanism_count || 0}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Mecanismos</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{Math.round(Number(policy.compliance_score || 0))}%</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Score</p>
+                    <p className="text-lg font-bold text-slate-950">{Math.round(Number(policy.compliance_score || 0))}%</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Score</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-sm font-black text-slate-950">{formatDate(policy.next_review_date)}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Revisao</p>
+                    <p className="text-sm font-bold text-slate-950">{formatDate(policy.next_review_date)}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Revisao</p>
                   </div>
                 </div>
               </div>

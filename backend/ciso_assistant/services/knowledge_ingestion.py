@@ -2,7 +2,9 @@ import logging
 
 from ciso_assistant.models import KnowledgeChunk
 from ciso_assistant.services.retrieval.embedding_service import EmbeddingService
-from governance.models import ComplianceGap, Policy, PolicyEvidence, Procedure, TechnicalRegulation
+from governance.models import ComplianceGap, Control, Policy, PolicyEvidence, Procedure, TechnicalRegulation
+from governance.models.mechanism import Mechanism
+from risk.models import Asset, Vulnerability
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +52,13 @@ class KnowledgeIngestionService:
         control_code=None,
         metadata=None,
     ):
+        # title and source_ref map to CharField(max_length=255); some control
+        # titles ("{code} - {title}") overflow that column, so clip both.
         return KnowledgeChunk.objects.update_or_create(
             source_type=source_type,
-            source_ref=str(source_ref),
+            source_ref=str(source_ref)[:255],
             defaults={
-                "title": title,
+                "title": (title or "")[:255],
                 "content": text,
                 "chunk_text": text,
                 "embedding": embedding,
@@ -419,3 +423,253 @@ class KnowledgeIngestionService:
     def delete_compliance_gap(cls, gap_id) -> int:
         deleted, _ = KnowledgeChunk.objects.filter(source_type="compliance_gap", source_ref=str(gap_id)).delete()
         return deleted
+
+    @classmethod
+    def build_control_text(cls, control: Control) -> str:
+        framework = f"{control.framework.code} {control.framework.version}"
+        return (
+            f"Controlo: {control.code} - {control.title}. "
+            f"Framework: {framework}. "
+            f"Descricao: {control.description}. "
+            f"Orientacao de implementacao: {cls.label(control.implementation_guidance)}. "
+            f"Obrigatorio: {'sim' if control.is_mandatory else 'nao'}."
+        )
+
+    @classmethod
+    def upsert_control(cls, control_or_id) -> bool:
+        try:
+            if isinstance(control_or_id, Control):
+                control = control_or_id
+            else:
+                control = Control.objects.select_related("framework").get(id=control_or_id)
+
+            # Mirror the bulk command: only ACTIVE controls belong in the RAG
+            # index. A control that became DEPRECATED has its chunk removed.
+            if control.status != Control.Status.ACTIVE:
+                removed = cls.delete_control(control.id)
+                if removed:
+                    logger.info("[RAG_INGESTION] Control %s not ACTIVE - chunk removed", control.code)
+                return True
+
+            framework = f"{control.framework.code} {control.framework.version}"
+            text = cls.build_control_text(control)
+            embedding = cls.embed(text, f"{framework}:{control.code}")
+            if not embedding:
+                logger.error(
+                    "[RAG_INGESTION] Control %s NOT indexed - embedding failed; "
+                    "RAG chunk is now stale relative to the database.",
+                    control.code,
+                )
+                return False
+
+            cls.save_chunk(
+                source_type="control",
+                source_ref=str(control.id),
+                title=f"{control.code} - {control.title}",
+                text=text,
+                embedding=embedding,
+                framework=framework,
+                control_code=control.code,
+                metadata={
+                    "control_id": str(control.id),
+                    "framework_code": control.framework.code,
+                    "framework_version": control.framework.version,
+                },
+            )
+            logger.info("[RAG_INGESTION] Control indexed: %s:%s", framework, control.code)
+            return True
+        except Control.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Control not found for indexing: %s", control_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index control: %s", control_or_id)
+            return False
+
+    @classmethod
+    def delete_control(cls, control_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="control", source_ref=str(control_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_mechanism_text(cls, mechanism: Mechanism) -> tuple[str, list[str]]:
+        linked_controls = []
+        for relation in mechanism.suggested_controls.all()[:10]:
+            control = relation.control
+            linked_controls.append(f"{control.framework.code} {control.framework.version}:{control.code}")
+        text = (
+            f"Mecanismo: {mechanism.title}. "
+            f"Tipo: {mechanism.mechanism_type}. "
+            f"Descricao: {cls.label(mechanism.description)}. "
+            f"Controlos/frameworks relacionados: "
+            f"{', '.join(linked_controls) if linked_controls else 'Nao definido'}."
+        )
+        return text, linked_controls
+
+    @classmethod
+    def upsert_mechanism(cls, mechanism_or_id) -> bool:
+        try:
+            if isinstance(mechanism_or_id, Mechanism):
+                mechanism = mechanism_or_id
+            else:
+                mechanism = Mechanism.objects.prefetch_related(
+                    "suggested_controls__control__framework"
+                ).get(id=mechanism_or_id)
+
+            text, linked_controls = cls.build_mechanism_text(mechanism)
+            embedding = cls.embed(text, mechanism.title)
+            if not embedding:
+                logger.error(
+                    "[RAG_INGESTION] Mechanism '%s' NOT indexed - embedding failed; "
+                    "RAG chunk is now stale relative to the database.",
+                    mechanism.title,
+                )
+                return False
+
+            cls.save_chunk(
+                source_type="mechanism",
+                source_ref=str(mechanism.id),
+                title=mechanism.title,
+                text=text,
+                embedding=embedding,
+                metadata={
+                    "mechanism_id": str(mechanism.id),
+                    "mechanism_type": mechanism.mechanism_type,
+                    "linked_controls": linked_controls,
+                },
+            )
+            logger.info("[RAG_INGESTION] Mechanism indexed: %s", mechanism.title)
+            return True
+        except Mechanism.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Mechanism not found for indexing: %s", mechanism_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index mechanism: %s", mechanism_or_id)
+            return False
+
+    @classmethod
+    def delete_mechanism(cls, mechanism_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="mechanism", source_ref=str(mechanism_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_asset_text(cls, asset: Asset) -> str:
+        return (
+            f"Ativo: {asset.name}. "
+            f"Tipo: {cls.label(asset.asset_type)}. "
+            f"Categoria: {cls.label(asset.category)}. "
+            f"Criticidade: {cls.label(asset.criticality)}. "
+            f"Exposicao: {cls.label(asset.exposure)}. "
+            f"IP Wazuh: {cls.label(asset.wazuh_ip)}. "
+            f"Localizacao: {cls.label(asset.location)}. "
+            f"Ambiente: {cls.label(asset.environment)}. "
+            f"Servico suportado: {cls.label(asset.supported_service)}. "
+            f"Processo de negocio: {cls.label(asset.business_process)}. "
+            f"Descricao: {cls.label(asset.description)}. "
+            f"Origem de descoberta: {cls.label(asset.source)}."
+        )
+
+    @classmethod
+    def upsert_asset(cls, asset_or_id) -> bool:
+        """
+        Index an asset. Used only by the bulk command and the admin bulk
+        runner: assets are imported in volume by scanners, so there is
+        deliberately no synchronous post_save signal for them.
+        """
+        try:
+            if isinstance(asset_or_id, Asset):
+                asset = asset_or_id
+            else:
+                asset = Asset.objects.select_related(
+                    "asset_type", "category", "location", "environment", "network_segment"
+                ).get(id=asset_or_id)
+
+            text = cls.build_asset_text(asset)
+            embedding = cls.embed(text, asset.name)
+            if not embedding:
+                logger.error(
+                    "[RAG_INGESTION] Asset '%s' NOT indexed - embedding failed; "
+                    "RAG chunk is now stale relative to the database.",
+                    asset.name,
+                )
+                return False
+
+            cls.save_chunk(
+                source_type="asset",
+                source_ref=str(asset.id),
+                title=asset.name,
+                text=text,
+                embedding=embedding,
+                metadata={
+                    "asset_id": str(asset.id),
+                    "criticality": asset.criticality,
+                    "type": cls.label(asset.asset_type),
+                    "wazuh_ip": asset.wazuh_ip,
+                },
+            )
+            logger.info("[RAG_INGESTION] Asset indexed: %s", asset.name)
+            return True
+        except Asset.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Asset not found for indexing: %s", asset_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index asset: %s", asset_or_id)
+            return False
+
+    @classmethod
+    def build_vulnerability_text(cls, vuln: Vulnerability) -> str:
+        return (
+            f"Vulnerabilidade: {vuln.cve_id}. "
+            f"Severidade: {vuln.severity}. "
+            f"CVSS: {cls.label(vuln.cvss_score)}. "
+            f"Exploitability CVSS: {cls.label(vuln.cvss_exploitability_score)}. "
+            f"EPSS: {cls.label(vuln.epss_score)}. "
+            f"Percentil EPSS: {cls.label(vuln.epss_percentile)}. "
+            f"CISA KEV: {'sim' if vuln.is_in_kev else 'nao'}. "
+            f"Descricao tecnica: {cls.label(vuln.description)}. "
+            f"Mitigacao: {cls.label(vuln.mitigation)}."
+        )
+
+    @classmethod
+    def upsert_vulnerability(cls, vuln_or_id) -> bool:
+        """
+        Index a vulnerability. Like assets, vulnerabilities are bulk-imported
+        (scanners / NVD sync) and have no synchronous signal: only the bulk
+        command and the admin runner call this.
+        """
+        try:
+            if isinstance(vuln_or_id, Vulnerability):
+                vuln = vuln_or_id
+            else:
+                vuln = Vulnerability.objects.get(id=vuln_or_id)
+
+            text = cls.build_vulnerability_text(vuln)
+            embedding = cls.embed(text, vuln.cve_id)
+            if not embedding:
+                logger.error(
+                    "[RAG_INGESTION] Vulnerability %s NOT indexed - embedding failed; "
+                    "RAG chunk is now stale relative to the database.",
+                    vuln.cve_id,
+                )
+                return False
+
+            cls.save_chunk(
+                source_type="vulnerability",
+                source_ref=vuln.cve_id,
+                title=vuln.cve_id,
+                text=text,
+                embedding=embedding,
+                metadata={
+                    "vulnerability_id": str(vuln.id),
+                    "cvss": float(vuln.cvss_score) if vuln.cvss_score else 0.0,
+                    "severity": vuln.severity,
+                    "epss": float(vuln.epss_score) if vuln.epss_score else 0.0,
+                },
+            )
+            logger.info("[RAG_INGESTION] Vulnerability indexed: %s", vuln.cve_id)
+            return True
+        except Vulnerability.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Vulnerability not found for indexing: %s", vuln_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index vulnerability: %s", vuln_or_id)
+            return False

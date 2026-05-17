@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 
 from ciso_assistant.models import KnowledgeChunk
 from ciso_assistant.services.knowledge_ingestion import KnowledgeIngestionService
-from ciso_assistant.services.retrieval.embedding_service import EmbeddingService
 from governance.models import ComplianceGap, Control, Policy, PolicyEvidence, Procedure, TechnicalRegulation
 from governance.models.mechanism import Mechanism
 from risk.models import Asset, Vulnerability
@@ -22,42 +21,6 @@ class Command(BaseCommand):
         parser.add_argument("--control-limit", type=int, default=None)
         parser.add_argument("--mechanism-limit", type=int, default=None)
         parser.add_argument("--clear", action="store_true", help="Remove chunks existentes antes da ingestao.")
-
-    @staticmethod
-    def _label(value):
-        return str(value) if value not in (None, "") else "Nao definido"
-
-    @staticmethod
-    def _expected_dimensions():
-        return getattr(KnowledgeChunk._meta.get_field("embedding"), "dimensions", None)
-
-    def _embed(self, text, title):
-        embedding = EmbeddingService.get_embedding(text)
-        expected = self._expected_dimensions()
-        if not embedding:
-            self.stdout.write(self.style.WARNING(f"Falha ao gerar embedding: {title}"))
-            return None
-        if expected and len(embedding) != expected:
-            self.stdout.write(self.style.ERROR(
-                f"Dimensao invalida em {title}: recebido {len(embedding)}, esperado {expected}."
-            ))
-            return None
-        return embedding
-
-    def _save_chunk(self, *, source_type, source_ref, title, text, embedding, framework=None, control_code=None, metadata=None):
-        KnowledgeChunk.objects.update_or_create(
-            source_type=source_type,
-            source_ref=str(source_ref),
-            defaults={
-                "title": title,
-                "content": text,
-                "chunk_text": text,
-                "embedding": embedding,
-                "framework": framework,
-                "control_code": control_code,
-                "metadata_json": metadata or {},
-            },
-        )
 
     def handle(self, *args, **options):
         if options["clear"]:
@@ -93,39 +56,11 @@ class Command(BaseCommand):
 
         count = 0
         for asset in assets:
-            text = (
-                f"Ativo: {asset.name}. "
-                f"Tipo: {self._label(asset.asset_type)}. "
-                f"Categoria: {self._label(asset.category)}. "
-                f"Criticidade: {self._label(asset.criticality)}. "
-                f"Exposicao: {self._label(asset.exposure)}. "
-                f"IP Wazuh: {self._label(asset.wazuh_ip)}. "
-                f"Localizacao: {self._label(asset.location)}. "
-                f"Ambiente: {self._label(asset.environment)}. "
-                f"Servico suportado: {self._label(asset.supported_service)}. "
-                f"Processo de negocio: {self._label(asset.business_process)}. "
-                f"Descricao: {self._label(asset.description)}. "
-                f"Origem de descoberta: {self._label(asset.source)}."
-            )
-            embedding = self._embed(text, asset.name)
-            if not embedding:
-                continue
-
-            self._save_chunk(
-                source_type="asset",
-                source_ref=str(asset.id),
-                title=asset.name,
-                text=text,
-                embedding=embedding,
-                metadata={
-                    "asset_id": str(asset.id),
-                    "criticality": asset.criticality,
-                    "type": self._label(asset.asset_type),
-                    "wazuh_ip": asset.wazuh_ip,
-                },
-            )
-            count += 1
-            self.stdout.write(f"Injetado ativo: {asset.name}")
+            if KnowledgeIngestionService.upsert_asset(asset):
+                count += 1
+                self.stdout.write(f"Injetado ativo: {asset.name}")
+            else:
+                self.stdout.write(self.style.WARNING(f"Falha ao indexar ativo: {asset.name}"))
         return count
 
     def _ingest_policies(self, limit):
@@ -218,36 +153,11 @@ class Command(BaseCommand):
 
         count = 0
         for vuln in vulns:
-            text = (
-                f"Vulnerabilidade: {vuln.cve_id}. "
-                f"Severidade: {vuln.severity}. "
-                f"CVSS: {self._label(vuln.cvss_score)}. "
-                f"Exploitability CVSS: {self._label(vuln.cvss_exploitability_score)}. "
-                f"EPSS: {self._label(vuln.epss_score)}. "
-                f"Percentil EPSS: {self._label(vuln.epss_percentile)}. "
-                f"CISA KEV: {'sim' if vuln.is_in_kev else 'nao'}. "
-                f"Descricao tecnica: {self._label(vuln.description)}. "
-                f"Mitigacao: {self._label(vuln.mitigation)}."
-            )
-            embedding = self._embed(text, vuln.cve_id)
-            if not embedding:
-                continue
-
-            self._save_chunk(
-                source_type="vulnerability",
-                source_ref=vuln.cve_id,
-                title=vuln.cve_id,
-                text=text,
-                embedding=embedding,
-                metadata={
-                    "vulnerability_id": str(vuln.id),
-                    "cvss": float(vuln.cvss_score) if vuln.cvss_score else 0.0,
-                    "severity": vuln.severity,
-                    "epss": float(vuln.epss_score) if vuln.epss_score else 0.0,
-                },
-            )
-            count += 1
-            self.stdout.write(f"Injetada vulnerabilidade: {vuln.cve_id}")
+            if KnowledgeIngestionService.upsert_vulnerability(vuln):
+                count += 1
+                self.stdout.write(f"Injetada vulnerabilidade: {vuln.cve_id}")
+            else:
+                self.stdout.write(self.style.WARNING(f"Falha ao indexar vulnerabilidade: {vuln.cve_id}"))
         return count
 
     def _ingest_controls(self, limit):
@@ -259,34 +169,13 @@ class Command(BaseCommand):
 
         count = 0
         for control in controls:
-            framework = f"{control.framework.code} {control.framework.version}"
-            text = (
-                f"Controlo: {control.code} - {control.title}. "
-                f"Framework: {framework}. "
-                f"Descricao: {control.description}. "
-                f"Orientacao de implementacao: {self._label(control.implementation_guidance)}. "
-                f"Obrigatorio: {'sim' if control.is_mandatory else 'nao'}."
-            )
-            embedding = self._embed(text, f"{framework}:{control.code}")
-            if not embedding:
-                continue
-
-            self._save_chunk(
-                source_type="control",
-                source_ref=str(control.id),
-                title=f"{control.code} - {control.title}",
-                text=text,
-                embedding=embedding,
-                framework=framework,
-                control_code=control.code,
-                metadata={
-                    "control_id": str(control.id),
-                    "framework_code": control.framework.code,
-                    "framework_version": control.framework.version,
-                },
-            )
-            count += 1
-            self.stdout.write(f"Injetado controlo: {framework}:{control.code}")
+            if KnowledgeIngestionService.upsert_control(control):
+                count += 1
+                self.stdout.write(
+                    f"Injetado controlo: {control.framework.code} {control.framework.version}:{control.code}"
+                )
+            else:
+                self.stdout.write(self.style.WARNING(f"Falha ao indexar controlo: {control.code}"))
         return count
 
     def _ingest_mechanisms(self, limit):
@@ -296,33 +185,9 @@ class Command(BaseCommand):
 
         count = 0
         for mechanism in mechanisms:
-            linked_controls = []
-            for relation in mechanism.suggested_controls.all()[:10]:
-                control = relation.control
-                linked_controls.append(f"{control.framework.code} {control.framework.version}:{control.code}")
-
-            text = (
-                f"Mecanismo: {mechanism.title}. "
-                f"Tipo: {mechanism.mechanism_type}. "
-                f"Descricao: {self._label(mechanism.description)}. "
-                f"Controlos/frameworks relacionados: {', '.join(linked_controls) if linked_controls else 'Nao definido'}."
-            )
-            embedding = self._embed(text, mechanism.title)
-            if not embedding:
-                continue
-
-            self._save_chunk(
-                source_type="mechanism",
-                source_ref=str(mechanism.id),
-                title=mechanism.title,
-                text=text,
-                embedding=embedding,
-                metadata={
-                    "mechanism_id": str(mechanism.id),
-                    "mechanism_type": mechanism.mechanism_type,
-                    "linked_controls": linked_controls,
-                },
-            )
-            count += 1
-            self.stdout.write(f"Injetado mecanismo: {mechanism.title}")
+            if KnowledgeIngestionService.upsert_mechanism(mechanism):
+                count += 1
+                self.stdout.write(f"Injetado mecanismo: {mechanism.title}")
+            else:
+                self.stdout.write(self.style.WARNING(f"Falha ao indexar mecanismo: {mechanism.title}"))
         return count

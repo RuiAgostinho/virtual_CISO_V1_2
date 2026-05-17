@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 
-type User = { id: number; email: string; name?: string } | null;
+type User = { id: number; email: string; name?: string; is_staff?: boolean; is_superuser?: boolean } | null;
 
 
 type Ctx = {

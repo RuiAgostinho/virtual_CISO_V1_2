@@ -70,7 +70,7 @@ class Control(TimeStampedModel):
 
         if self.section and self.section.framework_id != self.framework_id:
 
-            raise ValidationError("A secÃ§Ã£o do controlo tem de pertencer Ã  mesma framework.")
+            raise ValidationError("A secção do controlo tem de pertencer à mesma framework.")
 
 
 

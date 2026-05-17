@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .api import (
-    FrameworkViewSet, ControlViewSet, MechanismViewSet, 
+    FrameworkViewSet, ControlViewSet, MechanismViewSet,
     ControlMechanismViewSet, ControlMappingViewSet, MechanismEvidenceViewSet,
     ComplianceGapViewSet,
     OrganizationContextViewSet, RegulatoryContextViewSet,
@@ -10,6 +10,11 @@ from .api import (
     PolicyAssessmentViewSet, PolicySectionViewSet, TechnicalRegulationViewSet,
     ProcedureViewSet, DecisionRecordViewSet, ControlAssessmentViewSet,
     AssessmentEvidenceViewSet, AssessmentFindingViewSet, ImprovementActionViewSet
+)
+from .views_decision_context import (
+    DecisionContextView,
+    RecommendDecisionView,
+    RegisterDecisionView,
 )
 
 router = DefaultRouter()
@@ -40,5 +45,20 @@ router.register(r"decision-records", DecisionRecordViewSet, basename="decision-r
 
 urlpatterns = [
     path("", include(router.urls)),
+    path(
+        "decision-context/<uuid:occurrence_id>/",
+        DecisionContextView.as_view(),
+        name="decision-context",
+    ),
+    path(
+        "decision-context/<uuid:occurrence_id>/register/",
+        RegisterDecisionView.as_view(),
+        name="decision-context-register",
+    ),
+    path(
+        "decision-context/<uuid:occurrence_id>/recommend/",
+        RecommendDecisionView.as_view(),
+        name="decision-context-recommend",
+    ),
 ]
 

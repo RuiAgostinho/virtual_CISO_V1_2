@@ -1,4 +1,23 @@
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
+function resolveApiBase() {
+    const configured = import.meta.env.VITE_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:8000`;
+    const pageHost = window.location.hostname;
+
+    try {
+        const url = new URL(configured);
+        const localPage = pageHost === "localhost" || pageHost === "127.0.0.1";
+        const localApi = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+
+        if (localPage && localApi) {
+            url.hostname = pageHost;
+        }
+
+        return url.origin;
+    } catch {
+        return configured;
+    }
+}
+
+const API_BASE = resolveApiBase();
 
 
 
@@ -16,7 +35,7 @@ function getCookie(name: string) {
 
 
 
-// Pede o cookie csrftoken se ainda nÃ£o existir
+// Pede o cookie csrftoken se ainda não existir
 
 export async function ensureCsrf(): Promise<void> {
 
@@ -30,9 +49,35 @@ export async function ensureCsrf(): Promise<void> {
 
 
 
-// âœ… EXPORTA ISTO para poderes usar noutros ficheiros (controlsApi, etc.)
+// Refresh deduplicado: vários 401 concorrentes partilham uma única chamada de refresh.
+let refreshInFlight: Promise<boolean> | null = null;
 
-export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
+async function tryRefreshToken(): Promise<boolean> {
+    if (!refreshInFlight) {
+        refreshInFlight = (async () => {
+            try {
+                await ensureCsrf();
+                const res = await fetch(`${API_BASE}/api/auth/refresh/`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
+                });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        })();
+        refreshInFlight.finally(() => { refreshInFlight = null; });
+    }
+    return refreshInFlight;
+}
+
+// Endpoints de auth que NÃO despoletam refresh+retry (evita recursão infinita).
+const NO_REFRESH_PATHS = ["/api/auth/login/", "/api/auth/logout/", "/api/auth/refresh/"];
+
+// ✅ EXPORTA ISTO para poderes usar noutros ficheiros (controlsApi, etc.)
+
+export async function request<T>(path: string, opts: RequestInit = {}, _retried = false): Promise<T> {
 
     const method = (opts.method || "GET").toUpperCase();
 
@@ -74,9 +119,24 @@ export async function request<T>(path: string, opts: RequestInit = {}): Promise<
 
 
 
-    // Se o token expirou, volta ao /login
+    // 401: tenta renovar o access token via refresh e repete o pedido uma vez.
+    // Só termina a sessão se a renovação também falhar.
 
     if (res.status === 401) {
+
+        const skipRefresh = NO_REFRESH_PATHS.some((p) => path.startsWith(p));
+
+        if (!_retried && !skipRefresh) {
+
+            const refreshed = await tryRefreshToken();
+
+            if (refreshed) {
+
+                return request<T>(path, opts, true);
+
+            }
+
+        }
 
         try {
 
@@ -98,7 +158,7 @@ export async function request<T>(path: string, opts: RequestInit = {}): Promise<
 
         }
 
-        throw new Error("NÃ£o autorizado (401)");
+        throw new Error("Não autorizado (401)");
 
     }
 
@@ -114,7 +174,7 @@ export async function request<T>(path: string, opts: RequestInit = {}): Promise<
 
 
 
-    // Alguns endpoints podem devolver 204; tenta JSON sÃ³ se houver corpo
+    // Alguns endpoints podem devolver 204; tenta JSON só se houver corpo
 
     const ct = res.headers.get("content-type") || "";
 
@@ -130,7 +190,7 @@ export async function request<T>(path: string, opts: RequestInit = {}): Promise<
 
 export type LoginPayload = { email: string; password: string };
 
-export type LoginResponse = { user: { id: number; email: string; name?: string } };
+export type LoginResponse = { user: { id: number; email: string; name?: string; is_staff?: boolean; is_superuser?: boolean } };
 
 
 

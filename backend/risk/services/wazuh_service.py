@@ -98,7 +98,7 @@ class WazuhService:
 
         except Exception as e:
 
-            raise Exception(f"Erro na autenticaÃ§Ã£o Wazuh: {str(e)}")
+            raise Exception(f"Erro na autenticação Wazuh: {str(e)}")
 
 
 

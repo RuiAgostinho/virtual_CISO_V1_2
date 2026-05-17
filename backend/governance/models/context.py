@@ -5,7 +5,7 @@ from company.models.company import CompanyProfile
 class RegulatoryContext(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.OneToOneField(CompanyProfile, on_delete=models.CASCADE, related_name='regulatory_context')
-    nis2_classification = models.CharField(max_length=50, choices=[('Essential', 'Essencial'), ('Important', 'Importante'), ('Out of Scope', 'NÃ£o Abrangida'), ('Pending', 'Pendente')], default='Pending')
+    nis2_classification = models.CharField(max_length=50, choices=[('Essential', 'Essencial'), ('Important', 'Importante'), ('Out of Scope', 'Não Abrangida'), ('Pending', 'Pendente')], default='Pending')
     classification_criteria = models.TextField(blank=True, null=True)
     applicable_obligations = models.TextField(blank=True, null=True)
     competent_authority = models.CharField(max_length=255, blank=True, null=True)

@@ -1,10 +1,7 @@
-import uuid
-
 from django.db import models
 
 
 class AssetLocation(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
 
@@ -16,7 +13,6 @@ class AssetLocation(models.Model):
 
 
 class AssetEnvironment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
 
@@ -28,7 +24,6 @@ class AssetEnvironment(models.Model):
 
 
 class AssetInfrastructure(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
 

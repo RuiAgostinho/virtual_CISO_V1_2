@@ -6,7 +6,7 @@ class Policy(TimeStampedModel):
     class Status(models.TextChoices):
         DRAFT = 'draft', 'Rascunho'
         ACTIVE = 'active', 'Ativa'
-        REVIEW = 'review', 'Em RevisÃ£o'
+        REVIEW = 'review', 'Em Revisão'
         OBSOLETE = 'obsolete', 'Obsoleta'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -26,8 +26,8 @@ class Policy(TimeStampedModel):
     related_frameworks = models.ManyToManyField('governance.Framework', blank=True, related_name='managed_policies')
 
     class Meta:
-        verbose_name = "PolÃ­tica de SeguranÃ§a"
-        verbose_name_plural = "PolÃ­ticas de SeguranÃ§a"
+        verbose_name = "Política de Segurança"
+        verbose_name_plural = "Políticas de Segurança"
         ordering = ['code']
 
     def __str__(self):
@@ -36,15 +36,15 @@ class Policy(TimeStampedModel):
 
 class PolicyControl(models.Model):
     class Applicability(models.TextChoices):
-        MANDATORY = 'mandatory', 'ObrigatÃ³rio'
+        MANDATORY = 'mandatory', 'Obrigatório'
         RECOMMENDED = 'recommended', 'Recomendado'
-        NOT_APPLICABLE = 'not_applicable', 'NÃ£o AplicÃ¡vel'
+        NOT_APPLICABLE = 'not_applicable', 'Não Aplicável'
 
     class Priority(models.TextChoices):
         LOW = 'low', 'Baixa'
-        MEDIUM = 'medium', 'MÃ©dia'
+        MEDIUM = 'medium', 'Média'
         HIGH = 'high', 'Alta'
-        CRITICAL = 'critical', 'CrÃ­tica'
+        CRITICAL = 'critical', 'Crítica'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     policy = models.ForeignKey(Policy, on_delete=models.CASCADE, related_name='policy_controls')
@@ -65,17 +65,17 @@ class PolicyControl(models.Model):
 
 class ImplementationMechanism(TimeStampedModel):
     class MechanismType(models.TextChoices):
-        TECHNICAL = 'technical', 'TÃ©cnico'
+        TECHNICAL = 'technical', 'Técnico'
         PROCEDURAL = 'procedural', 'Procedimental'
         ORGANIZATIONAL = 'organizational', 'Organizacional'
         CONTRACTUAL = 'contractual', 'Contratual'
 
     class Status(models.TextChoices):
-        NOT_STARTED = 'not_started', 'NÃ£o Iniciado'
+        NOT_STARTED = 'not_started', 'Não Iniciado'
         IN_PROGRESS = 'in_progress', 'Em Progresso'
         IMPLEMENTED = 'implemented', 'Implementado'
         PARTIALLY_IMPLEMENTED = 'partially_implemented', 'Parcialmente Implementado'
-        NOT_APPLICABLE = 'not_applicable', 'NÃ£o AplicÃ¡vel'
+        NOT_APPLICABLE = 'not_applicable', 'Não Aplicável'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     policy_control = models.ForeignKey(PolicyControl, on_delete=models.CASCADE, related_name='mechanisms')
@@ -99,17 +99,17 @@ class ImplementationMechanism(TimeStampedModel):
 class PolicyEvidence(TimeStampedModel):
     class EvidenceType(models.TextChoices):
         DOCUMENT = 'document', 'Documento'
-        SCREENSHOT = 'screenshot', 'Captura de EcrÃ£'
-        CONFIGURATION = 'configuration', 'ConfiguraÃ§Ã£o'
+        SCREENSHOT = 'screenshot', 'Captura de Ecrã'
+        CONFIGURATION = 'configuration', 'Configuração'
         LOG = 'log', 'Log'
-        REPORT = 'report', 'RelatÃ³rio'
+        REPORT = 'report', 'Relatório'
         AUDIT_RECORD = 'audit_record', 'Registo de Auditoria'
         LINK = 'link', 'Link Externo'
 
     class Status(models.TextChoices):
-        VALID = 'valid', 'VÃ¡lida'
+        VALID = 'valid', 'Válida'
         EXPIRED = 'expired', 'Expirada'
-        PENDING_REVIEW = 'pending_review', 'Pendente de RevisÃ£o'
+        PENDING_REVIEW = 'pending_review', 'Pendente de Revisão'
         REJECTED = 'rejected', 'Rejeitada'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -132,8 +132,8 @@ class PolicyAssessment(TimeStampedModel):
     class OverallStatus(models.TextChoices):
         COMPLIANT = 'compliant', 'Conforme'
         PARTIALLY_COMPLIANT = 'partially_compliant', 'Parcialmente Conforme'
-        NON_COMPLIANT = 'non_compliant', 'NÃ£o Conforme'
-        NOT_ASSESSED = 'not_assessed', 'NÃ£o Avaliado'
+        NON_COMPLIANT = 'non_compliant', 'Não Conforme'
+        NOT_ASSESSED = 'not_assessed', 'Não Avaliado'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     policy = models.ForeignKey(Policy, on_delete=models.CASCADE, related_name='assessments')
@@ -158,8 +158,8 @@ class PolicySection(models.Model):
 
     class Meta:
         ordering = ['order']
-        verbose_name = "SecÃ§Ã£o de PolÃ­tica"
-        verbose_name_plural = "SecÃ§Ãµes de PolÃ­tica"
+        verbose_name = "Secção de Política"
+        verbose_name_plural = "Secções de Política"
 
     def __str__(self):
         return f"{self.policy.code} - {self.title}"

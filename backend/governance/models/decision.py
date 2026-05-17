@@ -14,6 +14,8 @@ class DecisionRecord(TimeStampedModel):
         ACCEPTED = "accepted", "Accepted"
         REJECTED = "rejected", "Rejected"
         DEFERRED = "deferred", "Deferred"
+        MITIGATE = "mitigate", "Mitigate"
+        TRANSFERRED = "transferred", "Transferred"
         CONVERTED_TO_ACTION = "converted_to_action", "Converted to Action"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

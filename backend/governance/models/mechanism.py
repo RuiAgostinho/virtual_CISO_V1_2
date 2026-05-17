@@ -14,7 +14,7 @@ class Mechanism(TimeStampedModel):
 
     """
 
-    Biblioteca de mecanismos reutilizÃ¡veis (e.g., 'MFA', 'Backups diÃ¡rios').
+    Biblioteca de mecanismos reutilizáveis (e.g., 'MFA', 'Backups diários').
 
     """
 
@@ -22,7 +22,7 @@ class Mechanism(TimeStampedModel):
 
         PROCESS = "Processo", "Processo"
 
-        TECHNICAL = "TÃ©cnico", "TÃ©cnico"
+        TECHNICAL = "Técnico", "Técnico"
 
         PEOPLE = "Pessoas", "Pessoas"
 
@@ -72,7 +72,7 @@ class SuggestedMechanism(TimeStampedModel):
 
     """
 
-    LigaÃ§Ã£o global sugerida entre um Mecanismo e um Controlo da Framework.
+    Ligação global sugerida entre um Mecanismo e um Controlo da Framework.
 
     Usado para filtrar a biblioteca ao adicionar mecanismos a um controlo.
 
@@ -112,21 +112,21 @@ class ControlMechanism(TimeStampedModel):
 
     """
 
-    LigaÃ§Ã£o de um Mecanismo a um Controlo (e estado da implementaÃ§Ã£o nessa ligaÃ§Ã£o).
+    Ligação de um Mecanismo a um Controlo (e estado da implementação nessa ligação).
 
     Isto permite ter o 'MFA' aplicado a 5 controlos, mas talvez o estado seja diferente,
 
-    ou entÃ£o o estado reflete a realidade da empresa.
+    ou então o estado reflete a realidade da empresa.
 
-    Para MVP, o status fica nesta tabela de ligaÃ§Ã£o.
+    Para MVP, o status fica nesta tabela de ligação.
 
     """
 
     class ImplementationStatus(models.TextChoices):
 
-        NOT_STARTED = "NÃ£o iniciado", "NÃ£o iniciado"
+        NOT_STARTED = "Não iniciado", "Não iniciado"
 
-        IN_PROGRESS = "Em implementaÃ§Ã£o", "Em implementaÃ§Ã£o"
+        IN_PROGRESS = "Em implementação", "Em implementação"
 
         IMPLEMENTED = "Implementado", "Implementado"
 
@@ -180,7 +180,7 @@ class MechanismEvidence(TimeStampedModel):
 
     """
 
-    EvidÃªncia fornecida para a implementaÃ§Ã£o de um mecanismo num controlo especÃ­fico.
+    Evidência fornecida para a implementação de um mecanismo num controlo específico.
 
     """
 

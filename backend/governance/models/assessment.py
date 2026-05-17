@@ -98,7 +98,7 @@ class ControlAssessment(TimeStampedModel):
 
         if self.profile and self.control and self.control.framework_id != self.profile.framework_id:
 
-            raise ValidationError("O controlo e o profile tÃªm de ser da mesma framework.")
+            raise ValidationError("O controlo e o profile têm de ser da mesma framework.")
 
         if self.profile and self.maturity_level is not None and self.maturity_level > self.profile.max_level:
 
@@ -108,7 +108,7 @@ class ControlAssessment(TimeStampedModel):
 
     def save(self, *args, **kwargs):
 
-        # garante validaÃ§Ã£o tambÃ©m em save() quando nÃ£o hÃ¡ forms
+        # garante validação também em save() quando não há forms
 
         self.full_clean()
 

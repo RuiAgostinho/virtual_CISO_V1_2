@@ -60,6 +60,8 @@ from .services.intel_service import IntelService
 
 from .services.risk_engine import RiskEngineService
 
+from .services.prioritization import VulnerabilityPrioritizationService
+
 
 
 class RiskViewSet(viewsets.ModelViewSet):
@@ -202,7 +204,7 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
 
         
 
-        # Inicia a sincronizaÃ§Ã£o de background via subprocesses
+        # Inicia a sincronização de background via subprocesses
 
         subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_assets'])
 
@@ -210,7 +212,7 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
 
         
 
-        return Response({"detail": "Processo de sincronizaÃ§Ã£o iniciado em background. A UI reportarÃ¡ os novos dados brevemente."})
+        return Response({"detail": "Processo de sincronização iniciado em background. A UI reportará os novos dados brevemente."})
 
 
 
@@ -226,7 +228,7 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
 
         subprocess.Popen([sys.executable, 'manage.py', 'sync_epss'])
 
-        return Response({"detail": "Processo de atualizaÃ§Ã£o do EPSS iniciado em background. Verifique o estado nas definiÃ§Ãµes de integraÃ§Ã£o."})
+        return Response({"detail": "Processo de atualização do EPSS iniciado em background. Verifique o estado nas definições de integração."})
 
 
 
@@ -242,7 +244,7 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
 
         subprocess.Popen([sys.executable, 'manage.py', 'sync_nist'])
 
-        return Response({"detail": "Processo de atualizaÃ§Ã£o com o NIST NVD iniciado em background. Verifique o estado nas definiÃ§Ãµes de integraÃ§Ã£o."})
+        return Response({"detail": "Processo de atualização com o NIST NVD iniciado em background. Verifique o estado nas definições de integração."})
 
 
 
@@ -274,6 +276,52 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
 
 
 
+    @action(detail=False, methods=['get'])
+
+    def prioritized(self, request):
+
+        try:
+
+            limit = int(request.query_params.get('limit', 10))
+
+        except (TypeError, ValueError):
+
+            limit = 10
+
+        limit = max(1, min(limit, 100))
+
+        filters_payload = {}
+
+        for key in ['asset_id', 'asset_criticality', 'severity', 'status', 'source']:
+
+            value = request.query_params.get(key)
+
+            if value:
+
+                filters_payload[key] = value
+
+        only_known_exploited = request.query_params.get('only_known_exploited')
+
+        if only_known_exploited is not None:
+
+            filters_payload['only_known_exploited'] = only_known_exploited.lower() in {
+
+                '1', 'true', 'yes', 'on'
+
+            }
+
+        items = VulnerabilityPrioritizationService.get_top_vulnerabilities(
+
+            limit=limit,
+
+            filters=filters_payload,
+
+        )
+
+        return Response([item.to_dict() for item in items])
+
+
+
     @action(detail=True, methods=['post'])
 
     def change_status(self, request, pk=None):
@@ -288,7 +336,7 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
 
         if new_status not in [c[0] for c in AssetVulnerability.STATUS_CHOICES]:
 
-            return Response({"detail": "Status invÃ¡lido."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Status inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
             
 
@@ -418,7 +466,7 @@ class SoftwareViewSet(viewsets.ModelViewSet):
 
             action="Criado",
 
-            details=f"Software registado no catÃ¡logo.",
+            details=f"Software registado no catálogo.",
 
             user=self.request.user.username if self.request.user.is_authenticated else "Sistema"
 
@@ -462,7 +510,7 @@ class SoftwareViewSet(viewsets.ModelViewSet):
 
                 software=software,
 
-                action="AtualizaÃ§Ã£o",
+                action="Atualização",
 
                 details="\n".join(changes),
 
@@ -541,12 +589,118 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 
     def get_serializer_class(self):
-
         if self.action == 'list':
-
             return AssetListSerializer
-
         return AssetSerializer
+
+    @action(detail=False, methods=['get'])
+    def network_map(self, request):
+        import ipaddress
+        assets = Asset.objects.all().select_related('category', 'asset_type')
+        ranges = NetworkRange.objects.filter(is_active=True)
+        nodes = []
+        edges = []
+        
+        cat_colors = {
+            'Infrastructure': '#4f46e5',
+            'Application': '#10b981',
+            'Information': '#f59e0b',
+            'Service': '#ef4444',
+            'ThirdParty': '#6366f1'
+        }
+
+        # 1. Add Network Range Nodes (the "Hubs")
+        for net in ranges:
+            nodes.append({
+                "id": f"net-{net.id}",
+                "type": "input", # Entry points
+                "data": { 
+                    "label": f"Rede: {net.name}",
+                    "type": "Rede",
+                    "category": "Network",
+                    "criticality": "Medium",
+                    "ip": net.cidr,
+                    "color": "#1e293b" # Slate 800
+                },
+                "position": {"x": 0, "y": 0},
+                "style": { "background": "#1e293b", "color": "#fff", "borderRadius": "12px", "padding": "10px" }
+            })
+
+        # 2. Add Asset Nodes and connect to Segments
+        # Optimized: Prefetch M2M to avoid N+1 queries
+        assets_with_rels = assets.prefetch_related('dependent_assets', 'integration_assets')
+
+        for asset in assets_with_rels:
+            type_name = asset.asset_type.name if asset.asset_type else "Outro"
+            cat_name = asset.category.name if asset.category else "Geral"
+            
+            nodes.append({
+                "id": str(asset.id),
+                "type": "customNode",
+                "data": { 
+                    "label": asset.name,
+                    "type": type_name,
+                    "category": cat_name,
+                    "criticality": asset.criticality,
+                    "ip": asset.wazuh_ip,
+                    "status": asset.status,
+                    "color": cat_colors.get(cat_name, '#94a3b8')
+                },
+                "position": {"x": 0, "y": 0}
+            })
+            
+            # Explicit Dependency (Parent/Child)
+            if asset.parent_id:
+                edges.append({
+                    "id": f"e-dep-{asset.parent_id}-{asset.id}",
+                    "source": str(asset.parent_id),
+                    "target": str(asset.id),
+                    "animated": True,
+                    "label": "Dependência",
+                    "style": {"stroke": "#4f46e5", "strokeWidth": 3}
+                })
+            
+            # M2M Relationships (Communications/Dependencies)
+            for dep in asset.dependent_assets.all():
+                edges.append({
+                    "id": f"e-m2m-{asset.id}-{dep.id}",
+                    "source": str(asset.id),
+                    "target": str(dep.id),
+                    "animated": True,
+                    "label": "Comunica",
+                    "style": {"stroke": "#10b981", "strokeWidth": 2}
+                })
+
+            for integ in asset.integration_assets.all():
+                edges.append({
+                    "id": f"e-int-{asset.id}-{integ.id}",
+                    "source": str(asset.id),
+                    "target": str(integ.id),
+                    "animated": False,
+                    "label": "Integração",
+                    "style": {"stroke": "#f59e0b", "strokeWidth": 2, "strokeDasharray": "5,5"}
+                })
+            
+            # Automatic Network Mapping
+            if asset.wazuh_ip:
+                try:
+                    ip = ipaddress.ip_address(asset.wazuh_ip)
+                    for net in ranges:
+                        network = ipaddress.ip_network(net.cidr)
+                        if ip in network:
+                            edges.append({
+                                "id": f"e-net-{net.id}-{asset.id}",
+                                "source": f"net-{net.id}",
+                                "target": str(asset.id),
+                                "animated": False,
+                                "label": "Membro",
+                                "style": {"stroke": "#94a3b8", "strokeWidth": 1}
+                            })
+                            break
+                except ValueError:
+                    pass
+
+        return Response({"nodes": nodes, "edges": edges})
 
 
 
@@ -572,7 +726,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         instance = self.get_object()
 
-        # Captura valores antigos para comparaÃ§Ã£o
+        # Captura valores antigos para comparação
 
         old_data = {}
 
@@ -588,7 +742,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         
 
-        # Compara e regista alteraÃ§Ãµes
+        # Compara e regista alterações
 
         changes = []
 
@@ -598,7 +752,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             if old_value != new_value:
 
-                # FormataÃ§Ã£o amigÃ¡vel para FKs e Enums
+                # Formatação amigável para FKs e Enums
 
                 changes.append(f"Alterou {field}: '{old_value}' -> '{new_value}'")
 
@@ -610,7 +764,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 asset=asset,
 
-                action="AtualizaÃ§Ã£o",
+                action="Atualização",
 
                 details="\n".join(changes),
 
@@ -666,9 +820,9 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         
 
-        # Inicia a sincronizaÃ§Ã£o de background via subprocesses
+        # Inicia a sincronização de background via subprocesses
 
-        # para nÃ£o bloquear a chamada da API do frontend.
+        # para não bloquear a chamada da API do frontend.
 
         subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_assets'])
 
@@ -676,7 +830,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         
 
-        return Response({"detail": "Processo de sincronizaÃ§Ã£o iniciado em background. A UI reportarÃ¡ os novos dados brevemente."})
+        return Response({"detail": "Processo de sincronização iniciado em background. A UI reportará os novos dados brevemente."})
 
 
 
@@ -694,9 +848,9 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         
 
-        # O utilizador pode opcionalmente passar credenciais se nÃ£o quiser usar as guardadas
+        # O utilizador pode opcionalmente passar credenciais se não quiser usar as guardadas
 
-        # 1. Registar inÃ­cio da sincronizaÃ§Ã£o
+        # 1. Registar início da sincronização
 
         from integrations.models import IntegrationSyncStatus
 
@@ -722,7 +876,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             
 
-            # Limpa lixo de execuÃ§Ãµes anteriores mal sucedidas
+            # Limpa lixo de execuções anteriores mal sucedidas
 
             cleaned_count = service.cleanup_ghost_assets()
 
@@ -738,7 +892,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             if not found_hosts:
 
-                # Se nÃ£o encontrou nada, purga tudo o que era 'discovery'
+                # Se não encontrou nada, purga tudo o que era 'discovery'
 
                 purged_count = service.purge_missing_assets([])
 
@@ -754,7 +908,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 return Response({
 
-                    "detail": f"O scan terminou mas nÃ£o foram encontrados dispositivos ativos. ({purged_count} ativos antigos removidos)",
+                    "detail": f"O scan terminou mas não foram encontrados dispositivos ativos. ({purged_count} ativos antigos removidos)",
 
                     "found": 0,
 
@@ -770,7 +924,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 
 
-            # 3. Purgar ativos que jÃ¡ nÃ£o estÃ£o presentes
+            # 3. Purgar ativos que já não estão presentes
 
             purged_count = service.purge_missing_assets(found_ips_list)
 
@@ -794,7 +948,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             return Response({
 
-                "detail": f"Scan Nmap concluÃ­do. {len(found_hosts)} dispositivos encontrados, {stats['created']} novos integrados. ({purged_count} removidos por estarem offline)",
+                "detail": f"Scan Nmap concluído. {len(found_hosts)} dispositivos encontrados, {stats['created']} novos integrados. ({purged_count} removidos por estarem offline)",
 
                 "found": len(found_hosts),
 
@@ -836,7 +990,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         if not asset.wazuh_ip:
 
-            return Response({"detail": "Este ativo nÃ£o tem um endereÃ§o IP associado para scan."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Este ativo não tem um endereço IP associado para scan."}, status=status.HTTP_400_BAD_REQUEST)
 
             
 
@@ -850,7 +1004,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             if not host_data:
 
-                return Response({"detail": "NÃ£o foi possÃ­vel obter detalhes adicionais para este IP (o host pode estar offline)."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"detail": "Não foi possível obter detalhes adicionais para este IP (o host pode estar offline)."}, status=status.HTTP_404_NOT_FOUND)
 
             
 
@@ -868,7 +1022,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             
 
-            # Enriquece a descriÃ§Ã£o com serviÃ§os
+            # Enriquece a descrição com serviços
 
             services_str = ", ".join(host_data["services"])
 
@@ -878,17 +1032,17 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 if "[NMAP ENRICHED]" in current_desc:
 
-                    # Tenta substituir a parte dos serviÃ§os ou apenas anexar
+                    # Tenta substituir a parte dos serviços ou apenas anexar
 
-                    asset.description = re.sub(r"ServiÃ§os Abertos:.*", f"ServiÃ§os Abertos: {services_str}", current_desc)
+                    asset.description = re.sub(r"Serviços Abertos:.*", f"Serviços Abertos: {services_str}", current_desc)
 
                 else:
 
-                    asset.description = current_desc + f"\n[NMAP ENRICHED] ServiÃ§os: {services_str}"
+                    asset.description = current_desc + f"\n[NMAP ENRICHED] Serviços: {services_str}"
 
             
 
-            # 3. Sincronizar InventÃ¡rio de Software
+            # 3. Sincronizar Inventário de Software
 
             for sw_data in host_data.get("detected_software", []):
 
@@ -932,7 +1086,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 
 
-                # Determinar severidade baseada no CVSS v3/v2 (estimativa bÃ¡sica)
+                # Determinar severidade baseada no CVSS v3/v2 (estimativa básica)
 
                 if cvss >= 9.0: severity = 'Critical'
 
@@ -958,7 +1112,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                         'source': 'nmap',
 
-                        'description': f"Vulnerabilidade detetada via Nmap (vulners) no serviÃ§o {vdata['service']} {vdata['version']}."
+                        'description': f"Vulnerabilidade detetada via Nmap (vulners) no serviço {vdata['service']} {vdata['version']}."
 
                     }
 
@@ -1014,7 +1168,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             return Response({
 
-                "detail": f"Detalhes enriquecidos com sucesso. {len(host_data['services'])} serviÃ§os e {created_vulns_count} novas vulnerabilidades detetadas.",
+                "detail": f"Detalhes enriquecidos com sucesso. {len(host_data['services'])} serviços e {created_vulns_count} novas vulnerabilidades detetadas.",
 
                 "hostname": host_data["hostname"],
 
@@ -1042,19 +1196,19 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         if asset.source != 'discovery':
 
-            return Response({"detail": "Este ativo jÃ¡ faz parte do inventÃ¡rio principal ou Ã© gerido pelo Wazuh."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Este ativo já faz parte do inventário principal ou é gerido pelo Wazuh."}, status=status.HTTP_400_BAD_REQUEST)
 
             
 
         asset.source = 'manual'
 
-        asset.description = (asset.description or "") + f"\n\n[PROMOTED] Ativo aprovado pelo CISO e movido para o inventÃ¡rio principal em {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}."
+        asset.description = (asset.description or "") + f"\n\n[PROMOTED] Ativo aprovado pelo CISO e movido para o inventário principal em {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}."
 
         asset.save()
 
 
 
-        # Log no histÃ³rico
+        # Log no histórico
 
         from .models.asset import AssetHistory
 
@@ -1062,9 +1216,9 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             asset=asset,
 
-            action="Promovido ao InventÃ¡rio",
+            action="Promovido ao Inventário",
 
-            details="Ativo promovido de 'Descoberta' para o InventÃ¡rio Principal da organizaÃ§Ã£o."
+            details="Ativo promovido de 'Descoberta' para o Inventário Principal da organização."
 
         )
 
@@ -1072,7 +1226,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         return Response({
 
-            "detail": f"Ativo '{asset.name}' promovido para o inventÃ¡rio principal com sucesso.",
+            "detail": f"Ativo '{asset.name}' promovido para o inventário principal com sucesso.",
 
             "id": asset.id,
 
@@ -1104,7 +1258,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         if not source_ids:
 
-            return Response({"detail": "Nenhum ativo de origem fornecido para fusÃ£o."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Nenhum ativo de origem fornecido para fusão."}, status=status.HTTP_400_BAD_REQUEST)
 
             
 
@@ -1114,13 +1268,13 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         if not source_assets.exists():
 
-            return Response({"detail": "Ativos de origem nÃ£o encontrados."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Ativos de origem não encontrados."}, status=status.HTTP_404_NOT_FOUND)
 
             
 
         merged_count = 0
 
-        # ConsolidaÃ§Ã£o de IPs: garantir que o IP principal nÃ£o estÃ¡ nos secundÃ¡rios
+        # Consolidação de IPs: garantir que o IP principal não está nos secundários
 
         new_ips = set(target_asset.secondary_ips or [])
 
@@ -1146,7 +1300,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             
 
-            # 2. Re-associaÃ§Ã£o de Software (M2M automÃ¡tico)
+            # 2. Re-associação de Software (M2M automático)
 
             source_sw = Software.objects.filter(assets=source)
 
@@ -1156,13 +1310,13 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 
 
-            # 3. TransferÃªncia de Vulnerabilidades (Segura contra duplicados)
+            # 3. Transferência de Vulnerabilidades (Segura contra duplicados)
 
             source_vulns = AssetVulnerability.objects.filter(asset=source)
 
             for sv in source_vulns:
 
-                # Verificar se o destino jÃ¡ tem esta ocorrÃªncia
+                # Verificar se o destino já tem esta ocorrência
 
                 exists = AssetVulnerability.objects.filter(
 
@@ -1186,13 +1340,13 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 else:
 
-                    # JÃ¡ existe, apagamos no de origem para libertar o ativo
+                    # Já existe, apagamos no de origem para libertar o ativo
 
                     sv.delete()
 
 
 
-            # 4. TransferÃªncia de Riscos
+            # 4. Transferência de Riscos
 
             Risk.objects.filter(asset=source).update(asset=target_asset)
 
@@ -1214,7 +1368,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
 
 
-        # Log no histÃ³rico
+        # Log no histórico
 
         from .models.asset import AssetHistory
 

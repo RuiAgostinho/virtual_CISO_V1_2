@@ -209,6 +209,7 @@ export interface Risk {
 export interface PrioritizedVulnerability {
     rank: number;
     vulnerability_id: string;
+    occurrence_id: string;
     cve_id: string;
     title: string;
     severity: string;
@@ -268,6 +269,12 @@ function cleanParams(params: any): string {
     return p.toString();
 }
 
+export interface AssetLookup {
+  id?: string;
+  name: string;
+  description?: string | null;
+}
+
 export const riskApi = {
     request,
 
@@ -323,22 +330,6 @@ export const riskApi = {
         });
     },
 
-    async listAssetCategories(): Promise<AssetCategory[]> {
-        const data = await request<any>('/api/risk/asset-categories/');
-        return Array.isArray(data) ? data : data.results || [];
-    },
-
-    async listAssetTypes(categoryId?: string | number): Promise<AssetType[]> {
-        const query = categoryId ? `?category=${categoryId}` : "";
-        const data = await request<any>(`/api/risk/asset-types/${query}`);
-        return Array.isArray(data) ? data : data.results || [];
-    },
-
-    async listAssetLocations(): Promise<AssetLocation[]> {
-        const data = await request<any>('/api/risk/asset-locations/');
-        return Array.isArray(data) ? data : data.results || [];
-    },
-
     async createAssetLocation(payload: Partial<AssetLocation>): Promise<AssetLocation> {
         return await request<AssetLocation>('/api/risk/asset-locations/', {
             method: "POST",
@@ -346,21 +337,11 @@ export const riskApi = {
         });
     },
 
-    async listAssetEnvironments(): Promise<AssetEnvironment[]> {
-        const data = await request<any>('/api/risk/asset-environments/');
-        return Array.isArray(data) ? data : data.results || [];
-    },
-
     async createAssetEnvironment(payload: Partial<AssetEnvironment>): Promise<AssetEnvironment> {
         return await request<AssetEnvironment>('/api/risk/asset-environments/', {
             method: "POST",
             body: JSON.stringify(payload)
         });
-    },
-
-    async listAssetInfrastructures(): Promise<AssetInfrastructure[]> {
-        const data = await request<any>('/api/risk/asset-infrastructures/');
-        return Array.isArray(data) ? data : data.results || [];
     },
 
     async createAssetInfrastructure(payload: Partial<AssetInfrastructure>): Promise<AssetInfrastructure> {
@@ -464,11 +445,6 @@ export const riskApi = {
         });
     },
 
-    async listPrioritizedVulnerabilities(params?: any): Promise<PrioritizedVulnerability[]> {
-        const query = cleanParams(params);
-        return await request<PrioritizedVulnerability[]>(`/api/risk/vulnerability-occurrences/prioritized/${query ? '?' + query : ''}`);
-    },
-
     // --- Risks ---
     async listRisks(params?: any): Promise<PaginatedResponse<Risk>> {
         const query = cleanParams(params);
@@ -521,7 +497,43 @@ export const riskApi = {
             method: "PATCH",
             body: JSON.stringify(payload)
         });
-    }
+    },
+
+  // Lookup Entities
+  listAssetLocations: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-locations/"),
+  listAssetEnvironments: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-environments/"),
+  listAssetInfrastructures: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-infrastructures/"),
+
+  // Categories and Types
+  listAssetCategories: (params?: any) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetCategory>>(`/api/risk/asset-categories/${query ? '?' + query : ''}`);
+  },
+  listAssetTypes: (params?: any) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetType>>(`/api/risk/asset-types/${query ? '?' + query : ''}`);
+  },
+
+  // UC3: Discovery
+  syncWazuh: () => request<any>("/api/risk/assets/sync_wazuh/", { method: "POST" }),
+  runNmapScan: () => request<any>("/api/risk/assets/scan_nmap/", { method: "POST" }),
+  getSyncStatus: () => request<any>("/api/integrations/sync-status/"),
+  getNetworkMap: () => request<{ nodes: any[], edges: any[] }>("/api/risk/assets/network_map/"),
+
+  // UC4: Prioritization
+  listPrioritizedVulnerabilities: (params?: any) => {
+    const query = cleanParams(params);
+    return request<PrioritizedVulnerability[]>(`/api/risk/vulnerability-occurrences/prioritized/${query ? '?' + query : ''}`);
+  },
+
+  // Integration Configs
+  listIntegrationConfigs: () => request<any[]>("/api/integrations/configs/"),
+  getIntegrationConfig: (provider: string) => request<any>(`/api/integrations/configs/${provider}/provider/`),
+  updateIntegrationConfig: (id: number, payload: any) => request<any>(`/api/integrations/configs/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  }),
+  testIntegration: (id: number) => request<any>(`/api/integrations/configs/${id}/test_connection/`, {
+    method: "POST"
+  }),
 };
-
-

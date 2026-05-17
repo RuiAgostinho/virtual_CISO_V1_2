@@ -12,11 +12,11 @@ class RiskConfiguration(models.Model):
 
     weight_cia = models.FloatField(default=0.30, help_text="Peso para CID (0.0 a 1.0)")
 
-    weight_exposure = models.FloatField(default=0.25, help_text="Peso para ExposiÃ§Ã£o (0.0 a 1.0)")
+    weight_exposure = models.FloatField(default=0.25, help_text="Peso para Exposição (0.0 a 1.0)")
 
     weight_value = models.FloatField(default=0.25, help_text="Peso para Valor (0.0 a 1.0)")
 
-    weight_dependency = models.FloatField(default=0.20, help_text="Peso para DependÃªncia (0.0 a 1.0)")
+    weight_dependency = models.FloatField(default=0.20, help_text="Peso para Dependência (0.0 a 1.0)")
 
     
 
@@ -28,7 +28,7 @@ class RiskConfiguration(models.Model):
 
     class Meta:
 
-        verbose_name = "ConfiguraÃ§Ã£o de Risco"
+        verbose_name = "Configuração de Risco"
 
 
 
@@ -110,11 +110,11 @@ class Asset(models.Model):
 
     CRITICALITY_CHOICES = (
 
-        ('Critical', 'CrÃ­tico (5)'),
+        ('Critical', 'Crítico (5)'),
 
         ('High', 'Alto (4)'),
 
-        ('Medium', 'MÃ©dio (3)'),
+        ('Medium', 'Médio (3)'),
 
         ('Low', 'Baixo (2)'),
 
@@ -130,11 +130,11 @@ class Asset(models.Model):
 
         (2, 'Baixo (2)'),
 
-        (3, 'MÃ©dio (3)'),
+        (3, 'Médio (3)'),
 
         (4, 'Alto (4)'),
 
-        (5, 'CrÃ­tico (5)'),
+        (5, 'Crítico (5)'),
 
     )
 
@@ -152,7 +152,7 @@ class Asset(models.Model):
 
         ('InternetProtected', 'Internet (Protegido)'),
 
-        ('InternetPublic', 'Internet (PÃºblico)'),
+        ('InternetPublic', 'Internet (Público)'),
 
     )
 
@@ -166,7 +166,7 @@ class Asset(models.Model):
 
         ('Retired', 'Descontinuado'),
 
-        ('Maintenance', 'Em ManutenÃ§Ã£o'),
+        ('Maintenance', 'Em Manutenção'),
 
     )
 
@@ -222,11 +222,11 @@ class Asset(models.Model):
 
     
 
-    # 1. IdentificaÃ§Ã£o do ativo
+    # 1. Identificação do ativo
 
-    unique_identifier = models.CharField(max_length=255, blank=True, null=True, help_text="ID interno ou inventÃ¡rio")
+    unique_identifier = models.CharField(max_length=255, blank=True, null=True, help_text="ID interno ou inventário")
 
-    serial_number = models.CharField(max_length=255, blank=True, null=True, help_text="NÃºmero de sÃ©rie")
+    serial_number = models.CharField(max_length=255, blank=True, null=True, help_text="Número de série")
 
     brand = models.CharField(max_length=255, blank=True, null=True, help_text="Marca")
 
@@ -234,7 +234,7 @@ class Asset(models.Model):
 
     
 
-    # 2. FunÃ§Ã£o / Papel no negÃ³cio (CRÃTICO QNCS)
+    # 2. Função / Papel no negócio (CRÍTICO QNCS)
 
     supported_service = models.CharField(max_length=255, blank=True, null=True)
 
@@ -242,23 +242,23 @@ class Asset(models.Model):
 
     importance = models.CharField(max_length=50, choices=CRITICALITY_CHOICES, default='Medium')
 
-    service_dependency = models.TextField(blank=True, null=True, help_text="DependÃªncia de outros serviÃ§os")
+    service_dependency = models.TextField(blank=True, null=True, help_text="Dependência de outros serviços")
 
     
 
-    # 3. LocalizaÃ§Ã£o e contexto
+    # 3. Localização e contexto
 
-    location = models.ForeignKey('AssetLocation', on_delete=models.SET_NULL, null=True, blank=True, help_text="LocalizaÃ§Ã£o fÃ­sica ou lÃ³gica")
+    location = models.ForeignKey('AssetLocation', on_delete=models.SET_NULL, null=True, blank=True, help_text="Localização física ou lógica")
 
     network_segment = models.ForeignKey('NetworkRange', on_delete=models.SET_NULL, null=True, blank=True)
 
-    environment = models.ForeignKey('AssetEnvironment', on_delete=models.SET_NULL, null=True, blank=True, help_text="ProduÃ§Ã£o, teste, etc.")
+    environment = models.ForeignKey('AssetEnvironment', on_delete=models.SET_NULL, null=True, blank=True, help_text="Produção, teste, etc.")
 
     deployment_type = models.ForeignKey('AssetInfrastructure', on_delete=models.SET_NULL, null=True, blank=True)
 
 
 
-    # 4. Responsabilidade (OBRIGATÃ“RIO)
+    # 4. Responsabilidade (OBRIGATÓRIO)
 
     business_owner = models.ForeignKey(Person, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_assets')
 
@@ -268,7 +268,7 @@ class Asset(models.Model):
 
     
 
-    # 5. DependÃªncias (MUITO IMPORTANTE QNCS)
+    # 5. Dependências (MUITO IMPORTANTE QNCS)
 
     dependent_systems = models.TextField(blank=True, null=True) # Legacy text
 
@@ -310,9 +310,9 @@ class Asset(models.Model):
 
     exposure = models.SmallIntegerField(choices=CIA_CHOICES, default=3)
 
-    business_value = models.SmallIntegerField(choices=CIA_CHOICES, default=3, help_text="Valor do ativo para o negÃ³cio")
+    business_value = models.SmallIntegerField(choices=CIA_CHOICES, default=3, help_text="Valor do ativo para o negócio")
 
-    dependency_score = models.SmallIntegerField(choices=CIA_CHOICES, default=3, help_text="NÃ­vel de dependÃªncia de outros ativos")
+    dependency_score = models.SmallIntegerField(choices=CIA_CHOICES, default=3, help_text="Nível de dependência de outros ativos")
 
     
 
@@ -380,65 +380,41 @@ class Asset(models.Model):
 
 
 
-    def save(self, *args, **kwargs):
-
-        if not self.unique_identifier:
-
-            self.unique_identifier = f"AST-{str(self.id).split('-')[0].upper()}"
-
-        
-
-        # Ativos vindos de discovery comeÃ§am sempre como 'Novo'
-
-        if not self.pk and self.source == 'discovery':
-
-            self.status = 'New'
-
-            
-
-        # CÃ¡lculo AutomÃ¡tico de Criticidade (DinÃ¢mico/Ponderado)
-
+    def criticality_breakdown(self):
+        """
+        Weighted criticality derivation: the single source of truth for the
+        score, its per-component contributions and the resulting level. Used by
+        save() and exposed via the API so the criticality is explainable.
+        """
         config = RiskConfiguration.get_config()
-
-        
-
-        v_cia = (self.confidentiality + self.integrity + self.availability) / 3.0
-
-        v_exp = self.exposure
-
-        v_val = getattr(self, 'business_value', 3)
-
-        v_dep = getattr(self, 'dependency_score', 3)
-
-        
-
-        score = (
-            (config.weight_cia * v_cia)
-            + (config.weight_exposure * v_exp)
-            + (config.weight_value * v_val)
-            + (config.weight_dependency * v_dep)
-        )
-
-        
-
+        cia_avg = (self.confidentiality + self.integrity + self.availability) / 3.0
+        components = [
+            {"label": "CIA (média C/I/D)", "value": round(cia_avg, 2), "weight": config.weight_cia},
+            {"label": "Exposição", "value": self.exposure, "weight": config.weight_exposure},
+            {"label": "Valor de negócio", "value": self.business_value, "weight": config.weight_value},
+            {"label": "Dependência", "value": self.dependency_score, "weight": config.weight_dependency},
+        ]
+        for component in components:
+            component["contribution"] = round(component["value"] * component["weight"], 3)
+        score = round(sum(c["contribution"] for c in components), 2)
         if score >= 4.5:
-
-            self.criticality = 'Critical'
-
+            level = "Critical"
         elif score >= 3.5:
-
-            self.criticality = 'High'
-
+            level = "High"
         elif score >= 2.5:
-
-            self.criticality = 'Medium'
-
+            level = "Medium"
         else:
+            level = "Low"
+        return {"score": score, "level": level, "components": components}
 
-            self.criticality = 'Low'
-
-            
-
+    def save(self, *args, **kwargs):
+        if not self.unique_identifier:
+            self.unique_identifier = f"AST-{str(self.id).split('-')[0].upper()}"
+        # Ativos vindos de discovery começam sempre como 'Novo'
+        if not self.pk and self.source == 'discovery':
+            self.status = 'New'
+        # Criticidade ponderada — derivação completa em criticality_breakdown()
+        self.criticality = self.criticality_breakdown()["level"]
         super().save(*args, **kwargs)
 
 

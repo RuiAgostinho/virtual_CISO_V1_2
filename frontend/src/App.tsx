@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/auth/AuthProvider";
 
 import AppShell from "@/components/ui/AppShell";
 
-// Lazy Loaded PÃ¡ginas
+// Lazy Loaded Páginas
 const MissionControl = React.lazy(() => import("@/pages/MissionControl"));
 const Onboarding = React.lazy(() => import("@/pages/Onboarding"));
 const Maturity = React.lazy(() => import("@/pages/Maturity"));
@@ -14,6 +14,12 @@ const Vulnerabilities = React.lazy(() => import("@/pages/Vulnerabilities"));
 const Controls = React.lazy(() => import("@/pages/Controls"));
 const FrameworkView = React.lazy(() => import("@/pages/FrameworkView"));
 const Institution = React.lazy(() => import("@/pages/admin/Institution"));
+const AdminUsers = React.lazy(() => import("@/pages/admin/Users"));
+const AdminRoles = React.lazy(() => import("@/pages/admin/Roles"));
+const AdminAssetTypes = React.lazy(() => import("@/pages/admin/AssetTypes"));
+const AdminSettings = React.lazy(() => import("@/pages/admin/Settings"));
+const AdminLogs = React.lazy(() => import("@/pages/admin/Logs"));
+const AdminRagKnowledgeBase = React.lazy(() => import("@/pages/admin/RagKnowledgeBase"));
 
 const Inventory = React.lazy(() => import("@/pages/assets/Inventory"));
 const AssetDetail = React.lazy(() => import("@/pages/assets/AssetDetail"));
@@ -48,12 +54,16 @@ const RiskDashboard = React.lazy(() => import("@/pages/risk/RiskDashboard"));
 const RiskList = React.lazy(() => import("@/pages/risk/RiskList"));
 const RiskDetail = React.lazy(() => import("@/pages/risk/RiskDetail"));
 const RiskPrioritization = React.lazy(() => import("@/pages/risk/RiskPrioritization"));
+const RiskMatrix = React.lazy(() => import("@/pages/risk/RiskMatrix"));
 const Procedures = React.lazy(() => import("@/pages/governance/Procedures"));
+const DecisionScreen = React.lazy(() => import("@/pages/decision/DecisionScreen"));
+
+import ModulePlaceholder from "@/pages/ModulePlaceholder";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="p-6">A carregarâ€¦</div>;
+  if (loading) return <div className="p-6">A carregar…</div>;
   if (!user) return <Navigate to="/login" replace />;
 
   return (
@@ -85,7 +95,9 @@ export default function App() {
             <Route path="/risks/dashboard" element={<RiskDashboard />} />
             <Route path="/risks/inventory" element={<RiskList />} />
             <Route path="/risks/prioritization" element={<RiskPrioritization />} />
+            <Route path="/risks/matrix" element={<RiskMatrix />} />
             <Route path="/risks/:id" element={<RiskDetail />} />
+            <Route path="/decisions/:occurrenceId" element={<DecisionScreen />} />
             <Route path="/vulnerabilities" element={<Vulnerabilities />} />
             <Route path="/compliance" element={<FrameworkView />} />
             <Route path="/compliance-mapping" element={<ControlMappings />} />
@@ -129,11 +141,12 @@ export default function App() {
             <Route path="/admin/integrations/epss" element={<EPSSIntegration />} />
             <Route path="/admin/integrations/nist" element={<NISTIntegration />} />
             <Route path="/admin/integrations/nmap" element={<NmapIntegration />} />
-            <Route path="/admin/users" element={<div className="p-6">PÃ¡gina de Utilizadores (Placeholders)</div>} />
-            <Route path="/admin/roles" element={<div className="p-6">PÃ¡gina de Roles & Permissions (Placeholders)</div>} />
-            <Route path="/admin/asset-types" element={<div className="p-6">PÃ¡gina de Asset Types (Placeholders)</div>} />
-            <Route path="/admin/settings" element={<div className="p-6">PÃ¡gina de Settings Gerais (Placeholders)</div>} />
-            <Route path="/admin/logs" element={<div className="p-6">PÃ¡gina de System Logs (Placeholders)</div>} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/roles" element={<AdminRoles />} />
+            <Route path="/admin/asset-types" element={<AdminAssetTypes />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/logs" element={<AdminLogs />} />
+            <Route path="/admin/rag" element={<AdminRagKnowledgeBase />} />
             <Route path="/admin/institution" element={<Institution />} />
 
           </Route>

@@ -36,7 +36,7 @@ const emptyState: LoadState = {
 };
 
 const severityLabel: Record<string, string> = {
-  Critical: "Critica",
+  Critical: "Crítica",
   High: "Alta",
   Medium: "Media",
   Low: "Baixa",
@@ -81,8 +81,8 @@ function KpiCard({
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{value}</p>
         </div>
         <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${toneClass}`}>
           <Icon className="h-5 w-5" />
@@ -181,7 +181,7 @@ export default function MissionControl() {
     return (
       <div className="p-8">
         <div className="rounded-3xl border border-red-100 bg-red-50 p-8 text-red-700">
-          <div className="flex items-center gap-3 font-black">
+          <div className="flex items-center gap-3 font-bold">
             <AlertTriangle className="h-5 w-5" />
             Erro ao carregar o painel
           </div>
@@ -203,12 +203,12 @@ export default function MissionControl() {
         <header className="overflow-hidden rounded-[2rem] border border-slate-100 bg-slate-950 p-7 text-white shadow-sm">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-100">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-100">
                 <LayoutDashboard className="h-3.5 w-3.5" />
                 Dashboard executivo
               </div>
               <div>
-                <h1 className="text-3xl font-black tracking-tight">Postura de cibersegurança</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Postura de cibersegurança</h1>
                 <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-300">
                   Visão sintética para decisão estratégica: risco atual, conformidade, exposição e decisões que exigem atenção do CISO.
                 </p>
@@ -217,13 +217,13 @@ export default function MissionControl() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 to="/mission-control?mode=operational"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-950 transition-all hover:bg-indigo-50"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-950 transition-all hover:bg-indigo-50"
               >
                 Ver painel operacional <ArrowRight className="h-4 w-4" />
               </Link>
               <button
                 onClick={loadData}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-white/10"
               >
                 <RefreshCw className="h-4 w-4" />
                 Atualizar
@@ -231,7 +231,7 @@ export default function MissionControl() {
             </div>
           </div>
           {lastUpdated && (
-            <p className="mt-5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <p className="mt-5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
               Última atualização: {lastUpdated.toLocaleString("pt-PT")}
             </p>
           )}
@@ -271,23 +271,23 @@ export default function MissionControl() {
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
             <div className="flex flex-col gap-2 border-b border-slate-100 pb-5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Leitura executiva</p>
-              <h2 className="text-xl font-black text-slate-950">Resumo para decisão</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Leitura executiva</p>
+              <h2 className="text-xl font-bold text-slate-950">Resumo para decisão</h2>
             </div>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Risco prioritário</p>
-                <p className="mt-3 text-3xl font-black text-red-600">{metrics.critical}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">Risco prioritário</p>
+                <p className="mt-3 text-3xl font-bold text-red-600">{metrics.critical}</p>
                 <p className="mt-2 text-xs font-semibold leading-relaxed text-red-700">Vulnerabilidades críticas ainda ativas.</p>
               </div>
               <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Exposição relevante</p>
-                <p className="mt-3 text-3xl font-black text-amber-600">{metrics.high}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Exposição relevante</p>
+                <p className="mt-3 text-3xl font-bold text-amber-600">{metrics.high}</p>
                 <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-700">Vulnerabilidades altas a acompanhar.</p>
               </div>
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Fila ativa</p>
-                <p className="mt-3 text-3xl font-black text-indigo-700">{metrics.active.length}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">Fila ativa</p>
+                <p className="mt-3 text-3xl font-bold text-indigo-700">{metrics.active.length}</p>
                 <p className="mt-2 text-xs font-semibold leading-relaxed text-indigo-800">Ocorrências abertas ou em remediação.</p>
               </div>
             </div>
@@ -295,8 +295,8 @@ export default function MissionControl() {
             <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Próxima decisão recomendada</p>
-                  <h3 className="mt-2 text-lg font-black text-slate-950">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Próxima decisão recomendada</p>
+                  <h3 className="mt-2 text-lg font-bold text-slate-950">
                     {metrics.topPriority ? `${metrics.topPriority.cve_id} em ${metrics.topPriority.asset.name}` : "Sem decisão urgente"}
                   </h3>
                   <p className="mt-1 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
@@ -312,7 +312,7 @@ export default function MissionControl() {
                       cveId: metrics.topPriority.cve_id,
                       focus: true,
                     })}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-700"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700"
                   >
                     Abrir decisão <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -324,8 +324,8 @@ export default function MissionControl() {
           <aside className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Governação</p>
-                <h2 className="text-xl font-black text-slate-950">Últimas decisões</h2>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governação</p>
+                <h2 className="text-xl font-bold text-slate-950">Últimas decisões</h2>
               </div>
               <FileCheck2 className="h-5 w-5 text-slate-300" />
             </div>
@@ -338,14 +338,14 @@ export default function MissionControl() {
                 data.decisions.map((decision) => (
                   <div key={decision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {decisionLabel[decision.decision] || decision.decision}
                       </span>
                       <span className="text-[10px] font-bold text-slate-400">
                         {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm font-black text-slate-900">{decision.title}</p>
+                    <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
                     <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
                   </div>
                 ))
@@ -362,39 +362,39 @@ export default function MissionControl() {
       <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
               <LayoutDashboard className="h-3.5 w-3.5" />
               Dashboard operacional
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Decisoes prioritarias de hoje</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Decisões prioritarias de hoje</h1>
               <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
-                Visao consolidada de risco, vulnerabilidades, conformidade e decisoes humanas registadas.
+                Visão consolidada de risco, vulnerabilidades, conformidade e decisoes humanas registadas.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/risks/prioritization"
-              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-slate-700"
             >
               Abrir fila priorizada <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to={buildVulnerabilityOccurrenceUrl({ status: "Open" })}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700"
             >
               Ocorrências abertas
             </Link>
             <Link
               to="/mission-control?mode=executive"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
             >
               Visão executiva
             </Link>
             <button
               onClick={loadData}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
             >
               <RefreshCw className="h-4 w-4" />
               Atualizar
@@ -402,8 +402,8 @@ export default function MissionControl() {
           </div>
         </div>
         {lastUpdated && (
-          <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Ultima atualizacao: {lastUpdated.toLocaleString("pt-PT")}
+          <p className="mt-4 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+            Última atualizacao: {lastUpdated.toLocaleString("pt-PT")}
           </p>
         )}
       </header>
@@ -414,7 +414,7 @@ export default function MissionControl() {
         <KpiCard
           label="Vulnerabilidades ativas"
           value={metrics.active.length}
-          detail={`${metrics.critical} criticas e ${metrics.high} altas ainda exigem acompanhamento.`}
+          detail={`${metrics.critical} críticas e ${metrics.high} altas ainda exigem acompanhamento.`}
           tone={metrics.critical > 0 ? "red" : metrics.high > 0 ? "amber" : "emerald"}
           icon={ShieldAlert}
         />
@@ -433,9 +433,9 @@ export default function MissionControl() {
           icon={ClipboardCheck}
         />
         <KpiCard
-          label="Decisoes fechadas"
+          label="Decisões fechadas"
           value={metrics.acceptedOrClosed}
-          detail="Ocorrencias resolvidas, mitigadas, aceites ou classificadas como falso positivo."
+          detail="Ocorrências resolvidas, mitigadas, aceites ou classificadas como falso positivo."
           tone="emerald"
           icon={CheckCircle2}
         />
@@ -445,10 +445,10 @@ export default function MissionControl() {
         <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm lg:col-span-2">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Fila de decisao</h2>
+              <h2 className="text-xl font-bold text-slate-950">Fila de decisao</h2>
               <p className="mt-1 text-xs font-semibold text-slate-500">Itens ordenados pelo motor de priorizacao contextual.</p>
             </div>
-            <Link to="/risks/prioritization" className="text-xs font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800">
+            <Link to="/risks/prioritization" className="text-xs font-bold uppercase tracking-wide text-indigo-600 hover:text-indigo-800">
               Abrir priorizacao
             </Link>
           </div>
@@ -464,15 +464,15 @@ export default function MissionControl() {
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-xl bg-white px-3 py-1 text-xs font-black text-slate-950">#{item.rank}</span>
-                        <span className="rounded-xl border border-red-100 bg-red-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
+                        <span className="rounded-xl bg-white px-3 py-1 text-xs font-bold text-slate-950">#{item.rank}</span>
+                        <span className="rounded-xl border border-red-100 bg-red-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-red-700">
                           {severityLabel[item.severity] || item.severity}
                         </span>
-                        <span className="rounded-xl bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="rounded-xl bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                           {item.cve_id}
                         </span>
                       </div>
-                      <h3 className="mt-3 text-base font-black text-slate-950">{item.asset.name}</h3>
+                      <h3 className="mt-3 text-base font-bold text-slate-950">{item.asset.name}</h3>
                       <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">{item.priority_summary}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {item.risk_reasons.slice(0, 2).map((reason) => (
@@ -484,8 +484,8 @@ export default function MissionControl() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-center">
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Prioridade</span>
-                        <span className={`text-2xl font-black ${scoreTone(item.priority_score)}`}>{Math.round(item.priority_score)}</span>
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Prioridade</span>
+                        <span className={`text-2xl font-bold ${scoreTone(item.priority_score)}`}>{Math.round(item.priority_score)}</span>
                       </div>
                       <Link
                         to={buildVulnerabilityOccurrenceUrl({
@@ -508,7 +508,7 @@ export default function MissionControl() {
 
         <aside className="space-y-6">
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-slate-950">Acoes rapidas</h2>
+            <h2 className="text-lg font-bold text-slate-950">Acoes rapidas</h2>
             <div className="mt-5 grid gap-3">
               <Link to={buildVulnerabilityOccurrenceUrl({ status: "Open" })} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
                 Ocorrências abertas <ArrowRight className="h-4 w-4" />
@@ -527,7 +527,7 @@ export default function MissionControl() {
 
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black text-slate-950">Ultimas decisoes</h2>
+              <h2 className="text-lg font-bold text-slate-950">Últimas decisoes</h2>
               <FileCheck2 className="h-5 w-5 text-slate-300" />
             </div>
             <div className="mt-5 space-y-3">
@@ -539,14 +539,14 @@ export default function MissionControl() {
                 data.decisions.map((decision) => (
                   <div key={decision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {decisionLabel[decision.decision] || decision.decision}
                       </span>
                       <span className="text-[10px] font-bold text-slate-400">
                         {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm font-black text-slate-900">{decision.title}</p>
+                    <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
                     <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
                   </div>
                 ))
@@ -564,7 +564,7 @@ export default function MissionControl() {
                 <Target className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-indigo-950">Proxima decisao recomendada</h2>
+                <h2 className="text-lg font-bold text-indigo-950">Proxima decisao recomendada</h2>
                 <p className="mt-1 text-sm font-semibold leading-relaxed text-indigo-800">
                   {metrics.topPriority.cve_id} em {metrics.topPriority.asset.name}: {metrics.topPriority.priority_summary}
                 </p>
@@ -576,7 +576,7 @@ export default function MissionControl() {
                 cveId: metrics.topPriority.cve_id,
                 focus: true,
               })}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-indigo-800"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-700 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800"
             >
               Abrir ocorrência <ArrowRight className="h-4 w-4" />
             </Link>

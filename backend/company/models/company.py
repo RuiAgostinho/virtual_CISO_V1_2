@@ -51,7 +51,7 @@ class CompanyProfile(TimeStampedModel):
 
     """
 
-    Perfil da organizaÃ§Ã£o assessorada (single-tenant).
+    Perfil da organização assessorada (single-tenant).
 
     Deve existir apenas um registo.
 
@@ -85,7 +85,7 @@ class CompanyProfile(TimeStampedModel):
 
     # Governance Fields
 
-    org_type = models.CharField(max_length=50, choices=[('Public', 'PÃºblica'), ('Private', 'Privada'), ('ThirdSector', 'Terceiro Setor')], default='Private')
+    org_type = models.CharField(max_length=50, choices=[('Public', 'Pública'), ('Private', 'Privada'), ('ThirdSector', 'Terceiro Setor')], default='Private')
 
     geographic_scope = models.CharField(max_length=255, blank=True, null=True)
 
@@ -113,7 +113,7 @@ class CompanyProfile(TimeStampedModel):
 
         choices=[
 
-            ('none', 'Setor nÃ£o abrangido'),
+            ('none', 'Setor não abrangido'),
 
             # Anexo I
 
@@ -125,35 +125,35 @@ class CompanyProfile(TimeStampedModel):
 
             ('annex1_fin_infra', 'Anexo I - Infraestruturas do Mercado Financeiro'),
 
-            ('annex1_health', 'Anexo I - SaÃºde'),
+            ('annex1_health', 'Anexo I - Saúde'),
 
-            ('annex1_water', 'Anexo I - Ãgua PotÃ¡vel'),
+            ('annex1_water', 'Anexo I - Água Potável'),
 
-            ('annex1_waste_water', 'Anexo I - Ãguas Residuais'),
+            ('annex1_waste_water', 'Anexo I - Águas Residuais'),
 
             ('annex1_dig_infra', 'Anexo I - Infraestrutura Digital'),
 
-            ('annex1_ict_mgmt', 'Anexo I - GestÃ£o de ServiÃ§os de TIC (B2B)'),
+            ('annex1_ict_mgmt', 'Anexo I - Gestão de Serviços de TIC (B2B)'),
 
-            ('annex1_pub_admin', 'Anexo I - AdministraÃ§Ã£o PÃºblica'),
+            ('annex1_pub_admin', 'Anexo I - Administração Pública'),
 
-            ('annex1_space', 'Anexo I - EspaÃ§o'),
+            ('annex1_space', 'Anexo I - Espaço'),
 
             # Anexo II
 
-            ('annex2_postal', 'Anexo II - ServiÃ§os Postais e de Estafeta'),
+            ('annex2_postal', 'Anexo II - Serviços Postais e de Estafeta'),
 
-            ('annex2_waste_mgmt', 'Anexo II - GestÃ£o de ResÃ­duos'),
+            ('annex2_waste_mgmt', 'Anexo II - Gestão de Resíduos'),
 
-            ('annex2_chem', 'Anexo II - Fabrico, ProduÃ§Ã£o e DistribuiÃ§Ã£o de Produtos QuÃ­micos'),
+            ('annex2_chem', 'Anexo II - Fabrico, Produção e Distribuição de Produtos Químicos'),
 
-            ('annex2_food', 'Anexo II - ProduÃ§Ã£o, TransformaÃ§Ã£o e DistribuiÃ§Ã£o de Alimentos'),
+            ('annex2_food', 'Anexo II - Produção, Transformação e Distribuição de Alimentos'),
 
-            ('annex2_mfg', 'Anexo II - Fabrico (Maquinaria, VeÃ­culos, Equipamentos)'),
+            ('annex2_mfg', 'Anexo II - Fabrico (Maquinaria, Veículos, Equipamentos)'),
 
             ('annex2_dig_prov', 'Anexo II - Fornecedores Digitais (Marketplaces, Motores de Busca, Redes Sociais)'),
 
-            ('annex2_research', 'Anexo II - OrganizaÃ§Ãµes de InvestigaÃ§Ã£o'),
+            ('annex2_research', 'Anexo II - Organizações de Investigação'),
 
         ], 
 
@@ -175,51 +175,51 @@ class CompanyProfile(TimeStampedModel):
 
             # Energia
 
-            ('electricity', 'Eletricidade'), ('district_heating', 'Aquecimento/Arrefecimento Urbano'), ('oil', 'PetrÃ³leo'), ('gas', 'GÃ¡s'), ('hydrogen', 'HidrogÃ©nio'),
+            ('electricity', 'Eletricidade'), ('district_heating', 'Aquecimento/Arrefecimento Urbano'), ('oil', 'Petróleo'), ('gas', 'Gás'), ('hydrogen', 'Hidrogénio'),
 
             # Transportes
 
-            ('air', 'Transporte AÃ©reo'), ('rail', 'Transporte FerroviÃ¡rio'), ('water', 'Transporte por Vias NavegÃ¡veis'), ('road', 'Transporte RodoviÃ¡rio'),
+            ('air', 'Transporte Aéreo'), ('rail', 'Transporte Ferroviário'), ('water', 'Transporte por Vias Navegáveis'), ('road', 'Transporte Rodoviário'),
 
-            # Banca e FinanÃ§as
+            # Banca e Finanças
 
-            ('credit_inst', 'InstituiÃ§Ãµes de CrÃ©dito'), ('trading_venue', 'Operadores de Plataformas de NegociaÃ§Ã£o'), ('ccp', 'Contrapartes Centrais'),
+            ('credit_inst', 'Instituições de Crédito'), ('trading_venue', 'Operadores de Plataformas de Negociação'), ('ccp', 'Contrapartes Centrais'),
 
-            # SaÃºde
+            # Saúde
 
-            ('healthcare_prov', 'Prestadores de Cuidados de SaÃºde'), ('eu_ref_lab', 'LaboratÃ³rios de ReferÃªncia da UE'), ('pharma_r_d', 'InvestigaÃ§Ã£o e Desenvolvimento de Medicamentos'), ('pharma_mfg', 'Fabrico de Produtos FarmacÃªuticos'), ('med_device_mfg', 'Fabrico de Dispositivos MÃ©dicos'),
+            ('healthcare_prov', 'Prestadores de Cuidados de Saúde'), ('eu_ref_lab', 'Laboratórios de Referência da UE'), ('pharma_r_d', 'Investigação e Desenvolvimento de Medicamentos'), ('pharma_mfg', 'Fabrico de Produtos Farmacêuticos'), ('med_device_mfg', 'Fabrico de Dispositivos Médicos'),
 
-            # Ãgua
+            # Água
 
-            ('water_supply', 'Abastecimento e DistribuiÃ§Ã£o de Ãgua'), ('waste_water_coll', 'Recolha e Tratamento de Ãguas Residuais'),
+            ('water_supply', 'Abastecimento e Distribuição de Água'), ('waste_water_coll', 'Recolha e Tratamento de Águas Residuais'),
 
             # Infra Digital
 
-            ('ixp', 'Pontos de Troca de TrÃ¡fego Internet (IXP)'), ('dns', 'Sistemas de Nomes de DomÃ­nio (DNS)'), ('tld', 'Registos de Nomes de DomÃ­nio de Topo (TLD)'), ('cloud', 'ServiÃ§os de ComputaÃ§Ã£o em Nuvem'), ('data_centre', 'ServiÃ§os de Centro de Dados'), ('cdn', 'Redes de DÃ©bito de ConteÃºdo (CDN)'), ('trust_service', 'ServiÃ§os de ConfianÃ§a'), ('elec_comm', 'Redes/ServiÃ§os de ComunicaÃ§Ãµes EletrÃ³nicas PÃºblicas'),
+            ('ixp', 'Pontos de Troca de Tráfego Internet (IXP)'), ('dns', 'Sistemas de Nomes de Domínio (DNS)'), ('tld', 'Registos de Nomes de Domínio de Topo (TLD)'), ('cloud', 'Serviços de Computação em Nuvem'), ('data_centre', 'Serviços de Centro de Dados'), ('cdn', 'Redes de Débito de Conteúdo (CDN)'), ('trust_service', 'Serviços de Confiança'), ('elec_comm', 'Redes/Serviços de Comunicações Eletrónicas Públicas'),
 
             # TIC B2B
 
             ('msp', 'Managed Service Providers (MSP)'), ('mssp', 'Managed Security Service Providers (MSSP)'),
 
-            # Admin PÃºblica e EspaÃ§o
+            # Admin Pública e Espaço
 
-            ('central_gov', 'AdministraÃ§Ã£o Central'), ('regional_gov', 'AdministraÃ§Ã£o Regional'), ('space_ops', 'Operadores de Infraestruturas Terrestres (EspaÃ§o)'),
+            ('central_gov', 'Administração Central'), ('regional_gov', 'Administração Regional'), ('space_ops', 'Operadores de Infraestruturas Terrestres (Espaço)'),
 
             # Anexo II
 
-            ('postal_services', 'ServiÃ§os Postais e de Estafeta'), ('waste_coll', 'Recolha, Transporte e GestÃ£o de ResÃ­duos'), ('chem_mfg', 'Fabrico de Produtos QuÃ­micos'), ('food_prod', 'ProduÃ§Ã£o, TransformaÃ§Ã£o e DistribuiÃ§Ã£o de Alimentos'),
+            ('postal_services', 'Serviços Postais e de Estafeta'), ('waste_coll', 'Recolha, Transporte e Gestão de Resíduos'), ('chem_mfg', 'Fabrico de Produtos Químicos'), ('food_prod', 'Produção, Transformação e Distribuição de Alimentos'),
 
             # Fabrico Anexo II
 
-            ('mfg_med_devices', 'Fabrico de Dispositivos MÃ©dicos (Geral)'), ('mfg_comp_elec', 'Fabrico de Produtos InformÃ¡ticos e EletrÃ³nicos'), ('mfg_elec_eq', 'Fabrico de Equipamentos ElÃ©tricos'), ('mfg_machinery', 'Fabrico de MÃ¡quinas e Equipamentos'), ('mfg_vehicles', 'Fabrico de VeÃ­culos AutomÃ³veis'), ('mfg_transport_eq', 'Fabrico de Outro Equipamento de Transporte'),
+            ('mfg_med_devices', 'Fabrico de Dispositivos Médicos (Geral)'), ('mfg_comp_elec', 'Fabrico de Produtos Informáticos e Eletrónicos'), ('mfg_elec_eq', 'Fabrico de Equipamentos Elétricos'), ('mfg_machinery', 'Fabrico de Máquinas e Equipamentos'), ('mfg_vehicles', 'Fabrico de Veículos Automóveis'), ('mfg_transport_eq', 'Fabrico de Outro Equipamento de Transporte'),
 
             # Fornecedores Digitais
 
             ('online_mkt', 'Mercados em Linha (Marketplaces)'), ('search_engine', 'Motores de Busca em Linha'), ('social_net', 'Redes Sociais'),
 
-            # InvestigaÃ§Ã£o
+            # Investigação
 
-            ('research_org', 'Organismos de InvestigaÃ§Ã£o / Universidades'),
+            ('research_org', 'Organismos de Investigação / Universidades'),
 
         ]
 

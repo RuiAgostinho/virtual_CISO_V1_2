@@ -214,7 +214,7 @@ function StepProgress({ currentStep }: { currentStep: number }) {
             }`}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            <span className="truncate text-xs font-black">{step.title}</span>
+            <span className="truncate text-xs font-bold">{step.title}</span>
           </button>
         );
       })}
@@ -245,7 +245,7 @@ function ChoiceButton({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-black">{title}</p>
+          <p className="text-sm font-bold">{title}</p>
           {detail && <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{detail}</p>}
         </div>
         {selected && <CheckCircle2 className="h-5 w-5 shrink-0 text-indigo-600" />}
@@ -269,7 +269,7 @@ function TextInput({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</span>
       <input
         type={type}
         value={value}
@@ -378,24 +378,24 @@ export default function Onboarding() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
               <Rocket className="h-3.5 w-3.5" />
               Configuração inicial
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Assistente de onboarding do CISO</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Assistente de onboarding do CISO</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
                 Defina o contexto mínimo para a plataforma priorizar risco, conformidade e ações operacionais.
               </p>
             </div>
           </div>
           <div className="min-w-40 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Progresso</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Progresso</p>
             <div className="mt-2 flex items-center gap-3">
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
                 <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${completion}%` }} />
               </div>
-              <span className="text-sm font-black text-slate-950">{completion}%</span>
+              <span className="text-sm font-bold text-slate-950">{completion}%</span>
             </div>
           </div>
         </div>
@@ -414,8 +414,8 @@ export default function Onboarding() {
         {currentStep === 0 && (
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Passo 1</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Perfil da organização</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Passo 1</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Perfil da organização</h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <TextInput label="Nome da organização" value={form.legal_name} onChange={(value) => updateForm({ legal_name: value })} />
@@ -423,7 +423,7 @@ export default function Onboarding() {
               <TextInput label="Número de colaboradores" value={form.employee_count} onChange={(value) => updateForm({ employee_count: value })} type="number" />
               <TextInput label="Cidade" value={form.city} onChange={(value) => updateForm({ city: value })} />
               <label className="block">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo de organização</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tipo de organização</span>
                 <select
                   value={form.org_type}
                   onChange={(event) => updateForm({ org_type: event.target.value as OnboardingForm["org_type"] })}
@@ -442,8 +442,8 @@ export default function Onboarding() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Passo 2</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Prioridades do CISO</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Passo 2</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Prioridades do CISO</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {goalOptions.map((option) => (
@@ -473,8 +473,8 @@ export default function Onboarding() {
         {currentStep === 2 && (
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Passo 3</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Âmbito técnico e exposição</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Passo 3</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Âmbito técnico e exposição</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               {scopeOptions.map((option) => (
@@ -492,7 +492,7 @@ export default function Onboarding() {
               <ChoiceButton selected={form.internet_exposure === "significant"} title="Exposição relevante" onClick={() => updateForm({ internet_exposure: "significant" })} />
             </div>
             <label className="block">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Serviços críticos</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Serviços críticos</span>
               <textarea
                 value={form.critical_services}
                 onChange={(event) => updateForm({ critical_services: event.target.value })}
@@ -513,8 +513,8 @@ export default function Onboarding() {
         {currentStep === 3 && (
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Passo 4</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Frameworks e dados sensíveis</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Passo 4</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Frameworks e dados sensíveis</h2>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               {frameworkOptions.map((option) => (
@@ -542,25 +542,25 @@ export default function Onboarding() {
         {currentStep === 4 && (
           <div className="space-y-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Passo 5</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Plano inicial recomendado</h2>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Passo 5</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-950">Plano inicial recomendado</h2>
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <Gauge className="h-5 w-5 text-indigo-600" />
-                <p className="mt-3 text-sm font-black text-slate-950">Apetite ao risco</p>
+                <p className="mt-3 text-sm font-bold text-slate-950">Apetite ao risco</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   {riskAppetiteOptions.find((option) => option.id === form.risk_appetite)?.label}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <ClipboardCheck className="h-5 w-5 text-emerald-600" />
-                <p className="mt-3 text-sm font-black text-slate-950">Frameworks ativas</p>
+                <p className="mt-3 text-sm font-bold text-slate-950">Frameworks ativas</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{form.frameworks.length} selecionadas</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <Globe2 className="h-5 w-5 text-orange-600" />
-                <p className="mt-3 text-sm font-black text-slate-950">Exposição</p>
+                <p className="mt-3 text-sm font-bold text-slate-950">Exposição</p>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   {form.internet_exposure === "significant" ? "Relevante" : form.internet_exposure === "limited" ? "Limitada" : "Sem exposição conhecida"}
                 </p>
@@ -571,7 +571,7 @@ export default function Onboarding() {
                 <Link key={action.id} to={action.path} className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-slate-50">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                         action.priority === "high"
                           ? "bg-red-50 text-red-700"
                           : action.priority === "medium"
@@ -580,7 +580,7 @@ export default function Onboarding() {
                       }`}>
                         {action.priority === "high" ? "Alta" : action.priority === "medium" ? "Média" : "Baixa"}
                       </span>
-                      <p className="text-sm font-black text-slate-950">{action.title}</p>
+                      <p className="text-sm font-bold text-slate-950">{action.title}</p>
                     </div>
                     <p className="mt-1 text-xs font-semibold text-slate-500">{action.detail}</p>
                   </div>
@@ -596,7 +596,7 @@ export default function Onboarding() {
             type="button"
             onClick={() => setCurrentStep((step) => Math.max(0, step - 1))}
             disabled={currentStep === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
@@ -607,7 +607,7 @@ export default function Onboarding() {
               type="button"
               onClick={() => save(false)}
               disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               {saving ? "A guardar..." : "Guardar progresso"}
@@ -617,7 +617,7 @@ export default function Onboarding() {
               <button
                 type="button"
                 onClick={() => setCurrentStep((step) => Math.min(steps.length - 1, step + 1))}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700"
               >
                 Continuar <ArrowRight className="h-4 w-4" />
               </button>
@@ -626,7 +626,7 @@ export default function Onboarding() {
                 type="button"
                 onClick={() => save(true)}
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-800 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-800 disabled:opacity-50"
               >
                 <ShieldCheck className="h-4 w-4" />
                 {saving ? "A finalizar..." : "Finalizar onboarding"}
@@ -643,11 +643,11 @@ export default function Onboarding() {
       )}
 
       <div className="flex flex-wrap gap-3">
-        <Link to="/governance/organization" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:border-indigo-200 hover:text-indigo-700">
+        <Link to="/governance/organization" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-200 hover:text-indigo-700">
           <Database className="h-4 w-4" />
           Dados da organização
         </Link>
-        <Link to="/mission-control?mode=operational" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:border-indigo-200 hover:text-indigo-700">
+        <Link to="/mission-control?mode=operational" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-200 hover:text-indigo-700">
           <Rocket className="h-4 w-4" />
           Dashboard operacional
         </Link>

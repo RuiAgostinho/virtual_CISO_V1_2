@@ -76,8 +76,8 @@ function KpiCard({
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{value}</p>
         </div>
         <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${tones[tone]}`}>
           <Icon className="h-5 w-5" />
@@ -227,7 +227,7 @@ export default function Mechanisms() {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-slate-400">
         <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <span className="text-sm font-bold uppercase tracking-widest">A carregar mecanismos...</span>
+        <span className="text-sm font-bold uppercase tracking-wide">A carregar mecanismos...</span>
       </div>
     );
   }
@@ -236,7 +236,7 @@ export default function Mechanisms() {
     return (
       <div className="mx-auto max-w-5xl p-8">
         <div className="rounded-3xl border border-red-100 bg-red-50 p-8 text-red-700">
-          <div className="flex items-center gap-3 font-black">
+          <div className="flex items-center gap-3 font-bold">
             <AlertTriangle className="h-5 w-5" />
             Erro ao carregar mecanismos
           </div>
@@ -254,12 +254,12 @@ export default function Mechanisms() {
       <header className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
               <Wrench className="h-3.5 w-3.5" />
               Operacionalização de controlos
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Mecanismos de implementação</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Mecanismos de implementação</h1>
               <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-slate-500">
                 Acompanhe que mecanismos concretizam os controlos e em que frameworks cada mecanismo é reutilizado, com evidência e estado por relação.
               </p>
@@ -267,7 +267,7 @@ export default function Mechanisms() {
           </div>
           <button
             onClick={loadData}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
           >
             <RefreshCw className="h-4 w-4" />
             Atualizar
@@ -309,8 +309,8 @@ export default function Mechanisms() {
       <section className="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mesa de trabalho</p>
-            <h2 className="mt-1 text-lg font-black text-slate-950">Mecanismos reutilizáveis por framework</h2>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Mesa de trabalho</p>
+            <h2 className="mt-1 text-lg font-bold text-slate-950">Mecanismos reutilizáveis por framework</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:w-[760px]">
             <div className="relative sm:col-span-1">
@@ -350,8 +350,8 @@ export default function Mechanisms() {
         <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cobertura multi-framework</p>
-              <h3 className="mt-1 text-lg font-black text-slate-950">Mecanismos reutilizados entre frameworks</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Cobertura multi-framework</p>
+              <h3 className="mt-1 text-lg font-bold text-slate-950">Mecanismos reutilizados entre frameworks</h3>
             </div>
             <p className="text-xs font-semibold text-slate-500">
               {filteredMechanismGroups.length} mecanismo(s), {filteredControlMechanisms.length} relação(ões) controlo-mecanismo.
@@ -362,7 +362,7 @@ export default function Mechanisms() {
         {filteredMechanismGroups.length === 0 ? (
           <div className="p-10 text-center">
             <Wrench className="mx-auto h-12 w-12 text-slate-300" />
-            <h3 className="mt-4 text-lg font-black text-slate-900">Sem mecanismos para os filtros atuais</h3>
+            <h3 className="mt-4 text-lg font-bold text-slate-900">Sem mecanismos para os filtros atuais</h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
               Ajuste a pesquisa, o estado ou o tipo para ver a cobertura por framework.
             </p>
@@ -394,21 +394,21 @@ export default function Mechanisms() {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${typeClass(group.type)}`}>
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${typeClass(group.type)}`}>
                           {group.type || "Mecanismo"}
                         </span>
                         {group.frameworks.length > 1 && (
-                          <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                          <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
                             Multi-framework
                           </span>
                         )}
                         {needsEvidence && (
-                          <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                          <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
                             Falta evidência
                           </span>
                         )}
                       </div>
-                      <h4 className="mt-3 text-base font-black text-slate-950">{group.title}</h4>
+                      <h4 className="mt-3 text-base font-bold text-slate-950">{group.title}</h4>
                       <p className="mt-1 line-clamp-2 text-sm font-medium leading-relaxed text-slate-500">
                         {group.description || "Sem descrição operacional registada."}
                       </p>
@@ -417,16 +417,16 @@ export default function Mechanisms() {
                     <div className="flex min-w-[230px] flex-col gap-2">
                       <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Frameworks</p>
-                        <p className="mt-1 text-xl font-black text-slate-950">{group.frameworks.length}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Frameworks</p>
+                        <p className="mt-1 text-xl font-bold text-slate-950">{group.frameworks.length}</p>
                       </div>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Controlos</p>
-                        <p className="mt-1 text-xl font-black text-slate-950">{group.relations.length}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Controlos</p>
+                        <p className="mt-1 text-xl font-bold text-slate-950">{group.relations.length}</p>
                       </div>
                       <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Evidências</p>
-                        <p className={`mt-1 text-xl font-black ${group.evidenceCount > 0 ? "text-indigo-700" : "text-slate-300"}`}>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Evidências</p>
+                        <p className={`mt-1 text-xl font-bold ${group.evidenceCount > 0 ? "text-indigo-700" : "text-slate-300"}`}>
                           {group.evidenceCount}
                         </p>
                       </div>
@@ -435,7 +435,7 @@ export default function Mechanisms() {
                         <button
                           type="button"
                           onClick={() => setSuggestingEvidenceFor(suggestionTarget)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-indigo-700 transition-all hover:border-indigo-200 hover:bg-indigo-100"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-indigo-700 transition-all hover:border-indigo-200 hover:bg-indigo-100"
                         >
                           <Sparkles className="h-4 w-4" />
                           Sugerir evidencias
@@ -446,12 +446,12 @@ export default function Mechanisms() {
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {visibleFrameworks.map((framework) => (
-                      <span key={framework} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                      <span key={framework} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                         {framework}
                       </span>
                     ))}
                     {hiddenFrameworks > 0 && (
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         +{hiddenFrameworks}
                       </span>
                     )}
@@ -459,7 +459,7 @@ export default function Mechanisms() {
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {statusCounts.map((item) => (
-                      <span key={item.status} className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(item.status)}`}>
+                      <span key={item.status} className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(item.status)}`}>
                         {item.count} {statusLabel(item.status)}
                       </span>
                     ))}
@@ -470,21 +470,21 @@ export default function Mechanisms() {
                       <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.framework_name || "Framework não identificada"}</p>
-                            <p className="mt-1 text-sm font-black text-slate-900">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{item.framework_name || "Framework não identificada"}</p>
+                            <p className="mt-1 text-sm font-bold text-slate-900">
                               <span className="font-mono">{item.control_code || "--"}</span>
                               <span className="mx-2 text-slate-300">|</span>
                               <span>{item.control_title || "Controlo sem título"}</span>
                             </p>
                           </div>
                           <div className="flex shrink-0 flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(item.status)}`}>
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(item.status)}`}>
                               {statusLabel(item.status)}
                             </span>
                             <button
                               type="button"
                               onClick={() => setSuggestingEvidenceFor(item)}
-                              className="rounded-full border border-indigo-100 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
+                              className="rounded-full border border-indigo-100 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700 hover:bg-indigo-50"
                             >
                               Sugerir
                             </button>
@@ -505,7 +505,7 @@ export default function Mechanisms() {
           <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-slate-950">Detalhe por controlo e framework</h3>
+                <h3 className="text-lg font-bold text-slate-950">Detalhe por controlo e framework</h3>
                 <p className="text-xs font-semibold text-slate-500">{filteredControlMechanisms.length} relação(ões) encontradas.</p>
               </div>
               <SlidersHorizontal className="h-5 w-5 text-slate-300" />
@@ -515,7 +515,7 @@ export default function Mechanisms() {
           {filteredControlMechanisms.length === 0 ? (
             <div className="p-10 text-center">
               <Wrench className="mx-auto h-12 w-12 text-slate-300" />
-              <h3 className="mt-4 text-lg font-black text-slate-900">Sem mecanismos associados</h3>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Sem mecanismos associados</h3>
               <p className="mt-2 text-sm font-semibold text-slate-500">
                 Associe mecanismos a partir do detalhe de um controlo para transformar conformidade abstrata em implementação evidenciável.
               </p>
@@ -531,28 +531,28 @@ export default function Mechanisms() {
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${typeClass(item.mechanism_type)}`}>
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${typeClass(item.mechanism_type)}`}>
                             {item.mechanism_type || "Mecanismo"}
                           </span>
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(item.status)}`}>
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(item.status)}`}>
                             {statusLabel(item.status)}
                           </span>
                           {needsEvidence && (
-                            <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                            <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
                               Falta evidência
                             </span>
                           )}
                         </div>
 
-                        <h4 className="mt-3 text-base font-black text-slate-950">{item.mechanism_title || "Mecanismo sem título"}</h4>
+                        <h4 className="mt-3 text-base font-bold text-slate-950">{item.mechanism_title || "Mecanismo sem título"}</h4>
                         <p className="mt-1 line-clamp-2 text-sm font-medium leading-relaxed text-slate-500">
                           {item.mechanism_description || "Sem descrição operacional registada."}
                         </p>
 
                         <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Controlo suportado</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Controlo suportado</p>
                           <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                            <span className="font-mono text-sm font-black text-slate-950">{item.control_code || "--"}</span>
+                            <span className="font-mono text-sm font-bold text-slate-950">{item.control_code || "--"}</span>
                             <span className="text-sm font-bold text-slate-700">{item.control_title || "Controlo sem título"}</span>
                           </div>
                           <p className="mt-1 text-xs font-semibold text-slate-400">{item.framework_name || "Framework não identificada"}</p>
@@ -562,19 +562,19 @@ export default function Mechanisms() {
                           <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
                             {item.responsible && (
                               <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                <p className="font-black uppercase tracking-widest text-slate-400">Responsável</p>
+                                <p className="font-bold uppercase tracking-wide text-slate-400">Responsável</p>
                                 <p className="mt-1 font-bold text-slate-700">{item.responsible}</p>
                               </div>
                             )}
                             {item.deadline && (
                               <div className="rounded-xl border border-slate-100 bg-white p-3">
-                                <p className="font-black uppercase tracking-widest text-slate-400">Prazo</p>
+                                <p className="font-bold uppercase tracking-wide text-slate-400">Prazo</p>
                                 <p className="mt-1 font-bold text-slate-700">{new Date(item.deadline).toLocaleDateString("pt-PT")}</p>
                               </div>
                             )}
                             {item.acceptance_criteria && (
                               <div className="rounded-xl border border-slate-100 bg-white p-3 sm:col-span-3">
-                                <p className="font-black uppercase tracking-widest text-slate-400">Critérios de aceitação</p>
+                                <p className="font-bold uppercase tracking-wide text-slate-400">Critérios de aceitação</p>
                                 <p className="mt-1 font-semibold leading-relaxed text-slate-600">{item.acceptance_criteria}</p>
                               </div>
                             )}
@@ -584,13 +584,13 @@ export default function Mechanisms() {
 
                       <div className="flex shrink-0 flex-col gap-3 lg:w-48">
                         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-center">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Evidências</p>
-                          <p className={`mt-1 text-3xl font-black ${evidenceCount > 0 ? "text-indigo-700" : "text-slate-300"}`}>{evidenceCount}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Evidências</p>
+                          <p className={`mt-1 text-3xl font-bold ${evidenceCount > 0 ? "text-indigo-700" : "text-slate-300"}`}>{evidenceCount}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setAddingEvidenceTo(item.id)}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700"
                         >
                           <FileCheck2 className="h-4 w-4" />
                           Evidência
@@ -598,7 +598,7 @@ export default function Mechanisms() {
                         <button
                           type="button"
                           onClick={() => setSuggestingEvidenceFor(item)}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-indigo-700 transition-all hover:border-indigo-200 hover:bg-indigo-100"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-indigo-700 transition-all hover:border-indigo-200 hover:bg-indigo-100"
                         >
                           <Sparkles className="h-4 w-4" />
                           Sugerir evidencias
@@ -606,7 +606,7 @@ export default function Mechanisms() {
                         <button
                           type="button"
                           onClick={() => setEditingMechanism(item)}
-                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
                         >
                           Editar estado
                         </button>
@@ -621,10 +621,10 @@ export default function Mechanisms() {
 
         <aside className="space-y-6">
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cobertura evidenciável</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Cobertura evidenciável</p>
             <div className="mt-4 flex items-end gap-3">
-              <span className="text-5xl font-black tracking-tight text-slate-950">{metrics.coverageScore}%</span>
-              <span className="pb-2 text-xs font-bold uppercase tracking-widest text-slate-400">implementado + evidenciado</span>
+              <span className="text-5xl font-bold tracking-tight text-slate-950">{metrics.coverageScore}%</span>
+              <span className="pb-2 text-xs font-bold uppercase tracking-wide text-slate-400">implementado + evidenciado</span>
             </div>
             <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${metrics.coverageScore}%` }} />
@@ -635,8 +635,8 @@ export default function Mechanisms() {
           </div>
 
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Biblioteca sem ligação</p>
-            <h3 className="mt-2 text-lg font-black text-slate-950">Mecanismos por operacionalizar</h3>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Biblioteca sem ligação</p>
+            <h3 className="mt-2 text-lg font-bold text-slate-950">Mecanismos por operacionalizar</h3>
             <div className="mt-5 space-y-3">
               {unlinkedMechanisms.length === 0 ? (
                 <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
@@ -646,8 +646,8 @@ export default function Mechanisms() {
                 unlinkedMechanisms.slice(0, 8).map((mechanism) => (
                   <div key={mechanism.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-black text-slate-900">{mechanism.title}</p>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${typeClass(mechanism.mechanism_type)}`}>
+                      <p className="text-sm font-bold text-slate-900">{mechanism.title}</p>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${typeClass(mechanism.mechanism_type)}`}>
                         {mechanism.mechanism_type}
                       </span>
                     </div>

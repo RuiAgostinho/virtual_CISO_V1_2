@@ -191,7 +191,7 @@ export default function Maturity() {
         maturity_model: "Virtual CISO",
       });
       setMessage(
-        `Avaliacao inicializada: ${result.created} novas avaliacao(oes), ${result.existing} existentes.`
+        `Avaliação inicializada: ${result.created} novas avaliacao(oes), ${result.existing} existentes.`
       );
       await loadAssessments(false);
     } catch (err: any) {
@@ -208,7 +208,7 @@ export default function Maturity() {
       const updated = await governanceApi.updateControlAssessment(id, payload);
       setAssessments((current) => current.map((item) => (item.id === id ? updated : item)));
       setSelectedAssessment(updated);
-      setMessage("Avaliacao atualizada e gap recalculado.");
+      setMessage("Avaliação atualizada e gap recalculado.");
       await loadAssessments(false);
     } catch (err: any) {
       console.error(err);
@@ -222,7 +222,7 @@ export default function Maturity() {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-slate-400">
         <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <span className="text-sm font-bold uppercase tracking-widest">A carregar avaliacoes...</span>
+        <span className="text-sm font-bold uppercase tracking-wide">A carregar avaliacoes...</span>
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default function Maturity() {
     return (
       <div className="mx-auto max-w-5xl p-8">
         <div className="rounded-3xl border border-red-100 bg-red-50 p-8 text-red-700">
-          <div className="flex items-center gap-3 font-black">
+          <div className="flex items-center gap-3 font-bold">
             <AlertTriangle className="h-5 w-5" />
             Erro ao carregar avaliacoes
           </div>
@@ -251,12 +251,12 @@ export default function Maturity() {
       <header className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="space-y-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
               <ClipboardCheck className="h-3.5 w-3.5" />
               Validacao humana de conformidade
             </span>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950">Avaliacoes de conformidade</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Avaliações de conformidade</h1>
               <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-slate-500">
                 Confirma o estado dos controlos, associa evidencias, regista findings e transforma gaps em plano de acao.
               </p>
@@ -265,7 +265,7 @@ export default function Maturity() {
           <button
             onClick={bootstrapAssessments}
             disabled={working || !selectedFramework}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {working ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Inicializar framework
@@ -283,16 +283,16 @@ export default function Maturity() {
         <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {selectedFrameworkScore ? `${selectedFrameworkScore.framework_code} ${selectedFrameworkScore.version || ""}` : "Todas as frameworks"}
               </p>
               <div className="mt-4 flex items-end gap-3">
-                <span className={`text-6xl font-black tracking-tight ${
+                <span className={`text-6xl font-bold tracking-tight ${
                   (summary?.score || 0) >= 80 ? "text-emerald-400" : (summary?.score || 0) >= 50 ? "text-amber-300" : "text-red-400"
                 }`}>
                   {formatPercent(summary?.score || 0)}
                 </span>
-                <span className="pb-3 text-xs font-bold uppercase tracking-widest text-slate-500">score de avaliacao</span>
+                <span className="pb-3 text-xs font-bold uppercase tracking-wide text-slate-500">score de avaliacao</span>
               </div>
             </div>
             <ShieldCheck className="h-12 w-12 text-slate-700" />
@@ -303,7 +303,7 @@ export default function Maturity() {
           </p>
 
           <div className="mt-6">
-            <div className="mb-2 flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
               <span>Nao iniciado</span>
               <span>Implementado</span>
             </div>
@@ -327,8 +327,8 @@ export default function Maturity() {
       <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Escopo da avaliacao</p>
-            <h2 className="mt-1 text-lg font-black text-slate-950">Framework, estado e pesquisa</h2>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Escopo da avaliacao</p>
+            <h2 className="mt-1 text-lg font-bold text-slate-950">Framework, estado e pesquisa</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1fr_1.4fr] xl:w-[980px]">
             <select
@@ -393,7 +393,7 @@ export default function Maturity() {
       {!hasAssessments ? (
         <section className="rounded-3xl border border-slate-100 bg-white p-10 text-center shadow-sm">
           <Sparkles className="mx-auto h-12 w-12 text-indigo-400" />
-          <h3 className="mt-4 text-lg font-black text-slate-950">Ainda nao ha avaliacoes para este escopo</h3>
+          <h3 className="mt-4 text-lg font-bold text-slate-950">Ainda nao ha avaliacoes para este escopo</h3>
           <p className="mx-auto mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-500">
             Inicialize a framework para criar uma avaliacao baseline para cada controlo. Depois pode validar estados, anexar evidencias e abrir findings.
           </p>
@@ -401,7 +401,7 @@ export default function Maturity() {
             type="button"
             onClick={bootstrapAssessments}
             disabled={working || !selectedFramework}
-            className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
           >
             {working ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Criar avaliacoes baseline
@@ -422,17 +422,17 @@ export default function Maturity() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(assessment.implementation_status)}`}>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(assessment.implementation_status)}`}>
                         {statusLabel(assessment.implementation_status)}
                       </span>
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${gapClass(assessment.gap_status)}`}>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${gapClass(assessment.gap_status)}`}>
                         {gapLabel(assessment.gap_status)}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {assessment.framework_code} {assessment.framework_version}
                       </span>
                     </div>
-                    <h3 className="mt-3 text-base font-black text-slate-950">
+                    <h3 className="mt-3 text-base font-bold text-slate-950">
                       {assessment.control_code} - {assessment.control_title}
                     </h3>
                     <p className="mt-2 line-clamp-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
@@ -502,9 +502,9 @@ function MetricCard({
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between">
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>{icon}</div>
-        <span className="text-3xl font-black tracking-tighter text-slate-900">{value}</span>
+        <span className="text-3xl font-bold tracking-tighter text-slate-900">{value}</span>
       </div>
-      <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">{label}</h3>
+      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">{label}</h3>
       <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">{text}</p>
     </div>
   );
@@ -513,8 +513,8 @@ function MetricCard({
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-950">{value}</p>
+      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
     </div>
   );
 }
@@ -550,7 +550,7 @@ function PaginationControls({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
           >
             {[10, 25, 50, 100].map((size) => (
               <option key={size} value={size}>{size}</option>
@@ -566,7 +566,7 @@ function PaginationControls({
           <span className="sr-only">Pagina anterior</span>
           {"<"}
         </button>
-        <span className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-xs font-black uppercase tracking-widest text-slate-600">
+        <span className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
           {page} / {totalPages}
         </span>
         <button
@@ -628,7 +628,7 @@ function AssessmentDetailPanel({
     return (
       <aside className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <ClipboardCheck className="h-10 w-10 text-slate-300" />
-        <h3 className="mt-4 text-lg font-black text-slate-950">Selecione uma avaliacao</h3>
+        <h3 className="mt-4 text-lg font-bold text-slate-950">Selecione uma avaliacao</h3>
         <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
           O detalhe permite validar estado, registar evidencia, abrir findings e preparar a pergunta ao Virtual CISO.
         </p>
@@ -712,10 +712,10 @@ function AssessmentDetailPanel({
     <aside className="sticky top-6 self-start rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Validacao do controlo</p>
-          <h3 className="mt-2 text-xl font-black leading-tight text-slate-950">{assessment.control_code}</h3>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Validacao do controlo</p>
+          <h3 className="mt-2 text-xl font-bold leading-tight text-slate-950">{assessment.control_code}</h3>
         </div>
-        <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(assessment.implementation_status)}`}>
+        <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(assessment.implementation_status)}`}>
           {statusLabel(assessment.implementation_status)}
         </span>
       </div>
@@ -731,7 +731,7 @@ function AssessmentDetailPanel({
       <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Assistente de avaliacao</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-500">Assistente de avaliacao</p>
             <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-600">
               Sugestao baseada nas evidencias, findings, mecanismos e gap atual.
             </p>
@@ -740,7 +740,7 @@ function AssessmentDetailPanel({
             type="button"
             onClick={loadRecommendation}
             disabled={loadingRecommendation || working || busyLocal}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700 disabled:opacity-50"
           >
             {loadingRecommendation ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             Sugerir
@@ -756,10 +756,10 @@ function AssessmentDetailPanel({
         {recommendation && (
           <div className="mt-4 space-y-4 rounded-2xl border border-white bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${statusClass(recommendation.suggested_status)}`}>
+              <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass(recommendation.suggested_status)}`}>
                 {recommendation.suggested_status_label}
               </span>
-              <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Confianca {Math.round(recommendation.confidence * 100)}%
               </span>
             </div>
@@ -772,14 +772,14 @@ function AssessmentDetailPanel({
             </div>
 
             <RecommendationList title="Porque" items={recommendation.rationale} />
-            <RecommendationList title="Em falta" items={recommendation.missing_evidence} empty="Sem lacunas criticas identificadas." />
+            <RecommendationList title="Em falta" items={recommendation.missing_evidence} empty="Sem lacunas críticas identificadas." />
             <RecommendationList title="Proximas acoes" items={recommendation.next_actions} />
 
             <button
               type="button"
               onClick={applySuggestedStatus}
               disabled={working || recommendation.suggested_status === assessment.implementation_status}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400"
             >
               <CheckCircle2 className="h-4 w-4" />
               Aplicar estado sugerido
@@ -790,7 +790,7 @@ function AssessmentDetailPanel({
 
       <div className="mt-6 space-y-4">
         <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Estado</span>
           <select
             value={assessment.implementation_status}
             onChange={(event) => onUpdate(assessment.id, { implementation_status: event.target.value as ControlAssessmentStatus })}
@@ -806,7 +806,7 @@ function AssessmentDetailPanel({
         </label>
 
         <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notas do avaliador</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Notas do avaliador</span>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
@@ -816,7 +816,7 @@ function AssessmentDetailPanel({
         </label>
 
         <label className="block">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Avaliado por</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Avaliado por</span>
           <input
             value={assessedBy}
             onChange={(event) => setAssessedBy(event.target.value)}
@@ -829,7 +829,7 @@ function AssessmentDetailPanel({
           type="button"
           onClick={() => onUpdate(assessment.id, { notes, assessed_by: assessedBy })}
           disabled={working}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700 disabled:opacity-60"
         >
           <CheckCircle2 className="h-4 w-4" />
           Guardar avaliacao
@@ -853,7 +853,7 @@ function AssessmentDetailPanel({
               <option value="procedure">Procedimento</option>
               <option value="log">Log</option>
               <option value="ticket">Ticket</option>
-              <option value="config">Configuracao</option>
+              <option value="config">Configuração</option>
               <option value="screenshot">Screenshot</option>
             </select>
           }
@@ -865,7 +865,7 @@ function AssessmentDetailPanel({
           label="Abrir finding"
           value={findingTitle}
           onChange={setFindingTitle}
-          placeholder="Ex.: Falta evidencia tecnica de MFA"
+          placeholder="Ex.: Falta evidencia técnica de MFA"
           disabled={busyLocal}
           onSubmit={createFinding}
         />
@@ -888,7 +888,7 @@ function AssessmentDetailPanel({
 
       <Link
         to={`/ciso-assistant?q=${encodeURIComponent(assessmentPrompt(assessment))}`}
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700"
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:bg-indigo-700"
       >
         <MessageCircle className="h-4 w-4" />
         Pedir apoio ao Virtual CISO
@@ -918,7 +918,7 @@ function QuickAdd({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+      <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
         {icon}
         {label}
       </div>
@@ -934,7 +934,7 @@ function QuickAdd({
           type="button"
           onClick={onSubmit}
           disabled={disabled || !value.trim()}
-          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-widest text-white disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white disabled:opacity-50"
         >
           Add
         </button>
@@ -946,7 +946,7 @@ function QuickAdd({
 function RecommendationList({ title, items, empty }: { title: string; items: string[]; empty?: string }) {
   return (
     <div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{title}</p>
       {items.length === 0 ? (
         <p className="mt-1 text-xs font-semibold text-slate-400">{empty || "Sem itens."}</p>
       ) : (
@@ -965,7 +965,7 @@ function RecommendationList({ title, items, empty }: { title: string; items: str
 function DetailList({ title, items, empty }: { title: string; items: string[]; empty: string }) {
   return (
     <div className="border-b border-slate-100 p-4 last:border-b-0">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{title}</p>
       {items.length === 0 ? (
         <p className="mt-2 text-xs font-semibold text-slate-400">{empty}</p>
       ) : (

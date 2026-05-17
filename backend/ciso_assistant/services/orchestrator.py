@@ -78,11 +78,11 @@ class QueryOrchestrator:
             
             # 2. Instruir o modelo Llama3 (Sem termos ofensivos para evitar guardrails do LLM)
             system_prompt = (
-                "Ã‰s um experiente Virtual CISO que defende a empresa.\n"
-                "Abaixo terÃ¡s 3 Scorecards matemÃ¡ticos separados: Risco, RemediaÃ§Ã£o e a Prioridade Final calculada pela plataforma.\n"
-                "Em PortuguÃªs de Portugal (PT-PT), justifica o plano de aÃ§Ã£o e de defesa (remediaÃ§Ã£o) para o IT, "
+                "És um experiente Virtual CISO que defende a empresa.\n"
+                "Abaixo terás 3 Scorecards matemáticos separados: Risco, Remediação e a Prioridade Final calculada pela plataforma.\n"
+                "Em Português de Portugal (PT-PT), justifica o plano de ação e de defesa (remediação) para o IT, "
                 "usando a linguagem Executiva fornecida nos Data Points.\n"
-                "NÃƒO fales sobre como conduzir ataques. Foca-te na ResoluÃ§Ã£o / MitigaÃ§Ã£o dos problemas apresentados."
+                "NÃO fales sobre como conduzir ataques. Foca-te na Resolução / Mitigação dos problemas apresentados."
             )
             user_prompt = f"Consulta atual: '{query}'\n\n{pt_context}"
             

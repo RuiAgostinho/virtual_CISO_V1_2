@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 User = get_user_model()
 
@@ -41,17 +42,55 @@ class LoginView(APIView):
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
         res = Response({"user": {
-            "id": user.id, "email": user.email, "name": f"{user.first_name} {user.last_name}".strip() or user.username
+            "id": user.id, "email": user.email,
+            "name": f"{user.first_name} {user.last_name}".strip() or user.username,
+            "is_staff": user.is_staff, "is_superuser": user.is_superuser,
         }})
         res.set_cookie(COOKIE_ACCESS["key"], access, httponly=True, samesite="Lax", secure=False, path="/")
         res.set_cookie(COOKIE_REFRESH["key"], str(refresh), httponly=True, samesite="Lax", secure=False, path="/")
         return res
 
+@method_decorator(csrf_protect, name="dispatch")
+class RefreshView(APIView):
+    """
+    Issues a fresh `access` cookie from the `refresh` cookie.
+
+    Lets the frontend recover transparently from an expired access token
+    (30 min) without forcing the user to log in again, as long as the
+    refresh token (7 days) is still valid.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        raw_refresh = request.COOKIES.get("refresh")
+        if not raw_refresh:
+            return Response({"detail": "Sem refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            refresh = RefreshToken(raw_refresh)
+        except TokenError:
+            # Refresh token expired/invalid: clear both cookies so the client
+            # falls back to the login flow with a clean slate.
+            res = Response({"detail": "Sessão expirada."}, status=status.HTTP_401_UNAUTHORIZED)
+            res.delete_cookie(COOKIE_ACCESS["key"], path="/")
+            res.delete_cookie(COOKIE_REFRESH["key"], path="/")
+            return res
+
+        access = str(refresh.access_token)
+        res = Response({"detail": "ok"})
+        res.set_cookie(COOKIE_ACCESS["key"], access, httponly=True, samesite="Lax", secure=False, path="/")
+        return res
+
+
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request):
         u = request.user
-        return Response({"id": u.id, "email": u.email, "name": f"{u.first_name} {u.last_name}".strip() or u.username})
+        return Response({
+            "id": u.id, "email": u.email,
+            "name": f"{u.first_name} {u.last_name}".strip() or u.username,
+            "is_staff": u.is_staff, "is_superuser": u.is_superuser,
+        })
 
 @method_decorator(csrf_protect, name="dispatch")
 class LogoutView(APIView):

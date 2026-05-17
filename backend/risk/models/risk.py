@@ -7,9 +7,9 @@ class Risk(models.Model):
     class RiskLevel(models.TextChoices):
         VERY_LOW = 'very_low', 'Muito Baixo'
         LOW = 'low', 'Baixo'
-        MEDIUM = 'medium', 'MÃ©dio'
+        MEDIUM = 'medium', 'Médio'
         HIGH = 'high', 'Elevado'
-        CRITICAL = 'critical', 'CrÃ­tico'
+        CRITICAL = 'critical', 'Crítico'
 
     class RiskStatus(models.TextChoices):
         OPEN = 'open', 'Em Aberto'
@@ -29,7 +29,7 @@ class Risk(models.Model):
     
     status = models.CharField(max_length=20, choices=RiskStatus.choices, default=RiskStatus.OPEN, db_index=True)
     
-    ai_explanation = models.TextField(null=True, blank=True, help_text="JustificaÃ§Ã£o gerada pelo modelo preditivo")
+    ai_explanation = models.TextField(null=True, blank=True, help_text="Justificação gerada pelo modelo preditivo")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,9 +56,9 @@ class RiskAssessment(models.Model):
     class OverallLevel(models.TextChoices):
         VERY_LOW = 'very_low', 'Muito Baixo'
         LOW = 'low', 'Baixo'
-        MEDIUM = 'medium', 'MÃ©dio'
+        MEDIUM = 'medium', 'Médio'
         HIGH = 'high', 'Elevado'
-        CRITICAL = 'critical', 'CrÃ­tico'
+        CRITICAL = 'critical', 'Crítico'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='assessments')
@@ -69,7 +69,7 @@ class RiskAssessment(models.Model):
     recommendations = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"AvaliaÃ§Ã£o de {self.asset.name} - {self.overall_level}"
+        return f"Avaliação de {self.asset.name} - {self.overall_level}"
 
 class RiskTreatment(models.Model):
     class TreatmentType(models.TextChoices):
@@ -81,7 +81,7 @@ class RiskTreatment(models.Model):
     class TreatmentStatus(models.TextChoices):
         PLANNED = 'planned', 'Planeado'
         IN_PROGRESS = 'in_progress', 'Em Curso'
-        COMPLETED = 'completed', 'ConcluÃ­do'
+        COMPLETED = 'completed', 'Concluído'
         CANCELLED = 'cancelled', 'Cancelado'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

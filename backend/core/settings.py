@@ -147,7 +147,7 @@ MIDDLEWARE = [
 
 
 
-# Frontend (Vite) â€“ ajusta domÃ­nios
+# Frontend (Vite) – ajusta domínios
 
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
@@ -198,7 +198,7 @@ REST_FRAMEWORK = {
 
 
 
-# SimpleJWT â€“ tempos de vida (ajusta Ã  vontade)
+# SimpleJWT – tempos de vida (ajusta à vontade)
 
 SIMPLE_JWT = {
 
@@ -370,6 +370,36 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Ollama configuration is loaded from environment variables above.
+
+
+
+# ---------------------------------------------------------------------------
+# Multidimensional priority score — Cap. 4.9 of the dissertation.
+# Weights are applied to the 8 dimensions of the Decision screen score panel.
+# Sum should be 1.00. Override via env or settings_local if a different
+# weighting profile is required for a specific organization.
+# ---------------------------------------------------------------------------
+VIRTUAL_CISO_MULTIDIM_WEIGHTS = {
+    "technical_risk": 0.30,
+    "asset_criticality": 0.20,
+    "exposure": 0.10,
+    "compliance_state": 0.10,
+    "mechanism_maturity": 0.10,
+    "evidence_availability": 0.05,
+    "open_findings": 0.10,
+    "regulatory_relevance": 0.05,
+}
+
+# Regulatory weight per framework code (used by the `regulatory_relevance`
+# dimension). Frameworks carrying legal obligation (NIS2 transposition) take
+# precedence over voluntary frameworks (ISO, NIST).
+VIRTUAL_CISO_FRAMEWORK_WEIGHT = {
+    "NIS2": 100.0,
+    "DL125": 100.0,
+    "QNRC": 75.0,
+    "ISO27001": 50.0,
+    "NISTCSF": 50.0,
+}
 
 
 

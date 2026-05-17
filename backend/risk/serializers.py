@@ -410,7 +410,10 @@ class AssetSerializer(serializers.ModelSerializer):
 
     depends_on_software_details = SoftwareTinySerializer(source='depends_on_software', many=True, read_only=True)
 
+    criticality_breakdown = serializers.SerializerMethodField()
 
+    def get_criticality_breakdown(self, obj):
+        return obj.criticality_breakdown()
 
     class Meta:
 
@@ -418,7 +421,8 @@ class AssetSerializer(serializers.ModelSerializer):
 
         fields = [
 
-            'id', 'name', 'description', 'category', 'asset_type', 'org_unit', 'location', 
+            'id', 'name', 'description', 'supported_service', 'business_process',
+            'category', 'asset_type', 'org_unit', 'location', 
 
             'environment', 'deployment_type', 'business_owner', 'technical_owner', 
 
@@ -438,13 +442,13 @@ class AssetSerializer(serializers.ModelSerializer):
 
             'dependent_assets_details', 'external_service_assets_details', 'integration_assets_details',
 
-            'depends_on_software_details'
+            'depends_on_software_details', 'criticality_breakdown'
 
         ]
 
         read_only_fields = (
 
-            'created_at', 'updated_at', 'controls_count', 
+            'created_at', 'updated_at', 'controls_count', 'dependencies', 
 
             'vulnerabilities_count', 'last_sync_at', 
 

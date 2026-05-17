@@ -50,13 +50,13 @@ export default function RiskList() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-red-700">Gestao de risco</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Inventario de riscos</h1>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-red-700">Gestao de risco</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Inventario de riscos</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
               Riscos calculados por ativo, vulnerabilidade, impacto e probabilidade, prontos para tratamento ou aceitacao formal.
             </p>
           </div>
-          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-red-700">
+          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-red-700">
             <RefreshCw className="h-4 w-4" />
             Atualizar
           </button>
@@ -66,18 +66,18 @@ export default function RiskList() {
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Target className="h-5 w-5 text-slate-700" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.open}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Em aberto</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.open}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Em aberto</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <ShieldAlert className="h-5 w-5 text-red-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.high}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Criticos ou altos</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.high}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Criticos ou altos</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <p className="mt-3 text-3xl font-black text-slate-950">{metrics.accepted}</p>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Aceites</p>
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.accepted}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Aceites</p>
         </div>
       </section>
 
@@ -99,7 +99,7 @@ export default function RiskList() {
             <option value="mitigated">Mitigado</option>
             <option value="accepted">Aceite</option>
           </select>
-          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-red-700">
+          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-red-700">
             Filtrar
           </button>
         </div>
@@ -109,7 +109,7 @@ export default function RiskList() {
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
             {loading ? "A carregar..." : `${risks.length} riscos encontrados`}
           </p>
         </div>
@@ -119,30 +119,30 @@ export default function RiskList() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${levelTone(risk.risk_level)}`}>
+                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${levelTone(risk.risk_level)}`}>
                       {risk.risk_level_display || risk.risk_level}
                     </span>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {risk.status_display || risk.status}
                     </span>
                   </div>
-                  <h2 className="mt-3 text-base font-black text-slate-950">{risk.asset_name || "Ativo sem nome"}</h2>
+                  <h2 className="mt-3 text-base font-bold text-slate-950">{risk.asset_name || "Ativo sem nome"}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     {risk.vulnerability_cve || "Risco contextual"} {risk.vulnerability_title ? `- ${risk.vulnerability_title}` : ""}
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[360px]">
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{Math.round(Number(risk.risk_score || 0))}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Score</p>
+                    <p className="text-lg font-bold text-slate-950">{Math.round(Number(risk.risk_score || 0))}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Score</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{risk.likelihood}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Prob.</p>
+                    <p className="text-lg font-bold text-slate-950">{risk.likelihood}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Prob.</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-black text-slate-950">{risk.impact}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Impacto</p>
+                    <p className="text-lg font-bold text-slate-950">{risk.impact}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Impacto</p>
                   </div>
                 </div>
               </div>

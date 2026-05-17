@@ -58,6 +58,7 @@ class RemediationBreakdown:
 class PrioritizedVulnerabilityDTO:
     rank: int
     vulnerability_id: str
+    occurrence_id: str
     cve_id: str
     title: str
     severity: str
@@ -147,21 +148,21 @@ class VulnerabilityScoringEngine:
 
         # --- REASON SYNTHESIS ---
         r_reasons = []
-        if crit_comp >= 16: r_reasons.append("Afeta infraestrutura crÃ­tica")
+        if crit_comp >= 16: r_reasons.append("Afeta infraestrutura crítica")
         if exploit_comp > 0: r_reasons.append("CISA KEV: Exploit conhecido ativo")
         if safe_epss > 0.60: r_reasons.append(f"Alta probabilidade (EPSS {int(safe_epss*100)}%) de ataque imanente")
-        if exp_str in ["external", "dmz"]: r_reasons.append("SuperfÃ­cie exposta externamente")
+        if exp_str in ["external", "dmz"]: r_reasons.append("Superfície exposta externamente")
 
         rem_reasons = []
-        if patch_comp > 0: rem_reasons.append("MitigaÃ§Ã£o detalhada/Patch disponÃ­vel")
-        if age_bonus > 15: rem_reasons.append(f"Vulnerabilidade esquecida hÃ¡ mais de {min(30, getattr(asset_vuln, 'first_detected', now()).day)} dias")
+        if patch_comp > 0: rem_reasons.append("Mitigação detalhada/Patch disponível")
+        if age_bonus > 15: rem_reasons.append(f"Vulnerabilidade esquecida há mais de {min(30, getattr(asset_vuln, 'first_detected', now()).day)} dias")
 
         if not r_reasons: r_reasons.append("Vulnerabilidade de risco basal")
-        if not rem_reasons: rem_reasons.append("MitigaÃ§Ã£o complexa/Sem patch Ã³bvio devolvido")
+        if not rem_reasons: rem_reasons.append("Mitigação complexa/Sem patch óbvio devolvido")
 
         priority_summary = (
-            f"Prioridade baseada em {'AmeaÃ§a Severa' if risk_score > 70 else 'Risco Moderado'} "
-            f"com {'FÃ¡cil ResoluÃ§Ã£o' if remediation_score > 50 else 'MitigaÃ§Ã£o Morosa'}."
+            f"Prioridade baseada em {'Ameaça Severa' if risk_score > 70 else 'Risco Moderado'} "
+            f"com {'Fácil Resolução' if remediation_score > 50 else 'Mitigação Morosa'}."
         )
 
         return {
@@ -239,6 +240,7 @@ class VulnerabilityPrioritizationService:
             d = PrioritizedVulnerabilityDTO(
                 rank=rank,
                 vulnerability_id=str(vuln.id),
+                occurrence_id=str(asset_vuln.id),
                 cve_id=getattr(vuln, "cve_id", None) or "Undisclosed CVE",
                 title=getattr(vuln, "title", None) or "Vulnerability Descriptor Missing", # Note: Vulnerability missing title field physically, fallback will apply
                 severity=getattr(vuln, "severity", None) or "unknown",
@@ -264,11 +266,11 @@ class VulnerabilityContextBuilder:
     @staticmethod
     def build_llm_context(dtos: List[PrioritizedVulnerabilityDTO]) -> str:
         if not dtos:
-            return "Nenhuma vulnerabilidade crÃ­tica detetada."
+            return "Nenhuma vulnerabilidade crítica detetada."
 
         context_lines = [
-            "### DADOS DETERMINÃSTICOS - PRIORIZAÃ‡ÃƒO DE VULNERABILIDADES (MATRIZ DECISIONAL) ###",
-            "AtenÃ§Ã£o CISO AI: Estes cÃ¡lculos representam o Ranking de Prioridade Absoluta.",
+            "### DADOS DETERMINÍSTICOS - PRIORIZAÇÃO DE VULNERABILIDADES (MATRIZ DECISIONAL) ###",
+            "Atenção CISO AI: Estes cálculos representam o Ranking de Prioridade Absoluta.",
             ""
         ]
 
@@ -276,14 +278,14 @@ class VulnerabilityContextBuilder:
             ctx = (
                 f"Rank #{dto.rank} | {dto.cve_id}\n"
                 f"   - Score de Prioridade Final: {dto.priority_score}/100\n"
-                f"   - O quÃª (Risco): Score {dto.risk_score}/100 -> {' | '.join(dto.risk_reasons)}\n"
-                f"   - Como (RemediaÃ§Ã£o): Score {dto.remediation_score}/100 -> {' | '.join(dto.remediation_reasons)}\n"
+                f"   - O quê (Risco): Score {dto.risk_score}/100 -> {' | '.join(dto.risk_reasons)}\n"
+                f"   - Como (Remediação): Score {dto.remediation_score}/100 -> {' | '.join(dto.remediation_reasons)}\n"
                 f"   - Ativo Afetado: {dto.asset.name} (Criticidade: {dto.asset.criticality.upper()})\n"
                 f"   - Resumo Executivo: {dto.priority_summary}\n"
             )
             context_lines.append(ctx)
 
-        context_lines.append("### FIM DA INFORMAÃ‡ÃƒO PRIORIZADA ###")
+        context_lines.append("### FIM DA INFORMAÇÃO PRIORIZADA ###")
         return "\n".join(context_lines)
 
 

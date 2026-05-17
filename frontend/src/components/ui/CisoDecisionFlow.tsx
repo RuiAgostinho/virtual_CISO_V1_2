@@ -89,10 +89,10 @@ export default function CisoDecisionFlow({
                                     {isComplete ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                                 </span>
                                 <span className="min-w-0">
-                                    <span className="block text-[10px] font-black uppercase tracking-widest opacity-70">
+                                    <span className="block text-[10px] font-bold uppercase tracking-wide opacity-70">
                                         Passo {index + 1}
                                     </span>
-                                    <span className="block truncate text-sm font-black">{step.label}</span>
+                                    <span className="block truncate text-sm font-bold">{step.label}</span>
                                     <span className={`block truncate text-xs font-semibold ${isActive ? "text-white/70" : "opacity-60"}`}>
                                         {step.detail}
                                     </span>

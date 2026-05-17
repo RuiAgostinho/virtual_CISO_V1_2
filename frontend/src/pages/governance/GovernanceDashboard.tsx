@@ -40,7 +40,7 @@ export default function GovernanceDashboard() {
           reviewPolicies
         });
       } catch (err) {
-        console.error("Erro ao carregar dashboard de governaÃ§Ã£o", err);
+        console.error("Erro ao carregar dashboard de governação", err);
       } finally {
         setLoading(false);
       }
@@ -48,7 +48,7 @@ export default function GovernanceDashboard() {
     fetchData();
   }, []);
 
-  if (loading) return <div className="p-10 font-bold uppercase tracking-widest text-slate-400">A Carregar GovernaÃ§Ã£o...</div>;
+  if (loading) return <div className="p-10 font-bold uppercase tracking-wide text-slate-400">A Carregar Governação...</div>;
 
   const getBadgeColor = (status: string) => {
     switch (status) {
@@ -63,7 +63,7 @@ export default function GovernanceDashboard() {
     switch (status) {
       case 'Essential': return 'Essencial';
       case 'Important': return 'Importante';
-      case 'Out of Scope': return 'NÃ£o Abrangida';
+      case 'Out of Scope': return 'Não Abrangida';
       default: return 'Pendente';
     }
   };
@@ -73,11 +73,11 @@ export default function GovernanceDashboard() {
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-slate-900 uppercase tracking-tight flex items-center gap-3">
             <Scale className="text-indigo-600" size={32} />
-            GovernaÃ§Ã£o
+            Governação
           </h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">VisÃ£o EstratÃ©gica e Risco de Compliance</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-wide mt-1">Visão Estratégica e Risco de Compliance</p>
         </div>
       </div>
 
@@ -89,11 +89,11 @@ export default function GovernanceDashboard() {
         >
           <div className="flex justify-between items-start mb-4">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform"><ShieldAlert size={20} /></div>
-            <span className={`px-2 py-1 text-[9px] font-black uppercase tracking-widest rounded-md border ${getBadgeColor(stats.nis2)}`}>NIS2</span>
+            <span className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wide rounded-md border ${getBadgeColor(stats.nis2)}`}>NIS2</span>
           </div>
           <div>
-            <div className="text-2xl font-black text-slate-900 tracking-tighter mb-1">{getTranslatedNis2(stats.nis2)}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enquadramento Legal</div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tighter mb-1">{getTranslatedNis2(stats.nis2)}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Enquadramento Legal</div>
           </div>
         </div>
 
@@ -105,8 +105,8 @@ export default function GovernanceDashboard() {
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform"><BookOpen size={20} /></div>
           </div>
           <div>
-            <div className="text-3xl font-black text-slate-900 tracking-tighter mb-1">{stats.activePolicies}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PolÃ­ticas Ativas</div>
+            <div className="text-3xl font-bold text-slate-900 tracking-tighter mb-1">{stats.activePolicies}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Políticas Ativas</div>
           </div>
         </div>
 
@@ -118,8 +118,8 @@ export default function GovernanceDashboard() {
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Settings size={20} /></div>
           </div>
           <div>
-            <div className="text-3xl font-black text-slate-900 tracking-tighter mb-1">{stats.activeRegulations}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reg. TÃ©cnicos</div>
+            <div className="text-3xl font-bold text-slate-900 tracking-tighter mb-1">{stats.activeRegulations}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Reg. Técnicos</div>
           </div>
         </div>
 
@@ -131,8 +131,8 @@ export default function GovernanceDashboard() {
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform"><FileCheck size={20} /></div>
           </div>
           <div>
-            <div className="text-3xl font-black text-slate-900 tracking-tighter mb-1">{stats.activeProcedures}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Procedimentos</div>
+            <div className="text-3xl font-bold text-slate-900 tracking-tighter mb-1">{stats.activeProcedures}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Procedimentos</div>
           </div>
         </div>
 
@@ -144,22 +144,22 @@ export default function GovernanceDashboard() {
             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform"><AlertTriangle size={20} /></div>
           </div>
           <div>
-            <div className="text-3xl font-black text-slate-900 tracking-tighter mb-1">{stats.reviewPolicies}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Doc. em RevisÃ£o</div>
+            <div className="text-3xl font-bold text-slate-900 tracking-tighter mb-1">{stats.reviewPolicies}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Doc. em Revisão</div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
          <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 min-h-[300px]">
-             <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2"><Target className="text-indigo-500" size={18} /> RecomendaÃ§Ãµes EstratÃ©gicas</h3>
+             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-900 mb-6 flex items-center gap-2"><Target className="text-indigo-500" size={18} /> Recomendações Estratégicas</h3>
              <div className="space-y-4">
                  {stats.nis2 === 'Pendente' && (
                      <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-start gap-3">
                          <AlertTriangle className="text-orange-500 mt-0.5 shrink-0" size={16} />
                          <div>
-                             <div className="text-xs font-black text-slate-900">ClassificaÃ§Ã£o RegulatÃ³rio Pendente</div>
-                             <div className="text-[10px] font-medium text-slate-600 mt-1">Utilize o assistente de contexto regulatÃ³rio para definir o enquadramento da sua organizaÃ§Ã£o face ao DL 125/2025 (NIS2).</div>
+                             <div className="text-xs font-bold text-slate-900">Classificação Regulatório Pendente</div>
+                             <div className="text-[10px] font-medium text-slate-600 mt-1">Utilize o assistente de contexto regulatório para definir o enquadramento da sua organização face ao DL 125/2025 (NIS2).</div>
                          </div>
                      </div>
                  )}
@@ -167,8 +167,8 @@ export default function GovernanceDashboard() {
                      <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
                          <ShieldAlert className="text-red-500 mt-0.5 shrink-0" size={16} />
                          <div>
-                             <div className="text-xs font-black text-slate-900">AusÃªncia de PolÃ­ticas de SeguranÃ§a</div>
-                             <div className="text-[10px] font-medium text-slate-600 mt-1">A organizaÃ§Ã£o nÃ£o possui nenhuma polÃ­tica de seguranÃ§a ativa. Ã‰ crÃ­tico iniciar a criaÃ§Ã£o do corpo normativo (ex: PSI, Acessos).</div>
+                             <div className="text-xs font-bold text-slate-900">Ausência de Políticas de Segurança</div>
+                             <div className="text-[10px] font-medium text-slate-600 mt-1">A organização não possui nenhuma política de segurança ativa. É crítico iniciar a criação do corpo normativo (ex: PSI, Acessos).</div>
                          </div>
                      </div>
                  )}
@@ -176,8 +176,8 @@ export default function GovernanceDashboard() {
                      <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3">
                          <Settings className="text-blue-500 mt-0.5 shrink-0" size={16} />
                          <div>
-                             <div className="text-xs font-black text-slate-900">PolÃ­ticas nÃ£o operacionalizadas</div>
-                             <div className="text-[10px] font-medium text-slate-600 mt-1">Existem polÃ­ticas ativas mas nenhum Regulamento TÃ©cnico definido para as operacionalizar no terreno.</div>
+                             <div className="text-xs font-bold text-slate-900">Políticas não operacionalizadas</div>
+                             <div className="text-[10px] font-medium text-slate-600 mt-1">Existem políticas ativas mas nenhum Regulamento Técnico definido para as operacionalizar no terreno.</div>
                          </div>
                      </div>
                  )}
@@ -185,8 +185,8 @@ export default function GovernanceDashboard() {
                      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3">
                          <CheckCircle2 className="text-emerald-500 mt-0.5 shrink-0" size={16} />
                          <div>
-                             <div className="text-xs font-black text-slate-900">Estrutura de GovernaÃ§Ã£o Base Estabelecida</div>
-                             <div className="text-[10px] font-medium text-slate-600 mt-1">Mantenha a revisÃ£o periÃ³dica dos documentos para garantir a adequaÃ§Ã£o Ã  realidade da organizaÃ§Ã£o.</div>
+                             <div className="text-xs font-bold text-slate-900">Estrutura de Governação Base Estabelecida</div>
+                             <div className="text-[10px] font-medium text-slate-600 mt-1">Mantenha a revisão periódica dos documentos para garantir a adequação à realidade da organização.</div>
                          </div>
                      </div>
                  )}
