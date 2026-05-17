@@ -31,4 +31,5 @@ build/
 # IDE
 .vscode/
 .idea/
+.claude/
 .DS_Store
