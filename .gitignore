@@ -33,3 +33,6 @@ build/
 .idea/
 .claude/
 .DS_Store
+
+# Office temporary files
+~$*.docx

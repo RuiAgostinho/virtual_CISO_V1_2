@@ -9,9 +9,20 @@ from .base import TimeStampedModel
 
 
 class OrgUnit(TimeStampedModel):
+    class UnitType(models.TextChoices):
+        BOARD = "board", "Administracao"
+        BUSINESS = "business", "Negocio"
+        IT = "it", "Tecnologia"
+        SECURITY = "security", "Seguranca"
+        OPERATIONS = "operations", "Operacoes"
+        SUPPORT = "support", "Suporte"
+        EXTERNAL = "external", "Externo"
+        OTHER = "other", "Outro"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    unit_type = models.CharField(max_length=30, choices=UnitType.choices, default=UnitType.OTHER)
     parent = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -19,6 +30,16 @@ class OrgUnit(TimeStampedModel):
         blank=True,
         related_name="children",
     )
+    manager = models.ForeignKey(
+        "company.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_units",
+    )
+    is_security_relevant = models.BooleanField(default=False)
+    security_relevance = models.TextField(blank=True)
+    critical_services = models.TextField(blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -28,16 +49,44 @@ class OrgUnit(TimeStampedModel):
 
 
 class Person(TimeStampedModel):
+    class GovernanceRole(models.TextChoices):
+        CISO = "ciso", "CISO"
+        SECURITY_OFFICER = "security_officer", "Security Officer"
+        IT_OWNER = "it_owner", "IT Owner"
+        RISK_OWNER = "risk_owner", "Risk Owner"
+        BUSINESS_OWNER = "business_owner", "Business Owner"
+        DATA_PROTECTION = "data_protection", "Data Protection"
+        COMPLIANCE_OWNER = "compliance_owner", "Compliance Owner"
+        POLICY_OWNER = "policy_owner", "Policy Owner"
+        AUDITOR = "auditor", "Auditor"
+        EXECUTIVE_SPONSOR = "executive_sponsor", "Executive Sponsor"
+        OTHER = "other", "Other"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
     role = models.CharField(max_length=255, blank=True)
+    governance_role = models.CharField(
+        max_length=50,
+        choices=GovernanceRole.choices,
+        default=GovernanceRole.OTHER,
+    )
+    is_security_contact = models.BooleanField(default=False)
+    responsibilities = models.TextField(blank=True)
     org_unit = models.ForeignKey(
         OrgUnit,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="people",
+    )
+    backup_for = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="backups",
     )
 
     class Meta:
@@ -270,4 +319,3 @@ class CompanyProfile(TimeStampedModel):
     def __str__(self):
 
         return self.legal_name
-

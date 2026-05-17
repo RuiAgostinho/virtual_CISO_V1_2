@@ -29,6 +29,48 @@ export interface CompanyProfile {
   onboarding_completed_at?: string | null;
 }
 
+export interface OrgUnit {
+  id: string;
+  name: string;
+  description?: string;
+  unit_type?: string;
+  unit_type_display?: string;
+  parent?: string | null;
+  parent_name?: string | null;
+  manager?: string | null;
+  manager_name?: string | null;
+  is_security_relevant?: boolean;
+  security_relevance?: string;
+  critical_services?: string;
+  people_count?: number;
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  governance_role?: string;
+  governance_role_display?: string;
+  is_security_contact?: boolean;
+  responsibilities?: string;
+  org_unit?: string | null;
+  org_unit_name?: string | null;
+  backup_for?: string | null;
+  backup_for_name?: string | null;
+}
+
+function withQuery(path: string, params?: Record<string, any>) {
+  if (!params) return path;
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+  });
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
 export const companyApi = {
   async getProfile(): Promise<CompanyProfile> {
     return await request<CompanyProfile>("/api/company/profile/");
@@ -40,4 +82,32 @@ export const companyApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  listPeople: (params?: Record<string, any>) => request<any>(withQuery("/api/company/people/", params)),
+
+  createPerson: (payload: Partial<Person>) =>
+    request<Person>("/api/company/people/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updatePerson: (id: string, payload: Partial<Person>) =>
+    request<Person>(`/api/company/people/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  listOrgUnits: (params?: Record<string, any>) => request<any>(withQuery("/api/company/org-units/", params)),
+
+  createOrgUnit: (payload: Partial<OrgUnit>) =>
+    request<OrgUnit>("/api/company/org-units/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateOrgUnit: (id: string, payload: Partial<OrgUnit>) =>
+    request<OrgUnit>(`/api/company/org-units/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };

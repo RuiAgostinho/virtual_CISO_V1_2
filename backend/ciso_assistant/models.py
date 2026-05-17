@@ -5,6 +5,54 @@ from django.db import models
 from django.utils import timezone
 from pgvector.django import VectorField
 
+class AssistantRecommendation(models.Model):
+    """
+    Persistent audit trail for assistant interactions shown to the user.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    question = models.TextField()
+    answer = models.TextField()
+    task_type = models.CharField(max_length=100, blank=True)
+    model_used = models.CharField(max_length=120, blank=True)
+    used_rag = models.BooleanField(default=False)
+    confidence = models.FloatField(null=True, blank=True)
+
+    sources_json = models.JSONField(default=list, blank=True)
+    history_json = models.JSONField(default=list, blank=True)
+    filters_json = models.JSONField(default=dict, blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assistant_recommendations",
+    )
+    created_by_label = models.CharField(max_length=255, blank=True)
+    converted_decision = models.ForeignKey(
+        "governance.DecisionRecord",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assistant_recommendations",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["task_type"]),
+            models.Index(fields=["used_rag"]),
+        ]
+
+    def __str__(self):
+        return (self.question or "")[:80]
+
+
 class KnowledgeChunk(models.Model):
     """
     Stores textual knowledge chunks with pgvector embeddings for Semantic RAG.

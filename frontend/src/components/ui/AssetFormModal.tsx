@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Loader2, Save, X } from "lucide-react";
+import { Loader2, Plus, Save, X } from "lucide-react";
 import { riskApi } from "@/lib/riskApi";
+import { companyApi } from "@/lib/companyApi";
 
 interface AssetFormModalProps {
   open: boolean;
@@ -36,6 +37,12 @@ const CLASSIFICATION_FIELDS = [
   { key: "dependency_score", label: "Dependência", hint: "Dependência de/para outros ativos" },
 ];
 
+const DEPENDENCY_FIELDS = [
+  { key: "dependent_assets", label: "Depende de", hint: "Ativos de que este ativo depende para funcionar" },
+  { key: "external_service_assets", label: "Serviços externos", hint: "Serviços externos consumidos por este ativo" },
+  { key: "integration_assets", label: "Integrações", hint: "Ativos com que este ativo está integrado" },
+];
+
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
@@ -50,6 +57,13 @@ const EMPTY_FORM: Record<string, any> = {
   deployment_type: "",
   supported_service: "",
   business_process: "",
+  business_owner: "",
+  technical_owner: "",
+  org_unit: "",
+  parent: "",
+  dependent_assets: [],
+  external_service_assets: [],
+  integration_assets: [],
   confidentiality: 3,
   integrity: 3,
   availability: 3,
@@ -69,6 +83,9 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
   const [locations, setLocations] = useState<Lookup[]>([]);
   const [environments, setEnvironments] = useState<Lookup[]>([]);
   const [infrastructures, setInfrastructures] = useState<Lookup[]>([]);
+  const [people, setPeople] = useState<Lookup[]>([]);
+  const [orgUnits, setOrgUnits] = useState<Lookup[]>([]);
+  const [assetOptions, setAssetOptions] = useState<Lookup[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,13 +97,19 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       riskApi.listAssetLocations(),
       riskApi.listAssetEnvironments(),
       riskApi.listAssetInfrastructures(),
+      companyApi.listPeople(),
+      companyApi.listOrgUnits(),
+      riskApi.listAssets({ page_size: 500 }),
     ])
-      .then(([c, t, l, e, i]) => {
+      .then(([c, t, l, e, i, p, o, a]) => {
         setCategories(unwrap(c));
         setTypes(unwrap(t));
         setLocations(unwrap(l));
         setEnvironments(unwrap(e));
         setInfrastructures(unwrap(i));
+        setPeople(unwrap(p));
+        setOrgUnits(unwrap(o));
+        setAssetOptions(unwrap<any>(a).map((x) => ({ id: x.id, name: x.name })));
       })
       .catch(() => {});
   }, [open]);
@@ -106,6 +129,13 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
         deployment_type: asset.deployment_type ?? "",
         supported_service: asset.supported_service ?? "",
         business_process: asset.business_process ?? "",
+        business_owner: asset.business_owner ?? "",
+        technical_owner: asset.technical_owner ?? "",
+        org_unit: asset.org_unit ?? "",
+        parent: asset.parent ?? "",
+        dependent_assets: asset.dependent_assets ?? [],
+        external_service_assets: asset.external_service_assets ?? [],
+        integration_assets: asset.integration_assets ?? [],
         confidentiality: asset.confidentiality ?? 3,
         integrity: asset.integrity ?? 3,
         availability: asset.availability ?? 3,
@@ -123,9 +153,40 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
     [types, form.category],
   );
 
+  // An asset can't depend on itself, so exclude the one being edited.
+  const dependencyOptions = useMemo(
+    () =>
+      assetOptions.filter((a) => !(mode === "edit" && asset && String(a.id) === String(asset.id))),
+    [assetOptions, mode, asset],
+  );
+
   if (!open) return null;
 
   const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
+
+  const createPerson = async (name: string): Promise<Lookup | null> => {
+    try {
+      const created: any = await companyApi.createPerson({ name });
+      const lookup = { id: created.id, name: created.name };
+      setPeople((prev) => [...prev, lookup]);
+      return lookup;
+    } catch {
+      setError("Não foi possível criar a pessoa.");
+      return null;
+    }
+  };
+
+  const createOrgUnit = async (name: string): Promise<Lookup | null> => {
+    try {
+      const created: any = await companyApi.createOrgUnit({ name });
+      const lookup = { id: created.id, name: created.name };
+      setOrgUnits((prev) => [...prev, lookup]);
+      return lookup;
+    } catch {
+      setError("Não foi possível criar a unidade orgânica.");
+      return null;
+    }
+  };
 
   const handleSubmit = async () => {
     if (!String(form.name || "").trim()) {
@@ -144,6 +205,13 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       deployment_type: fk(form.deployment_type),
       supported_service: form.supported_service || "",
       business_process: form.business_process || "",
+      business_owner: fk(form.business_owner),
+      technical_owner: fk(form.technical_owner),
+      org_unit: fk(form.org_unit),
+      parent: fk(form.parent),
+      dependent_assets: form.dependent_assets || [],
+      external_service_assets: form.external_service_assets || [],
+      integration_assets: form.integration_assets || [],
       confidentiality: Number(form.confidentiality),
       integrity: Number(form.integrity),
       availability: Number(form.availability),
@@ -312,6 +380,63 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
             </div>
           </div>
 
+          <div className="space-y-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Responsabilidade</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FieldBlock label="Dono de negócio">
+                <CreatableSelect
+                  value={form.business_owner}
+                  options={people}
+                  onChange={(v) => set("business_owner", v)}
+                  onCreate={createPerson}
+                  placeholder="— Selecionar —"
+                  createPlaceholder="Nome da pessoa"
+                />
+              </FieldBlock>
+              <FieldBlock label="Dono técnico">
+                <CreatableSelect
+                  value={form.technical_owner}
+                  options={people}
+                  onChange={(v) => set("technical_owner", v)}
+                  onCreate={createPerson}
+                  placeholder="— Selecionar —"
+                  createPlaceholder="Nome da pessoa"
+                />
+              </FieldBlock>
+            </div>
+            <FieldBlock label="Unidade orgânica">
+              <CreatableSelect
+                value={form.org_unit}
+                options={orgUnits}
+                onChange={(v) => set("org_unit", v)}
+                onCreate={createOrgUnit}
+                placeholder="— Selecionar —"
+                createPlaceholder="Nome da unidade"
+              />
+            </FieldBlock>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Dependências</p>
+            <Field label="Ativo-pai (aloja ou suporta este ativo)">
+              <select value={form.parent} onChange={(e) => set("parent", e.target.value)} className={INPUT_CLASS}>
+                <option value="">— Nenhum —</option>
+                {dependencyOptions.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </Field>
+            {DEPENDENCY_FIELDS.map((df) => (
+              <FieldBlock key={df.key} label={df.label} hint={df.hint}>
+                <AssetMultiSelect
+                  value={form[df.key] || []}
+                  options={dependencyOptions}
+                  onChange={(ids) => set(df.key, ids)}
+                />
+              </FieldBlock>
+            ))}
+          </div>
+
           <div className="space-y-3">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Classificação</p>
             <p className="text-xs font-medium text-slate-500">
@@ -365,6 +490,156 @@ function Field({ label, required, children }: { label: string; required?: boolea
       </span>
       {children}
     </label>
+  );
+}
+
+function FieldBlock({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-bold text-slate-600">{label}</p>
+      {hint && <p className="mb-1.5 mt-0.5 text-[11px] font-medium text-slate-500">{hint}</p>}
+      <div className={hint ? "" : "mt-1"}>{children}</div>
+    </div>
+  );
+}
+
+function CreatableSelect({
+  value,
+  options,
+  onChange,
+  onCreate,
+  placeholder,
+  createPlaceholder,
+}: {
+  value: string;
+  options: Lookup[];
+  onChange: (v: string) => void;
+  onCreate: (name: string) => Promise<Lookup | null>;
+  placeholder: string;
+  createPlaceholder: string;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleCreate = async () => {
+    const name = newName.trim();
+    if (!name || busy) return;
+    setBusy(true);
+    const created = await onCreate(name);
+    setBusy(false);
+    if (created) {
+      onChange(String(created.id));
+      setCreating(false);
+      setNewName("");
+    }
+  };
+
+  if (creating) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleCreate();
+            }
+          }}
+          placeholder={createPlaceholder}
+          className={INPUT_CLASS}
+        />
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={busy}
+          className="shrink-0 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-white disabled:opacity-50"
+        >
+          {busy ? "..." : "Criar"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCreating(false);
+            setNewName("");
+          }}
+          className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-400 hover:text-slate-700"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={INPUT_CLASS}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.name}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => setCreating(true)}
+        className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-indigo-700"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Novo
+      </button>
+    </div>
+  );
+}
+
+function AssetMultiSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: (string | number)[];
+  options: Lookup[];
+  onChange: (ids: (string | number)[]) => void;
+}) {
+  const selectedIds = value.map(String);
+  const selected = options.filter((o) => selectedIds.includes(String(o.id)));
+  const available = options.filter((o) => !selectedIds.includes(String(o.id)));
+
+  return (
+    <div className="space-y-2">
+      <select
+        value=""
+        onChange={(e) => {
+          if (e.target.value) onChange([...value, e.target.value]);
+        }}
+        className={INPUT_CLASS}
+      >
+        <option value="">+ Adicionar ativo...</option>
+        {available.map((o) => (
+          <option key={o.id} value={o.id}>{o.name}</option>
+        ))}
+      </select>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((o) => (
+            <span
+              key={o.id}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700"
+            >
+              {o.name}
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((id) => String(id) !== String(o.id)))}
+                className="text-slate-400 hover:text-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

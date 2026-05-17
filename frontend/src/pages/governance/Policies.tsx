@@ -162,6 +162,9 @@ export default function Policies() {
                   </div>
                   <h2 className="mt-3 text-base font-bold text-slate-950">{policy.title}</h2>
                   <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{policy.description || policy.objective || "Sem descricao."}</p>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                    Owner: {policy.owner_display || policy.owner || "Nao definido"}
+                  </p>
                 </div>
                 <div className="grid grid-cols-4 gap-3 text-center sm:min-w-[460px]">
                   <div className="rounded-xl bg-slate-50 px-3 py-2">

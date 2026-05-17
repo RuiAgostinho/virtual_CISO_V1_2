@@ -1,150 +1,220 @@
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
+from django.conf import settings
 
 from ciso_assistant.services.llm_router import LLMRouter
-from ciso_assistant.services.semantic_retrieval import SemanticRetrievalService
-from ciso_assistant.services.prompt_builder import PromptBuilder
 from ciso_assistant.services.ollama_client import OllamaClient
-from ciso_assistant.services.structured_service import StructuredQueryService
+from ciso_assistant.services.prompt_builder import PromptBuilder
+from ciso_assistant.services.semantic_retrieval import SemanticRetrievalService
 from ciso_assistant.services.source_normalizer import SourceNormalizer
+from ciso_assistant.services.structured_service import StructuredQueryService
 
 logger = logging.getLogger(__name__)
 
+
 class QueryOrchestrator:
     """
-    Main entry point for the Hybrid Virtual CISO Reasoning Framework.
-    Connects:
-    1. Intent Classification Router
-    2. Structured Database Queries (ORM)
-    3. Semantic RAG Fetching (pgvector)
-    4. Dynamic Prompt Building
-    5. Final LLM Generation
+    Main entry point for the Hybrid Virtual CISO reasoning framework.
     """
+
+    @staticmethod
+    def _insufficient_rag_response(task_type: str, confidence: float) -> Dict[str, Any]:
+        return {
+            "task_type": task_type,
+            "confidence": confidence,
+            "used_rag": True,
+            "model_used": "rag_guardrail",
+            "sources": [],
+            "response": (
+                "De acordo com os registos atuais da organização, não possuo dados "
+                "suficientes para responder com segurança a essa pergunta."
+            ),
+        }
+
+    @staticmethod
+    def _build_vulnerability_prioritization_fallback(dtos: list) -> str:
+        if not dtos:
+            return "Não existem vulnerabilidades priorizadas neste momento."
+
+        lines = [
+            "Plano de ação prioritário com base no ranking determinístico da plataforma:",
+        ]
+
+        for dto in dtos[:5]:
+            reasons = dto.risk_reasons[:2] + dto.remediation_reasons[:1]
+            lines.append(
+                (
+                    f"- #{dto.rank} {dto.cve_id} no ativo {dto.asset.name}: "
+                    f"prioridade {dto.priority_score}/100, risco {dto.risk_score}/100 "
+                    f"e remediação {dto.remediation_score}/100. "
+                    f"Justificação: {'; '.join(reasons)}."
+                )
+            )
+
+        lines.append(
+            "Recomendação: atuar primeiro sobre os itens de topo, validando patching, "
+            "mitigações disponíveis e impacto no negócio."
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _generation_options(task_type: str, base: dict | None = None) -> dict:
+        options = dict(base or {})
+        options.setdefault("temperature", 0.15)
+
+        default_predict = getattr(settings, "OLLAMA_DEFAULT_NUM_PREDICT", 220)
+        task_num_predict = {
+            "general_qa": 140,
+            "technical_implementation": 180,
+            "structured_query": 120,
+            "executive_advisory": 220,
+            "risk_analysis": 220,
+            "control_mapping": 220,
+            "evidence_drafting": 240,
+            "vulnerability_prioritization": 260,
+        }
+        options.setdefault("num_predict", task_num_predict.get(task_type, default_predict))
+        return options
 
     @classmethod
     def process_query(cls, query: str, history: list = None, filters: dict = None) -> Dict[str, Any]:
-        """
-        Executes the intelligent pipeline end-to-end.
-        """
-        logger.info(f"[ORCHESTRATOR] Received query: {query}")
-        
-        # 1. Intent Detection
+        logger.info("[ORCHESTRATOR] Received query: %s", query)
+
         routing_decision = LLMRouter.detect_task_type(query)
         task_type = routing_decision["task_type"]
         confidence = routing_decision["confidence"]
         needs_rag = routing_decision["needs_rag"]
         model = routing_decision["model_used"]
 
-        logger.info(f"[ORCHESTRATOR] Router Decision -> Task: {task_type} | RAG: {needs_rag} | Model: {model}")
+        logger.info(
+            "[ORCHESTRATOR] Router Decision -> Task: %s | RAG: %s | Model: %s",
+            task_type,
+            needs_rag,
+            model,
+        )
 
-        # 2. Structured Data Bypass (Fast-path execution)
         if task_type == "structured_query":
-            # Direct hit to ORM for counts/averages, skipping LLM hallucinations
             struct_result = StructuredQueryService.run_structured_query(query)
             if struct_result["type"] != "unknown":
-                logger.info("[ORCHESTRATOR] Structured SQL Bypass succeeded.")
+                logger.info("[ORCHESTRATOR] Structured ORM bypass succeeded.")
                 return {
                     "task_type": "structured_query",
                     "confidence": 1.0,
                     "used_rag": False,
                     "model_used": "django_orm",
-                    "sources": SourceNormalizer.normalize_many([{
-                        "title": "Consulta estruturada Django ORM",
-                        "source_type": "structured_query",
-                        "source_ref": struct_result["type"],
-                        "content": struct_result["raw_text"],
-                        "score": 1.0,
-                    }]),
-                    "response": struct_result["raw_text"]
+                    "sources": SourceNormalizer.normalize_many(
+                        [
+                            {
+                                "title": "Consulta estruturada Django ORM",
+                                "source_type": "structured_query",
+                                "source_ref": struct_result["type"],
+                                "content": struct_result["raw_text"],
+                                "score": 1.0,
+                            }
+                        ]
+                    ),
+                    "response": struct_result["raw_text"],
                 }
-            else:
-                # If structured parsing failed to find exact matches, fallback to general context search
-                logger.warning("[ORCHESTRATOR] Structured SQL failed. Falling back to semantic search.")
-                needs_rag = True
 
-        # 3. Vulnerability Prioritization Bypass
+            logger.warning("[ORCHESTRATOR] Structured query unknown. Falling back to semantic search.")
+            needs_rag = True
+
         if task_type == "vulnerability_prioritization":
-            from risk.services.prioritization import VulnerabilityPrioritizationService, VulnerabilityContextBuilder
-            
-            # 1. Obter Verdade Priorizada
+            from risk.services.prioritization import (
+                VulnerabilityContextBuilder,
+                VulnerabilityPrioritizationService,
+            )
+
             dtos = VulnerabilityPrioritizationService.get_top_vulnerabilities(limit=5)
-            
-            logger.info("=========== [DEBUG] TOP VULNERABILIDADES ===========")
-            for d in dtos:
-                logger.info(f"RANK #{d.rank}: {d.cve_id} (Prioridade: {d.priority_score}) - Resumo: {d.priority_summary}")
-                
             pt_context = VulnerabilityContextBuilder.build_llm_context(dtos)
-            logger.info(f"=========== [DEBUG] CONTEXTO ENVIADO ===========\n{pt_context}")
-            
-            # 2. Instruir o modelo Llama3 (Sem termos ofensivos para evitar guardrails do LLM)
+
             system_prompt = (
-                "És um experiente Virtual CISO que defende a empresa.\n"
-                "Abaixo terás 3 Scorecards matemáticos separados: Risco, Remediação e a Prioridade Final calculada pela plataforma.\n"
-                "Em Português de Portugal (PT-PT), justifica o plano de ação e de defesa (remediação) para o IT, "
-                "usando a linguagem Executiva fornecida nos Data Points.\n"
-                "NÃO fales sobre como conduzir ataques. Foca-te na Resolução / Mitigação dos problemas apresentados."
+                "És um Virtual CISO experiente e focado em defesa.\n"
+                "Abaixo tens scorecards matemáticos de risco, remediação e prioridade final.\n"
+                "Em Português de Portugal (PT-PT), justifica o plano de ação para IT e gestão, "
+                "usando a linguagem executiva fornecida nos dados.\n"
+                "Não expliques como conduzir ataques. Foca-te na resolução e mitigação."
             )
             user_prompt = f"Consulta atual: '{query}'\n\n{pt_context}"
-            
-            logger.info(f"=========== [DEBUG] SYSTEM PROMPT ===========\n{system_prompt}")
-            logger.info("[ORCHESTRATOR] Invoking LLM for Vulnerability Prioritization...")
+
+            logger.info("[ORCHESTRATOR] Invoking LLM for vulnerability prioritization.")
             llm_response = OllamaClient.call(
-                model="llama3.1:8b", 
-                prompt=user_prompt, 
+                model="llama3.1:8b",
+                prompt=user_prompt,
                 system=system_prompt,
-                options={"temperature": 0.15}
+                options=cls._generation_options("vulnerability_prioritization"),
+                timeout_seconds=180,
             )
-            logger.info(f"=========== [DEBUG] LLM RESPOSTA ===========\n{llm_response}")
-            
-            # Format UI sources to look like normal chunks so the Frontend parser doesn't choke object-Object
-            ui_sources = []
-            for d in dtos:
-                ui_sources.append({
-                    "title": f"Rank #{d.rank}: {d.cve_id} ({d.title})",
+
+            if OllamaClient.is_service_error(llm_response):
+                logger.warning(
+                    "[ORCHESTRATOR] LLM unavailable for vulnerability prioritization. Using deterministic fallback."
+                )
+                llm_response = cls._build_vulnerability_prioritization_fallback(dtos)
+
+            ui_sources = [
+                {
+                    "title": f"Rank #{dto.rank}: {dto.cve_id} ({dto.title})",
                     "source_type": "vulnerability_prioritization",
-                    "source_ref": f"asset:{d.asset.id}; vulnerability:{d.vulnerability_id}",
-                    "content": f"Prioridade: {d.priority_score}/100 | Risco: {d.risk_score}/100 | Remediacao: {d.remediation_score}/100 | {d.priority_summary} | {', '.join(d.risk_reasons + d.remediation_reasons)}",
-                    "score": d.priority_score,
-                })
-            
+                    "source_ref": f"asset:{dto.asset.id}; vulnerability:{dto.vulnerability_id}",
+                    "content": (
+                        f"Prioridade: {dto.priority_score}/100 | "
+                        f"Risco: {dto.risk_score}/100 | "
+                        f"Remediação: {dto.remediation_score}/100 | "
+                        f"{dto.priority_summary} | "
+                        f"{', '.join(dto.risk_reasons + dto.remediation_reasons)}"
+                    ),
+                    "score": dto.priority_score,
+                }
+                for dto in dtos
+            ]
+
             return {
                 "task_type": task_type,
                 "confidence": 1.0,
                 "used_rag": False,
                 "model_used": "llama3.1:8b",
                 "sources": SourceNormalizer.normalize_many(ui_sources),
-                "response": llm_response
+                "response": llm_response,
             }
 
-        # 3. Semantic Retrieval (pgvector)
         retrieved_chunks = []
         if needs_rag:
             retrieved_chunks = SemanticRetrievalService.semantic_search(
                 query=query,
                 top_k=5,
-                filters=filters
+                filters=filters,
             )
+            logger.info("[ORCHESTRATOR] Retrieved %s chunk(s) for RAG.", len(retrieved_chunks))
+            if not retrieved_chunks:
+                return cls._insufficient_rag_response(task_type=task_type, confidence=confidence)
 
-        # 4. Hybrid Context Prompt Assembly
         system_prompt = PromptBuilder.build_system_prompt(
             task_type=task_type,
             needs_rag=needs_rag,
-            retrieved_chunks=retrieved_chunks
+            retrieved_chunks=retrieved_chunks,
         )
 
         user_prompt = query
         if history:
-            # Build conversation tail context
-            history_text = "\n".join([f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in history])
-            user_prompt = f"### CONVERSATION HISTORY:\n{history_text}\n\n### CURRENT QUERY OVER CONTEXT:\n{query}"
+            history_text = "\n".join(
+                [
+                    f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}"
+                    for msg in history
+                ]
+            )
+            user_prompt = (
+                f"### CONVERSATION HISTORY:\n{history_text}\n\n"
+                f"### CURRENT QUERY OVER CONTEXT:\n{query}"
+            )
 
-        # 5. Final LLM Inference
-        logger.info(f"[ORCHESTRATOR] Invoking LLM ({model}) text generation step...")
+        logger.info("[ORCHESTRATOR] Invoking LLM (%s) text generation step...", model)
         response_text = OllamaClient.call(
             model=model,
             prompt=user_prompt,
             system=system_prompt,
-            options={"temperature": 0.15}  # Low temp for focused enterprise data
+            options=cls._generation_options(task_type),
         )
         logger.info("[ORCHESTRATOR] Generation complete.")
 
@@ -154,7 +224,5 @@ class QueryOrchestrator:
             "used_rag": needs_rag,
             "model_used": model,
             "sources": SourceNormalizer.normalize_many(retrieved_chunks),
-            "response": response_text
+            "response": response_text,
         }
-
-

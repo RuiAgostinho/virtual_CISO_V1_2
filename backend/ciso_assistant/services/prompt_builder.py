@@ -28,28 +28,25 @@ class PromptBuilder:
             rag_instructions = (
                 f"\n\n### RETRIEVED KNOWLEDGE CONTEXT:\n{context_text if context_text else 'No direct records found.'}\n\n"
                 "### STRICT INSTRUCTIONS:\n"
-                "1. You MUST formulate your answer using ONLY the facts from the RETRIEVED KNOWLEDGE CONTEXT above.\n"
-                "2. Do NOT hallucinate assets, vulnerabilities, controls, mechanisms, or evidence that are not mentioned in the context.\n"
-                "3. If the context is empty or insufficient, explicitly state: "
-                "'De acordo com os registos atuais da organizacao, nao possuo dados suficientes sobre este assunto.'\n"
+                "1. Base the answer only on the retrieved context when discussing organization data.\n"
+                "2. Do not invent assets, vulnerabilities, controls, mechanisms, policies, or evidence.\n"
+                "3. If the context is insufficient, say clearly that the current records are not enough to answer safely.\n"
+                "4. When relevant, mention the retrieved sources explicitly in the answer body.\n"
                 f"{role_instructions}"
             )
             return base_prompt + "\n" + rag_instructions
 
-        fallback = (
-            "\n\n### TASK INSTRUCTIONS:\n"
-            f"{role_instructions}"
-        )
+        fallback = "\n\n### TASK INSTRUCTIONS:\n" f"{role_instructions}"
         return base_prompt + "\n" + fallback
 
     @classmethod
     def _get_role_instructions(cls, task_type: str) -> str:
         if task_type == "risk_analysis":
-            return "4. Focus on impact, probability, asset exposure, business criticality, and mitigation options."
+            return "5. Focus on impact, probability, asset exposure, business criticality, and mitigation options."
         if task_type == "control_mapping":
-            return "4. Cross-reference requirements directly to exact frameworks, controls, and mechanisms when available."
+            return "5. Cross-reference requirements directly to exact frameworks, controls, and mechanisms when available."
         if task_type == "executive_advisory":
-            return "4. Keep sentences concise and focus on governance priorities, business risk, ownership, and decision options."
+            return "5. Keep sentences concise and focus on governance priorities, business risk, ownership, and decision options."
         if task_type == "evidence_drafting":
-            return "4. Format the response as audit-ready evidence text, with clear scope, action, owner, date, and validation criteria."
-        return "4. Provide directly actionable answers prioritizing security fundamentals."
+            return "5. Format the response as audit-ready evidence text, with clear scope, action, owner, date, and validation criteria."
+        return "5. Provide directly actionable answers prioritizing security fundamentals."

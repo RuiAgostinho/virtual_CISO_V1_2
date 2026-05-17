@@ -7,17 +7,17 @@ function sourceTypeLabel(type: string) {
     const labels: Record<string, string> = {
         structured_query: "Consulta estruturada",
         vulnerability_prioritization: "Priorização",
-        policy: "Politica",
+        policy: "Política",
         asset: "Ativo",
         vulnerability: "Vulnerabilidade",
         control: "Controlo",
         mechanism: "Mecanismo",
         technical_regulation: "Regulamento técnico",
         procedure: "Procedimento",
-        evidence: "Evidencia",
+        evidence: "Evidência",
         compliance_gap: "Gap de conformidade",
         general: "Conhecimento",
-        internal: "Fonte interna"
+        internal: "Fonte interna",
     };
     return labels[type] || type;
 }
@@ -27,13 +27,13 @@ function taskTypeLabel(type?: string) {
         structured_query: "Consulta estruturada",
         vulnerability_prioritization: "Priorização",
         control_mapping: "Mapeamento de controlos",
-        evidence_drafting: "Evidencia",
+        evidence_drafting: "Evidência",
         executive_advisory: "Aconselhamento executivo",
-        risk_analysis: "Analise de risco",
+        risk_analysis: "Análise de risco",
         technical_implementation: "Implementação técnica",
-        general_qa: "Pergunta geral"
+        general_qa: "Pergunta geral",
     };
-    return type ? labels[type] || type : "Sem classificacao";
+    return type ? labels[type] || type : "Sem classificação";
 }
 
 function confidenceLabel(confidence?: number) {
@@ -97,11 +97,13 @@ function SourceCard({ source }: { source: ChatSource }) {
 
 export default function Assistant() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [messages, setMessages] = useState<ChatMessage[]>([{
-        role: "assistant",
-        content: "Ola. Sou o seu Virtual CISO. Posso ajudar a analisar ativos, riscos, vulnerabilidades, controlos e conformidade com base nos dados da plataforma.",
-        timestamp: new Date().toISOString()
-    }]);
+    const [messages, setMessages] = useState<ChatMessage[]>([
+        {
+            role: "assistant",
+            content: "Olá. Sou o seu Virtual CISO. Posso ajudar a analisar ativos, riscos, vulnerabilidades, controlos e conformidade com base nos dados da plataforma.",
+            timestamp: new Date().toISOString(),
+        },
+    ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const lastAiState = [...messages].reverse().find((message) => message.role === "assistant" && message.model_used);
@@ -128,15 +130,15 @@ export default function Assistant() {
         const userMsg: ChatMessage = {
             role: "user",
             content: input.trim(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         };
 
-        setMessages(prev => [...prev, userMsg]);
+        setMessages((prev) => [...prev, userMsg]);
         setInput("");
         setIsLoading(true);
 
         try {
-            const history = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+            const history = messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
             const response = await chatApi.ask(userMsg.content, history);
             const assistantMsg: ChatMessage = {
                 role: "assistant",
@@ -147,16 +149,19 @@ export default function Assistant() {
                 task_type: response.task_type,
                 model_used: response.model_used,
                 used_rag: response.used_rag,
-                confidence: response.confidence
+                confidence: response.confidence,
             };
-            setMessages(prev => [...prev, assistantMsg]);
+            setMessages((prev) => [...prev, assistantMsg]);
         } catch (error) {
             console.error("Failed to fetch response:", error);
-            setMessages(prev => [...prev, {
-                role: "assistant",
-                content: "Ocorreu um erro ao contactar o servidor do Virtual CISO. Verifique a ligacao ao backend/Ollama e tente novamente.",
-                timestamp: new Date().toISOString()
-            }]);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: "Ocorreu um erro ao contactar o servidor do Virtual CISO. Verifique a ligação ao backend/Ollama e tente novamente.",
+                    timestamp: new Date().toISOString(),
+                },
+            ]);
         } finally {
             setIsLoading(false);
         }
@@ -173,7 +178,7 @@ export default function Assistant() {
                         <h1 className="text-xl font-bold text-slate-900">Virtual CISO</h1>
                         <p className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500">
                             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                            H-RAG Engine | Fontes rastreaveis
+                            H-RAG Engine | Fontes rastreáveis
                         </p>
                     </div>
                 </div>
@@ -205,7 +210,7 @@ export default function Assistant() {
                                 )}
                             </div>
                             <div className={`rounded-2xl p-5 shadow-sm ${msg.role === "user" ? "rounded-tr-none bg-indigo-600 text-white" : "rounded-tl-none border border-slate-200 bg-white text-slate-800"}`}>
-                                <div className="prose prose-sm max-w-none prose-p:leading-relaxed" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, "<br/>") }} />
+                                <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
 
                                 {msg.role === "assistant" && msg.model_used && (
                                     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
@@ -216,11 +221,11 @@ export default function Assistant() {
                                             {msg.model_used}
                                         </span>
                                         <span className={msg.used_rag ? "rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700" : "rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500"}>
-                                            {msg.used_rag ? `RAG: ${msg.sources?.length || 0} fontes` : "RAG: nao usado"}
+                                            {msg.used_rag ? `RAG: ${msg.sources?.length || 0} fontes` : "RAG: não usado"}
                                         </span>
                                         {confidenceLabel(msg.confidence) && (
                                             <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                                                Confianca: {confidenceLabel(msg.confidence)}
+                                                Confiança: {confidenceLabel(msg.confidence)}
                                             </span>
                                         )}
                                     </div>
@@ -300,7 +305,7 @@ export default function Assistant() {
                     </button>
                 </div>
                 <p className="mt-3 text-center text-[10px] font-medium text-slate-400">
-                    As respostas devem ser validadas por um responsavel humano antes de suportarem uma decisao formal.
+                    As respostas devem ser validadas por um responsável humano antes de suportarem uma decisão formal.
                 </p>
             </div>
         </div>

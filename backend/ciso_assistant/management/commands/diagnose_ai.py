@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from ciso_assistant.models import KnowledgeChunk
 from ciso_assistant.services.chat.chat_service import ChatService
 from ciso_assistant.services.llm_router import LLMRouter
+from ciso_assistant.services.ollama_client import ollama_base_url
 from ciso_assistant.services.retrieval.embedding_service import EmbeddingService
 
 
@@ -17,7 +18,7 @@ class Command(BaseCommand):
         warnings = []
 
         self.stdout.write(self.style.NOTICE("Diagnostico da IA do Virtual CISO"))
-        ollama_url = getattr(settings, "OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+        ollama_url = ollama_base_url() or "http://127.0.0.1:11434"
         embed_model = getattr(settings, "OLLAMA_EMBED_MODEL", "llama3.2:3b")
         expected_dims = getattr(KnowledgeChunk._meta.get_field("embedding"), "dimensions", None)
 

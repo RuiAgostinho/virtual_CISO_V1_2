@@ -1,71 +1,167 @@
+from django.db import models
+from django.db.models import Count
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from rest_framework.response import Response
+from governance.models.decision import DecisionRecord
 
-from rest_framework import status
-
-from .serializers import ChatRequestSerializer, ChatResponseSerializer
-
-from .services.chat.chat_service import ChatService
-
-from django.db.models import Count
-
-from .models import KnowledgeChunk, RagIngestionRun
+from .models import AssistantRecommendation, KnowledgeChunk, RagIngestionRun
 from .permissions import IsAdminOrSuperUser
+from .serializers import (
+    AssistantRecommendationSerializer,
+    ChatRequestSerializer,
+    ChatResponseSerializer,
+    ConvertRecommendationSerializer,
+)
+from .services.chat.chat_service import ChatService
 from .services.rag_ingestion_runner import RagIngestionAlreadyRunning, RagIngestionRunner
 
 
-
 class AskCISOView(APIView):
-
     """
-
     Endpoint para realizar perguntas ao Virtual CISO.
 
     Utiliza um sistema RAG híbrido integrado com o modelo local Ollama.
-
     """
 
-    
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-
         serializer = ChatRequestSerializer(data=request.data)
-
         if not serializer.is_valid():
-
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            
-
-        user_query = serializer.validated_data['query']
-
-        history = serializer.validated_data.get('history', [])
-
-        filters = request.data.get('filters', {}) # Optional filters from frontend
-
-        
-
-        # Chama o serviço híbrido
+        user_query = serializer.validated_data["query"]
+        history = serializer.validated_data.get("history", [])
+        filters = request.data.get("filters", {})
 
         result = ChatService.ask_ciso(user_query, history=history, filters=filters)
 
-        
-
         resp_serializer = ChatResponseSerializer(data=result)
-
         resp_serializer.is_valid(raise_exception=True)
 
-        
+        user = request.user if request.user.is_authenticated else None
+        AssistantRecommendation.objects.create(
+            question=user_query,
+            answer=resp_serializer.validated_data["response"],
+            task_type=resp_serializer.validated_data.get("task_type", ""),
+            model_used=resp_serializer.validated_data.get("model_used", ""),
+            used_rag=resp_serializer.validated_data.get("used_rag", False),
+            confidence=resp_serializer.validated_data.get("confidence"),
+            sources_json=resp_serializer.validated_data.get("sources", []),
+            history_json=history,
+            filters_json=filters if isinstance(filters, dict) else {},
+            created_by=user,
+            created_by_label=user.get_username() if user else "",
+        )
 
         return Response(resp_serializer.data, status=status.HTTP_200_OK)
+
+
+class AssistantRecommendationHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = AssistantRecommendation.objects.select_related("created_by", "converted_decision").all()
+
+        search = (request.query_params.get("search") or "").strip()
+        if search:
+            qs = qs.filter(
+                models.Q(question__icontains=search)
+                | models.Q(answer__icontains=search)
+                | models.Q(task_type__icontains=search)
+                | models.Q(model_used__icontains=search)
+                | models.Q(created_by_label__icontains=search)
+            )
+
+        rag_only = (request.query_params.get("rag_only") or "").strip().lower()
+        if rag_only in {"1", "true", "yes"}:
+            qs = qs.filter(used_rag=True)
+
+        converted = (request.query_params.get("converted") or "").strip().lower()
+        if converted in {"1", "true", "yes"}:
+            qs = qs.filter(converted_decision__isnull=False)
+        elif converted in {"0", "false", "no"}:
+            qs = qs.filter(converted_decision__isnull=True)
+
+        total = qs.count()
+        page_size = request.query_params.get("page_size")
+        if page_size:
+            try:
+                qs = qs[: max(1, min(int(page_size), 500))]
+            except ValueError:
+                pass
+
+        serializer = AssistantRecommendationSerializer(qs, many=True)
+        return Response({"count": total, "results": serializer.data}, status=status.HTTP_200_OK)
+
+
+class AssistantRecommendationDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, recommendation_id):
+        deleted, _ = AssistantRecommendation.objects.filter(id=recommendation_id).delete()
+        if not deleted:
+            return Response({"detail": "Recomendação não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ConvertAssistantRecommendationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, recommendation_id):
+        recommendation = AssistantRecommendation.objects.filter(id=recommendation_id).first()
+        if not recommendation:
+            return Response({"detail": "Recomendação não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ConvertRecommendationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        decision_code = serializer.validated_data["decision_code"]
+        justification = serializer.validated_data["justification"]
+        title = serializer.validated_data.get("title") or recommendation.question[:255]
+
+        decision = DecisionRecord.objects.create(
+            decision_type=DecisionRecord.DecisionType.ASSISTANT_RECOMMENDATION,
+            target_type="assistant_recommendation",
+            target_id=str(recommendation.id),
+            title=title,
+            recommendation=recommendation.answer,
+            rationale=f"task_type={recommendation.task_type}; model={recommendation.model_used}; rag={recommendation.used_rag}",
+            source_snapshot=recommendation.sources_json or [],
+            score_snapshot={
+                "task_type": recommendation.task_type,
+                "model_used": recommendation.model_used,
+                "used_rag": recommendation.used_rag,
+                "confidence": recommendation.confidence,
+            },
+            decision=decision_code,
+            justification=justification,
+            decided_by=request.user.get_username() if request.user.is_authenticated else "system",
+            decided_at=timezone.now(),
+        )
+
+        recommendation.converted_decision = decision
+        recommendation.save(update_fields=["converted_decision", "updated_at"])
+
+        return Response(
+            {
+                "decision_id": str(decision.id),
+                "recommendation_id": str(recommendation.id),
+                "decision": decision.decision,
+                "decision_display": decision.get_decision_display(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 SOURCE_TYPE_LABELS = dict(KnowledgeChunk.SOURCE_CHOICES)
 
 
 def _serialize_run(run):
-    """Serialize a RagIngestionRun for the admin RAG endpoints."""
     if run is None:
         return None
     return {
@@ -88,7 +184,6 @@ def _serialize_run(run):
 
 
 def _rag_stats():
-    """Current KnowledgeChunk distribution for the RAG admin dashboard."""
     qs = KnowledgeChunk.objects.all()
     total = qs.count()
     by_type = [
@@ -109,8 +204,6 @@ def _rag_stats():
 
 
 class RagOverviewView(APIView):
-    """Stats and run history for the RAG knowledge-base admin page."""
-
     permission_classes = [IsAdminOrSuperUser]
 
     def get(self, request):
@@ -125,17 +218,17 @@ class RagOverviewView(APIView):
             .first()
         )
         recent = list(RagIngestionRun.objects.all()[:10])
-        return Response({
-            "stats": _rag_stats(),
-            "current_run": _serialize_run(current),
-            "last_run": _serialize_run(last),
-            "recent_runs": [_serialize_run(run) for run in recent],
-        })
+        return Response(
+            {
+                "stats": _rag_stats(),
+                "current_run": _serialize_run(current),
+                "last_run": _serialize_run(last),
+                "recent_runs": [_serialize_run(run) for run in recent],
+            }
+        )
 
 
 class RagReindexView(APIView):
-    """Triggers a bulk RAG re-ingestion (incremental or full)."""
-
     permission_classes = [IsAdminOrSuperUser]
 
     def post(self, request):
@@ -150,6 +243,3 @@ class RagReindexView(APIView):
         except RagIngestionAlreadyRunning as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(_serialize_run(run), status=status.HTTP_202_ACCEPTED)
-
-
-

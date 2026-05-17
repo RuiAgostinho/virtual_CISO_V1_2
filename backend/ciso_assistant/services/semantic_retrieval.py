@@ -73,7 +73,7 @@ class SemanticRetrievalService:
                 return []
 
             # 2. Build Base Queryset (Apply Metadata Filters)
-            queryset = KnowledgeChunk.objects.all()
+            queryset = KnowledgeChunk.objects.exclude(embedding__isnull=True)
 
             if filters:
                 if "framework" in filters:

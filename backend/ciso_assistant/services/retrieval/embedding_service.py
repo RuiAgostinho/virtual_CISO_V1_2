@@ -17,19 +17,17 @@ import logging
 import requests
 from django.conf import settings
 
+from ciso_assistant.services.ollama_client import ollama_base_url
+
 logger = logging.getLogger(__name__)
 
 
 def _embeddings_url() -> str:
     """Derive the Ollama /api/embeddings URL from the configured OLLAMA_URL."""
-    base = (getattr(settings, "OLLAMA_URL", "") or "").strip()
+    base = ollama_base_url()
     if not base:
         return ""
-    # OLLAMA_URL usually points at the generation endpoint (.../api/generate);
-    # reuse only its host:port and swap to the embeddings endpoint.
-    if "/api/" in base:
-        base = base.rsplit("/api/", 1)[0]
-    return f"{base.rstrip('/')}/api/embeddings"
+    return f"{base}/api/embeddings"
 
 
 class EmbeddingService:

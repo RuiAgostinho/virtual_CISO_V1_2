@@ -241,7 +241,13 @@ export type ControlMappingRebuildResult = {
     };
 };
 
-export type DecisionValue = "accepted" | "rejected" | "deferred" | "converted_to_action";
+export type DecisionValue =
+    | "accepted"
+    | "rejected"
+    | "deferred"
+    | "mitigate"
+    | "transferred"
+    | "converted_to_action";
 
 export type DecisionRecord = {
     id: string;
@@ -255,6 +261,7 @@ export type DecisionRecord = {
     score_snapshot: Record<string, any>;
     decision: DecisionValue;
     decision_display?: string;
+    decision_type_display?: string;
     justification: string;
     decided_by: string;
     decided_at: string | null;
@@ -560,6 +567,14 @@ export const governanceApi = {
     }),
 
     getFrameworks: () => request<PaginatedResponse<any>>("/api/governance/frameworks/"),
+    listControls: (params?: Record<string, any>) => {
+        let url = "/api/governance/controls/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<any>>(url);
+    },
     getControls: (frameworkId?: string) => {
         let url = "/api/governance/controls/";
         if (frameworkId) {

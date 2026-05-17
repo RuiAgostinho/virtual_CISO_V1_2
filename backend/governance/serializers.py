@@ -405,6 +405,10 @@ class PolicySerializer(serializers.ModelSerializer):
     mechanism_count = serializers.SerializerMethodField()
     compliance_score = serializers.SerializerMethodField()
     latest_assessment = serializers.SerializerMethodField()
+    owner_person_name = serializers.CharField(source="owner_person.name", read_only=True)
+    owner_org_unit_name = serializers.CharField(source="owner_org_unit.name", read_only=True)
+    accountable_person_name = serializers.CharField(source="accountable_person.name", read_only=True)
+    owner_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Policy
@@ -433,6 +437,13 @@ class PolicySerializer(serializers.ModelSerializer):
         if assessment:
             return PolicyAssessmentSerializer(assessment).data
         return None
+
+    def get_owner_display(self, obj):
+        if obj.owner_person:
+            return obj.owner_person.name
+        if obj.owner_org_unit:
+            return obj.owner_org_unit.name
+        return obj.owner or ""
 
 
 class TechnicalRegulationSerializer(serializers.ModelSerializer):

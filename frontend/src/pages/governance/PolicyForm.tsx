@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, BookOpen, Save, ShieldCheck } from "lucide-react";
 import { governanceApi } from "@/lib/governanceApi";
+import { companyApi, type OrgUnit, type Person } from "@/lib/companyApi";
 
 type PolicyFormState = {
   code: string;
@@ -11,6 +12,9 @@ type PolicyFormState = {
   objective: string;
   scope: string;
   owner: string;
+  owner_person: string;
+  owner_org_unit: string;
+  accountable_person: string;
   status: string;
   version: string;
   approval_date: string;
@@ -26,6 +30,9 @@ const emptyForm: PolicyFormState = {
   objective: "",
   scope: "",
   owner: "",
+  owner_person: "",
+  owner_org_unit: "",
+  accountable_person: "",
   status: "draft",
   version: "1.0",
   approval_date: "",
@@ -49,6 +56,8 @@ export default function PolicyForm() {
   const editing = Boolean(id);
   const [form, setForm] = useState<PolicyFormState>(emptyForm);
   const [frameworks, setFrameworks] = useState<any[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [orgUnits, setOrgUnits] = useState<OrgUnit[]>([]);
   const [loading, setLoading] = useState(editing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +67,14 @@ export default function PolicyForm() {
       setLoading(true);
       setError(null);
       try {
-        const frameworksData = await governanceApi.getFrameworks();
+        const [frameworksData, peopleData, orgUnitsData] = await Promise.all([
+          governanceApi.getFrameworks(),
+          companyApi.listPeople({ page_size: 1000 }),
+          companyApi.listOrgUnits({ page_size: 1000 }),
+        ]);
         setFrameworks(unwrap(frameworksData));
+        setPeople(unwrap<Person>(peopleData));
+        setOrgUnits(unwrap<OrgUnit>(orgUnitsData));
 
         if (id) {
           const policy = await governanceApi.getPolicy(id);
@@ -70,6 +85,9 @@ export default function PolicyForm() {
             objective: policy.objective || "",
             scope: policy.scope || "",
             owner: policy.owner || "",
+            owner_person: policy.owner_person || "",
+            owner_org_unit: policy.owner_org_unit || "",
+            accountable_person: policy.accountable_person || "",
             status: policy.status || "draft",
             version: policy.version || "1.0",
             approval_date: asDateInput(policy.approval_date),
@@ -116,6 +134,9 @@ export default function PolicyForm() {
       code: form.code.trim(),
       title: form.title.trim(),
       owner: form.owner.trim(),
+      owner_person: form.owner_person || null,
+      owner_org_unit: form.owner_org_unit || null,
+      accountable_person: form.accountable_person || null,
       approval_date: form.approval_date || null,
       review_date: form.review_date || null,
       next_review_date: form.next_review_date || null,
@@ -217,8 +238,38 @@ export default function PolicyForm() {
                 value={form.owner}
                 onChange={(event) => setForm((current) => ({ ...current, owner: event.target.value }))}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                placeholder="CISO"
+                placeholder="Fallback textual"
               />
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner pessoa</span>
+              <select value={form.owner_person} onChange={(event) => setForm((current) => ({ ...current, owner_person: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
+                <option value="">Sem owner pessoa</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner unidade</span>
+              <select value={form.owner_org_unit} onChange={(event) => setForm((current) => ({ ...current, owner_org_unit: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
+                <option value="">Sem owner unidade</option>
+                {orgUnits.map((unit) => (
+                  <option key={unit.id} value={unit.id}>{unit.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Accountable</span>
+              <select value={form.accountable_person} onChange={(event) => setForm((current) => ({ ...current, accountable_person: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
+                <option value="">Sem accountable</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </select>
             </label>
           </div>
 

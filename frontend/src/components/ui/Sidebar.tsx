@@ -119,11 +119,13 @@ export const sidebarData: NavGroup[] = [
     icon: Scale,
     items: [
       { title: "Dashboard de governação", path: "/governance", icon: LayoutDashboard },
+      { title: "Wizard de governance", path: "/governance/wizard", icon: ClipboardCheck, accent: true },
       {
         title: "Contexto organizacional",
         icon: Building2,
         children: [
           { title: "Dados da organização", path: "/governance/organization" },
+          { title: "Organograma e responsabilidades", path: "/governance/responsibilities" },
           { title: "Missão e objetivos", path: "/governance/mission" },
           { title: "Partes interessadas", path: "/governance/stakeholders" },
         ],
@@ -140,8 +142,8 @@ export const sidebarData: NavGroup[] = [
     icon: Brain,
     items: [
       { title: "Assistente", path: "/ciso-assistant", icon: Bot },
-      { title: "Histórico de recomendações", icon: History, disabled: true, badge: "Em breve" },
-      { title: "Decisões registadas", icon: FileCheck, disabled: true, badge: "Em breve" },
+      { title: "Histórico de recomendações", path: "/recommendation-history", icon: History },
+      { title: "Decisões registadas", path: "/decision-records", icon: FileCheck },
     ],
   },
   // 6. Mais — Integrações + Administração (uso esporádico).

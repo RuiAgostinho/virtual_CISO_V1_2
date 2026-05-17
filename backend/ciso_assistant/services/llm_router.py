@@ -84,6 +84,16 @@ class LLMRouter:
         r"\b(score|pontuacao|percentagem|gap|gaps|desvio|desvios|conformidade|pior|piores|fraco|fracos|baixo|baixos|estado)\b",
         r"\b(framework|frameworks|iso|iso27001|iso27002|nist|nistcsf|qnrc|27001|27002|csf|nis2|controlo|controlos|compliance|conformidade)\b",
     ]
+    PRIORITIZATION_PATTERNS = [
+        r"\b(prioriza|priorizar|urgente|urgentes|corrigir primeiro|corrigir em primeiro|remediar primeiro|prioridade)\b",
+        r"\b(vulnerabilidade|vulnerabilidades|cve|cves)\b",
+    ]
+    GENERAL_QA_PATTERNS = [
+        r"\b(o que e|o que faz|explica|define|conceito de)\b",
+    ]
+    GENERAL_QA_TOPICS = [
+        r"\b(ciso|rag|rag hibrido|llm|ollama|pgvector|sgsi)\b",
+    ]
 
     @classmethod
     def normalize_text(cls, text: str) -> str:
@@ -105,6 +115,20 @@ class LLMRouter:
         has_list_intent = any(re.search(pattern, normalized_query) for pattern in cls.STRUCTURED_LIST_PATTERNS)
         has_known_domain = any(re.search(pattern, normalized_query) for pattern in cls.STRUCTURED_DOMAIN_PATTERNS)
         return has_list_intent and has_known_domain
+
+    @classmethod
+    def detect_vulnerability_prioritization(cls, normalized_query: str) -> bool:
+        return all(re.search(pattern, normalized_query) for pattern in cls.PRIORITIZATION_PATTERNS)
+
+    @classmethod
+    def detect_general_concept_query(cls, normalized_query: str) -> bool:
+        has_concept_intent = any(re.search(pattern, normalized_query) for pattern in cls.GENERAL_QA_PATTERNS)
+        has_general_topic = any(re.search(pattern, normalized_query) for pattern in cls.GENERAL_QA_TOPICS)
+        mentions_internal_context = any(
+            token in normalized_query
+            for token in ["meu ", "minha ", "na plataforma", "na organizacao", "dados", "ativos", "controlos", "vulnerabilidades"]
+        )
+        return has_concept_intent and has_general_topic and not mentions_internal_context
 
     @classmethod
     def score_rules(cls, normalized_query: str) -> Dict[str, float]:
@@ -160,6 +184,32 @@ class LLMRouter:
     def detect_task_type(cls, query: str) -> Dict[str, Any]:
         normalized = cls.normalize_text(query)
         scores = cls.score_rules(normalized)
+
+        if cls.detect_vulnerability_prioritization(normalized):
+            task_type = "vulnerability_prioritization"
+            decision = {
+                "task_type": task_type,
+                "confidence": 1.0,
+                "needs_rag": cls.RAG_DECISION_MAP[task_type],
+                "reason": "Strict internal rule: vulnerability prioritization query.",
+                "model_used": cls.select_model(task_type),
+                "decision_source": "prioritization_rule",
+            }
+            cls._log_decision(query, normalized, scores, decision)
+            return decision
+
+        if cls.detect_general_concept_query(normalized):
+            task_type = "general_qa"
+            decision = {
+                "task_type": task_type,
+                "confidence": 1.0,
+                "needs_rag": cls.RAG_DECISION_MAP[task_type],
+                "reason": "Strict internal rule: conceptual general question.",
+                "model_used": cls.select_model(task_type),
+                "decision_source": "general_concept_rule",
+            }
+            cls._log_decision(query, normalized, scores, decision)
+            return decision
 
         if cls.detect_structured_query(normalized):
             task_type = "structured_query"

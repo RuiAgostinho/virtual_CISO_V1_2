@@ -41,7 +41,9 @@ const Assistant = React.lazy(() => import("@/pages/Assistant"));
 const ComplianceGaps = React.lazy(() => import("@/pages/ComplianceGaps"));
 const ControlMappings = React.lazy(() => import("@/pages/ControlMappings"));
 const GovernanceDashboard = React.lazy(() => import("@/pages/governance/GovernanceDashboard"));
+const GovernanceWizard = React.lazy(() => import("@/pages/governance/GovernanceWizard"));
 const OrganizationContext = React.lazy(() => import("@/pages/governance/OrganizationContext"));
+const OrgResponsibilities = React.lazy(() => import("@/pages/governance/OrgResponsibilities"));
 const MissionObjectives = React.lazy(() => import("@/pages/governance/MissionObjectives"));
 const Stakeholders = React.lazy(() => import("@/pages/governance/Stakeholders"));
 const RegulatoryContext = React.lazy(() => import("@/pages/governance/RegulatoryContext"));
@@ -57,6 +59,8 @@ const RiskPrioritization = React.lazy(() => import("@/pages/risk/RiskPrioritizat
 const RiskMatrix = React.lazy(() => import("@/pages/risk/RiskMatrix"));
 const Procedures = React.lazy(() => import("@/pages/governance/Procedures"));
 const DecisionScreen = React.lazy(() => import("@/pages/decision/DecisionScreen"));
+const DecisionRecords = React.lazy(() => import("@/pages/decision/DecisionRecords"));
+const RecommendationHistory = React.lazy(() => import("@/pages/decision/RecommendationHistory"));
 
 import ModulePlaceholder from "@/pages/ModulePlaceholder";
 
@@ -98,6 +102,8 @@ export default function App() {
             <Route path="/risks/matrix" element={<RiskMatrix />} />
             <Route path="/risks/:id" element={<RiskDetail />} />
             <Route path="/decisions/:occurrenceId" element={<DecisionScreen />} />
+            <Route path="/decision-records" element={<DecisionRecords />} />
+            <Route path="/recommendation-history" element={<RecommendationHistory />} />
             <Route path="/vulnerabilities" element={<Vulnerabilities />} />
             <Route path="/compliance" element={<FrameworkView />} />
             <Route path="/compliance-mapping" element={<ControlMappings />} />
@@ -121,7 +127,9 @@ export default function App() {
 
             {/* Governance Routes */}
             <Route path="/governance" element={<GovernanceDashboard />} />
+            <Route path="/governance/wizard" element={<GovernanceWizard />} />
             <Route path="/governance/organization" element={<OrganizationContext />} />
+            <Route path="/governance/responsibilities" element={<OrgResponsibilities />} />
             <Route path="/governance/mission" element={<MissionObjectives />} />
             <Route path="/governance/stakeholders" element={<Stakeholders />} />
             <Route path="/governance/regulatory" element={<RegulatoryContext />} />
@@ -157,4 +165,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

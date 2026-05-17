@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ElementType, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { riskApi, type Asset, type AssetVulnerability, type PrioritizedVulnerability } from "@/lib/riskApi";
 import { governanceApi, type ComplianceSummary, type DecisionRecord } from "@/lib/governanceApi";
+import { chatApi, type AssistantHistoryEntry } from "@/lib/chatApi";
 import CisoDecisionFlow from "@/components/ui/CisoDecisionFlow";
 import { buildVulnerabilityOccurrenceUrl } from "@/lib/cisoNavigation";
 
@@ -25,6 +26,7 @@ type LoadState = {
   priorities: PrioritizedVulnerability[];
   compliance: ComplianceSummary | null;
   decisions: DecisionRecord[];
+  recommendations: AssistantHistoryEntry[];
 };
 
 const emptyState: LoadState = {
@@ -33,10 +35,11 @@ const emptyState: LoadState = {
   priorities: [],
   compliance: null,
   decisions: [],
+  recommendations: [],
 };
 
 const severityLabel: Record<string, string> = {
-  Critical: "Crítica",
+  Critical: "Critica",
   High: "Alta",
   Medium: "Media",
   Low: "Baixa",
@@ -46,8 +49,60 @@ const decisionLabel: Record<string, string> = {
   accepted: "Aceite",
   rejected: "Rejeitada",
   deferred: "Diferida",
+  mitigate: "Mitigar",
+  transferred: "Transferida",
   converted_to_action: "Convertida em acao",
 };
+
+const taskTypeLabel: Record<string, string> = {
+  vulnerability_prioritization: "Priorizacao",
+  structured_query: "Consulta estruturada",
+  control_mapping: "Mapeamento de controlos",
+  executive_advisory: "Apoio executivo",
+  general_qa: "Conhecimento geral",
+};
+
+function recommendationPriorityScore(item: AssistantHistoryEntry) {
+  const confidence = typeof item.confidence === "number" ? item.confidence : 0;
+  const taskWeight =
+    item.task_type === "vulnerability_prioritization"
+      ? 200
+      : item.task_type === "executive_advisory"
+        ? 120
+        : item.task_type === "control_mapping"
+          ? 90
+          : 40;
+  const ragWeight = item.used_rag ? 15 : 0;
+
+  return taskWeight + ragWeight + Math.round(confidence * 100);
+}
+
+function recommendationFocus(item: AssistantHistoryEntry) {
+  const confidence = typeof item.confidence === "number" ? item.confidence : 0;
+
+  if (item.task_type === "vulnerability_prioritization") {
+    return {
+      label: "Prioridade imediata",
+      className: "border-red-100 bg-red-50 text-red-700",
+    };
+  }
+  if (confidence >= 0.8) {
+    return {
+      label: "Alta confianca",
+      className: "border-emerald-100 bg-emerald-50 text-emerald-700",
+    };
+  }
+  if (item.used_rag) {
+    return {
+      label: "Com suporte documental",
+      className: "border-indigo-100 bg-indigo-50 text-indigo-700",
+    };
+  }
+  return {
+    label: "Analise geral",
+    className: "border-slate-200 bg-slate-100 text-slate-600",
+  };
+}
 
 function scoreTone(value: number) {
   if (value >= 80) return "text-red-600";
@@ -67,7 +122,7 @@ function KpiCard({
   value: string | number;
   detail: string;
   tone?: "slate" | "red" | "amber" | "emerald" | "indigo";
-  icon: React.ElementType;
+  icon: ElementType;
 }) {
   const toneClass = {
     slate: "bg-slate-50 text-slate-700 border-slate-100",
@@ -96,17 +151,139 @@ function KpiCard({
 function LoadingPanel() {
   return (
     <div className="space-y-6 p-6">
-      <div className="h-20 rounded-3xl bg-slate-100 animate-pulse" />
+      <div className="h-20 animate-pulse rounded-3xl bg-slate-100" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {[1, 2, 3, 4].map((item) => (
-          <div key={item} className="h-36 rounded-2xl bg-slate-100 animate-pulse" />
+          <div key={item} className="h-36 animate-pulse rounded-2xl bg-slate-100" />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="h-96 rounded-3xl bg-slate-100 animate-pulse lg:col-span-2" />
-        <div className="h-96 rounded-3xl bg-slate-100 animate-pulse" />
+        <div className="h-96 animate-pulse rounded-3xl bg-slate-100 lg:col-span-2" />
+        <div className="h-96 animate-pulse rounded-3xl bg-slate-100" />
       </div>
     </div>
+  );
+}
+
+function RecommendationList({
+  items,
+  emptyMessage,
+}: {
+  items: AssistantHistoryEntry[];
+  emptyMessage: string;
+}) {
+  if (items.length === 0) {
+    return <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">{emptyMessage}</p>;
+  }
+
+  return (
+    <>
+      {items
+        .slice()
+        .sort((a, b) => recommendationPriorityScore(b) - recommendationPriorityScore(a))
+        .map((item) => {
+          const focus = recommendationFocus(item);
+          return (
+        <Link
+          key={item.id}
+          to={`/recommendation-history?id=${encodeURIComponent(item.id)}`}
+          className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-indigo-200 hover:bg-indigo-50/60"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {taskTypeLabel[item.task_type || ""] || item.task_type || "Assistente"}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {new Date(item.created_at).toLocaleDateString("pt-PT")}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${focus.className}`}>
+              {focus.label}
+            </span>
+            {typeof item.confidence === "number" && (
+              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                Confianca {Math.round(item.confidence * 100)}%
+              </span>
+            )}
+          </div>
+          <p className="mt-3 line-clamp-2 text-sm font-bold text-slate-900">{item.question}</p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-slate-500">
+              {item.used_rag ? "Com RAG" : "Sem RAG"}
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600">
+              Rever <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </div>
+        </Link>
+          );
+        })}
+    </>
+  );
+}
+
+function AssistantDecisionList({
+  items,
+  emptyMessage,
+}: {
+  items: DecisionRecord[];
+  emptyMessage: string;
+}) {
+  if (items.length === 0) {
+    return <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">{emptyMessage}</p>;
+  }
+
+  return (
+    <>
+      {items.map((decision) => (
+        <Link
+          key={decision.id}
+          to={`/decision-records?id=${encodeURIComponent(decision.id)}`}
+          className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-indigo-200 hover:bg-indigo-50/60"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {decisionLabel[decision.decision] || decision.decision}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
+            </span>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
+          <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
+        </Link>
+      ))}
+    </>
+  );
+}
+
+function LatestDecisionList({ items }: { items: DecisionRecord[] }) {
+  if (items.length === 0) {
+    return (
+      <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+        Ainda nao existem decisoes humanas registadas.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      {items.map((decision) => (
+        <div key={decision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {decisionLabel[decision.decision] || decision.decision}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
+            </span>
+          </div>
+          <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
+          <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -118,22 +295,24 @@ export default function MissionControl() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const requestedMode = searchParams.get("mode");
   const savedMode = localStorage.getItem("view_mode");
-  const dashboardMode = requestedMode === "executive" || requestedMode === "operational"
-    ? requestedMode
-    : savedMode === "executive"
-      ? "executive"
-      : "operational";
+  const dashboardMode =
+    requestedMode === "executive" || requestedMode === "operational"
+      ? requestedMode
+      : savedMode === "executive"
+        ? "executive"
+        : "operational";
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [assetsRes, occRes, prioritiesRes, complianceRes, decisionsRes] = await Promise.allSettled([
+      const [assetsRes, occRes, prioritiesRes, complianceRes, decisionsRes, recommendationsRes] = await Promise.allSettled([
         riskApi.listAssets({ page_size: 10000 }),
         riskApi.listVulnerabilityOccurrences({ page_size: 100000 }),
         riskApi.listPrioritizedVulnerabilities({ limit: 6 }),
         governanceApi.getComplianceSummary(),
         governanceApi.listDecisionRecords({ page_size: 5, ordering: "-decided_at" }),
+        chatApi.listHistory({ page_size: 5, converted: false }),
       ]);
 
       setData({
@@ -142,6 +321,7 @@ export default function MissionControl() {
         priorities: prioritiesRes.status === "fulfilled" ? prioritiesRes.value || [] : [],
         compliance: complianceRes.status === "fulfilled" ? complianceRes.value : null,
         decisions: decisionsRes.status === "fulfilled" ? decisionsRes.value.results || [] : [],
+        recommendations: recommendationsRes.status === "fulfilled" ? recommendationsRes.value.results || [] : [],
       });
       setLastUpdated(new Date());
     } catch (err: any) {
@@ -163,6 +343,7 @@ export default function MissionControl() {
     const acceptedOrClosed = data.occurrences.filter((item) =>
       ["Resolved", "Mitigated", "Accepted risk", "False positive"].includes(item.status)
     ).length;
+    const assistantDecisions = data.decisions.filter((item) => item.decision_type === "assistant_recommendation");
 
     return {
       active,
@@ -172,6 +353,8 @@ export default function MissionControl() {
       topPriority: data.priorities[0],
       complianceScore: data.compliance?.score ?? 0,
       missingControls: data.compliance?.missing ?? 0,
+      assistantDecisions,
+      pendingRecommendations: data.recommendations.length,
     };
   }, [data]);
 
@@ -196,7 +379,8 @@ export default function MissionControl() {
 
   if (dashboardMode === "executive") {
     const urgentCount = metrics.critical + metrics.high;
-    const executiveTone = metrics.complianceScore < 50 || metrics.critical > 0 ? "red" : urgentCount > 0 ? "amber" : "emerald";
+    const executiveTone =
+      metrics.complianceScore < 50 || metrics.critical > 0 ? "red" : urgentCount > 0 ? "amber" : "emerald";
 
     return (
       <div className="mx-auto max-w-[1400px] space-y-8 pb-16">
@@ -208,9 +392,10 @@ export default function MissionControl() {
                 Dashboard executivo
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Postura de cibersegurança</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Postura de ciberseguranca</h1>
                 <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-300">
-                  Visão sintética para decisão estratégica: risco atual, conformidade, exposição e decisões que exigem atenção do CISO.
+                  Visao sintetica para decisao estrategica: risco atual, conformidade, exposicao e decisoes que exigem
+                  atencao do CISO.
                 </p>
               </div>
             </div>
@@ -232,7 +417,7 @@ export default function MissionControl() {
           </div>
           {lastUpdated && (
             <p className="mt-5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-              Última atualização: {lastUpdated.toLocaleString("pt-PT")}
+              Ultima atualizacao: {lastUpdated.toLocaleString("pt-PT")}
             </p>
           )}
         </header>
@@ -240,31 +425,31 @@ export default function MissionControl() {
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Estado executivo"
-            value={executiveTone === "red" ? "Atenção" : executiveTone === "amber" ? "Vigilância" : "Controlado"}
-            detail={`${urgentCount} vulnerabilidades críticas/altas exigem acompanhamento executivo.`}
+            value={executiveTone === "red" ? "Atencao" : executiveTone === "amber" ? "Vigilancia" : "Controlado"}
+            detail={`${urgentCount} vulnerabilidades criticas/altas exigem acompanhamento executivo.`}
             tone={executiveTone}
             icon={ShieldAlert}
           />
           <KpiCard
             label="Conformidade global"
             value={`${Math.round(metrics.complianceScore)}%`}
-            detail={`${metrics.missingControls} controlos ainda sem evidência suficiente.`}
+            detail={`${metrics.missingControls} controlos ainda sem evidencia suficiente.`}
             tone={metrics.complianceScore < 50 ? "red" : metrics.complianceScore < 80 ? "amber" : "emerald"}
             icon={ClipboardCheck}
           />
           <KpiCard
-            label="Ativos no perímetro"
+            label="Ativos no perimetro"
             value={data.assets.length}
-            detail="Base inventariada usada para contexto de exposição e criticidade."
+            detail="Base inventariada usada para contexto de exposicao e criticidade."
             tone="indigo"
             icon={Gauge}
           />
           <KpiCard
-            label="Decisões fechadas"
-            value={metrics.acceptedOrClosed}
-            detail="Ocorrências resolvidas, mitigadas, aceites ou classificadas como falso positivo."
-            tone="emerald"
-            icon={CheckCircle2}
+            label="Recomendacoes por validar"
+            value={metrics.pendingRecommendations}
+            detail={`${metrics.assistantDecisions.length} decisoes ja nasceram do assistente.`}
+            tone={metrics.pendingRecommendations > 0 ? "amber" : "slate"}
+            icon={Bot}
           />
         </section>
 
@@ -272,37 +457,45 @@ export default function MissionControl() {
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
             <div className="flex flex-col gap-2 border-b border-slate-100 pb-5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Leitura executiva</p>
-              <h2 className="text-xl font-bold text-slate-950">Resumo para decisão</h2>
+              <h2 className="text-xl font-bold text-slate-950">Resumo para decisao</h2>
             </div>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">Risco prioritário</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">Risco prioritario</p>
                 <p className="mt-3 text-3xl font-bold text-red-600">{metrics.critical}</p>
-                <p className="mt-2 text-xs font-semibold leading-relaxed text-red-700">Vulnerabilidades críticas ainda ativas.</p>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-red-700">
+                  Vulnerabilidades criticas ainda ativas.
+                </p>
               </div>
               <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Exposição relevante</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Exposicao relevante</p>
                 <p className="mt-3 text-3xl font-bold text-amber-600">{metrics.high}</p>
-                <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-700">Vulnerabilidades altas a acompanhar.</p>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-700">
+                  Vulnerabilidades altas a acompanhar.
+                </p>
               </div>
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-600">Fila ativa</p>
                 <p className="mt-3 text-3xl font-bold text-indigo-700">{metrics.active.length}</p>
-                <p className="mt-2 text-xs font-semibold leading-relaxed text-indigo-800">Ocorrências abertas ou em remediação.</p>
+                <p className="mt-2 text-xs font-semibold leading-relaxed text-indigo-800">
+                  Ocorrencias abertas ou em remediacao.
+                </p>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Próxima decisão recomendada</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Proxima decisao recomendada
+                  </p>
                   <h3 className="mt-2 text-lg font-bold text-slate-950">
-                    {metrics.topPriority ? `${metrics.topPriority.cve_id} em ${metrics.topPriority.asset.name}` : "Sem decisão urgente"}
+                    {metrics.topPriority ? `${metrics.topPriority.cve_id} em ${metrics.topPriority.asset.name}` : "Sem decisao urgente"}
                   </h3>
                   <p className="mt-1 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
                     {metrics.topPriority
                       ? metrics.topPriority.priority_summary
-                      : "Não existem ocorrências abertas com dados suficientes para produzir uma recomendação prioritária."}
+                      : "Nao existem ocorrencias abertas com dados suficientes para produzir uma recomendacao prioritaria."}
                   </p>
                 </div>
                 {metrics.topPriority && (
@@ -314,42 +507,57 @@ export default function MissionControl() {
                     })}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700"
                   >
-                    Abrir decisão <ArrowRight className="h-4 w-4" />
+                    Abrir decisao <ArrowRight className="h-4 w-4" />
                   </Link>
                 )}
               </div>
             </div>
           </div>
 
-          <aside className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governação</p>
-                <h2 className="text-xl font-bold text-slate-950">Últimas decisões</h2>
+          <aside className="space-y-6">
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Assistente</p>
+                  <h2 className="text-xl font-bold text-slate-950">Recomendacoes por converter</h2>
+                </div>
+                <Bot className="h-5 w-5 text-slate-300" />
               </div>
-              <FileCheck2 className="h-5 w-5 text-slate-300" />
+              <div className="mt-5 space-y-3">
+                <RecommendationList
+                  items={data.recommendations}
+                  emptyMessage="Nao existem recomendacoes pendentes para validacao humana."
+                />
+              </div>
             </div>
-            <div className="mt-5 space-y-3">
-              {data.decisions.length === 0 ? (
-                <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                  Ainda não existem decisões humanas registadas.
-                </p>
-              ) : (
-                data.decisions.map((decision) => (
-                  <div key={decision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        {decisionLabel[decision.decision] || decision.decision}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-400">
-                        {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
-                  </div>
-                ))
-              )}
+
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>
+                  <h2 className="text-xl font-bold text-slate-950">Decisoes vindas do assistente</h2>
+                </div>
+                <FileCheck2 className="h-5 w-5 text-slate-300" />
+              </div>
+              <div className="mt-5 space-y-3">
+                <AssistantDecisionList
+                  items={metrics.assistantDecisions}
+                  emptyMessage="Ainda nao existem decisoes formalizadas a partir do assistente."
+                />
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>
+                  <h2 className="text-xl font-bold text-slate-950">Ultimas decisoes</h2>
+                </div>
+                <FileCheck2 className="h-5 w-5 text-slate-300" />
+              </div>
+              <div className="mt-5 space-y-3">
+                <LatestDecisionList items={data.decisions} />
+              </div>
             </div>
           </aside>
         </section>
@@ -367,9 +575,9 @@ export default function MissionControl() {
               Dashboard operacional
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Decisões prioritarias de hoje</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Decisoes prioritarias de hoje</h1>
               <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
-                Visão consolidada de risco, vulnerabilidades, conformidade e decisoes humanas registadas.
+                Visao consolidada de risco, vulnerabilidades, conformidade e decisoes humanas registadas.
               </p>
             </div>
           </div>
@@ -384,13 +592,13 @@ export default function MissionControl() {
               to={buildVulnerabilityOccurrenceUrl({ status: "Open" })}
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700"
             >
-              Ocorrências abertas
+              Ocorrencias abertas
             </Link>
             <Link
               to="/mission-control?mode=executive"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
             >
-              Visão executiva
+              Visao executiva
             </Link>
             <button
               onClick={loadData}
@@ -403,18 +611,18 @@ export default function MissionControl() {
         </div>
         {lastUpdated && (
           <p className="mt-4 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-            Última atualizacao: {lastUpdated.toLocaleString("pt-PT")}
+            Ultima atualizacao: {lastUpdated.toLocaleString("pt-PT")}
           </p>
         )}
       </header>
 
       <CisoDecisionFlow current="overview" />
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label="Vulnerabilidades ativas"
           value={metrics.active.length}
-          detail={`${metrics.critical} críticas e ${metrics.high} altas ainda exigem acompanhamento.`}
+          detail={`${metrics.critical} criticas e ${metrics.high} altas ainda exigem acompanhamento.`}
           tone={metrics.critical > 0 ? "red" : metrics.high > 0 ? "amber" : "emerald"}
           icon={ShieldAlert}
         />
@@ -433,11 +641,18 @@ export default function MissionControl() {
           icon={ClipboardCheck}
         />
         <KpiCard
-          label="Decisões fechadas"
+          label="Decisoes fechadas"
           value={metrics.acceptedOrClosed}
-          detail="Ocorrências resolvidas, mitigadas, aceites ou classificadas como falso positivo."
+          detail="Ocorrencias resolvidas, mitigadas, aceites ou classificadas como falso positivo."
           tone="emerald"
           icon={CheckCircle2}
+        />
+        <KpiCard
+          label="Recomendacoes por validar"
+          value={metrics.pendingRecommendations}
+          detail={`${metrics.assistantDecisions.length} decisoes ja vieram do assistente para governacao formal.`}
+          tone={metrics.pendingRecommendations > 0 ? "amber" : "slate"}
+          icon={Bot}
         />
       </section>
 
@@ -446,7 +661,9 @@ export default function MissionControl() {
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Fila de decisao</h2>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Itens ordenados pelo motor de priorizacao contextual.</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Itens ordenados pelo motor de priorizacao contextual.
+              </p>
             </div>
             <Link to="/risks/prioritization" className="text-xs font-bold uppercase tracking-wide text-indigo-600 hover:text-indigo-800">
               Abrir priorizacao
@@ -494,7 +711,7 @@ export default function MissionControl() {
                           focus: true,
                         })}
                         className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white transition-all hover:bg-indigo-700"
-                        title="Abrir ocorrência"
+                        title="Abrir ocorrencia"
                       >
                         <ArrowRight className="h-5 w-5" />
                       </Link>
@@ -511,7 +728,7 @@ export default function MissionControl() {
             <h2 className="text-lg font-bold text-slate-950">Acoes rapidas</h2>
             <div className="mt-5 grid gap-3">
               <Link to={buildVulnerabilityOccurrenceUrl({ status: "Open" })} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Ocorrências abertas <ArrowRight className="h-4 w-4" />
+                Ocorrencias abertas <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/compliance-gaps" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
                 Desvios de conformidade <ArrowRight className="h-4 w-4" />
@@ -520,37 +737,44 @@ export default function MissionControl() {
                 Assistente Virtual CISO <Bot className="h-4 w-4" />
               </Link>
               <Link to="/onboarding" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Configuração inicial <Rocket className="h-4 w-4" />
+                Configuracao inicial <Rocket className="h-4 w-4" />
               </Link>
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-950">Últimas decisoes</h2>
+              <h2 className="text-lg font-bold text-slate-950">Recomendacoes por converter</h2>
+              <Bot className="h-5 w-5 text-slate-300" />
+            </div>
+            <div className="mt-5 space-y-3">
+              <RecommendationList
+                items={data.recommendations}
+                emptyMessage="Nao existem recomendacoes pendentes neste momento."
+              />
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-slate-950">Decisoes vindas do assistente</h2>
               <FileCheck2 className="h-5 w-5 text-slate-300" />
             </div>
             <div className="mt-5 space-y-3">
-              {data.decisions.length === 0 ? (
-                <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
-                  Ainda nao existem decisoes humanas registadas.
-                </p>
-              ) : (
-                data.decisions.map((decision) => (
-                  <div key={decision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                        {decisionLabel[decision.decision] || decision.decision}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-400">
-                        {decision.decided_at ? new Date(decision.decided_at).toLocaleDateString("pt-PT") : "--"}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-bold text-slate-900">{decision.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">{decision.justification}</p>
-                  </div>
-                ))
-              )}
+              <AssistantDecisionList
+                items={metrics.assistantDecisions}
+                emptyMessage="Ainda nao ha decisoes convertidas a partir de recomendacoes."
+              />
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-slate-950">Ultimas decisoes</h2>
+              <FileCheck2 className="h-5 w-5 text-slate-300" />
+            </div>
+            <div className="mt-5 space-y-3">
+              <LatestDecisionList items={data.decisions} />
             </div>
           </div>
         </aside>
@@ -578,7 +802,7 @@ export default function MissionControl() {
               })}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-700 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800"
             >
-              Abrir ocorrência <ArrowRight className="h-4 w-4" />
+              Abrir ocorrencia <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </section>

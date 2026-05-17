@@ -1,0 +1,84 @@
+[
+  {
+    "query": "Quantos ativos eu tenho?",
+    "expected_task_type": "structured_query",
+    "expected_used_rag": false,
+    "require_sources": true,
+    "must_contain": ["ativos", "registados"],
+    "must_not_contain": ["não possuo dados suficientes"],
+    "notes": "Consulta estruturada sobre inventário; deve usar bypass ORM e devolver fonte estruturada."
+  },
+  {
+    "query": "Qual é o score de conformidade por framework?",
+    "expected_task_type": "structured_query",
+    "expected_used_rag": false,
+    "require_sources": true,
+    "must_contain": ["framework", "conformidade"],
+    "notes": "Resumo estruturado de conformidade por framework."
+  },
+  {
+    "query": "Prioriza as vulnerabilidades mais urgentes",
+    "expected_task_type": "vulnerability_prioritization",
+    "expected_used_rag": false,
+    "require_sources": true,
+    "must_contain": ["prior", "risco"],
+    "notes": "Fluxo determinístico de priorização com explicação executiva."
+  },
+  {
+    "query": "Que controlos ISO mitigam acessos privilegiados?",
+    "expected_task_type": "control_mapping",
+    "expected_used_rag": true,
+    "require_sources": true,
+    "must_contain": ["iso", "acess"],
+    "must_not_contain": ["não possuo dados suficientes"],
+    "notes": "Pergunta de mapeamento com apoio por RAG."
+  },
+  {
+    "query": "Escreve uma evidência de auditoria para revisão de acessos",
+    "expected_task_type": "evidence_drafting",
+    "expected_used_rag": true,
+    "require_sources": true,
+    "must_contain": ["evid", "acess"],
+    "notes": "Drafting de evidência auditável suportado por contexto."
+  },
+  {
+    "query": "Resume a postura de segurança para a direção",
+    "expected_task_type": "executive_advisory",
+    "expected_used_rag": true,
+    "require_sources": true,
+    "must_contain": ["segurança"],
+    "notes": "Resumo executivo contextualizado."
+  },
+  {
+    "query": "Analisa o risco desta vulnerabilidade num ativo crítico",
+    "expected_task_type": "risk_analysis",
+    "expected_used_rag": true,
+    "require_sources": true,
+    "must_contain": ["risco"],
+    "notes": "Análise de risco com contexto organizacional."
+  },
+  {
+    "query": "Como implementar este endpoint em Django REST?",
+    "expected_task_type": "technical_implementation",
+    "expected_used_rag": false,
+    "require_sources": false,
+    "must_contain": ["django", "endpoint"],
+    "notes": "Pergunta técnica que não deve depender de RAG."
+  },
+  {
+    "query": "O que faz um CISO?",
+    "expected_task_type": "general_qa",
+    "expected_used_rag": false,
+    "require_sources": false,
+    "must_contain": ["ciso"],
+    "notes": "Pergunta conceptual e geral, útil para apanhar enviesamento do router."
+  },
+  {
+    "query": "Explica-me o que é RAG híbrido",
+    "expected_task_type": "general_qa",
+    "expected_used_rag": false,
+    "require_sources": false,
+    "must_contain": ["rag"],
+    "notes": "Pergunta conceptual sobre a própria técnica."
+  }
+]

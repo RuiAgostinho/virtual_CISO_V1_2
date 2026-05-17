@@ -10,6 +10,14 @@ class SourceNormalizer:
             return text
         return text[: limit - 3].rstrip() + "..."
 
+    @staticmethod
+    def _distance_to_relevance(distance):
+        try:
+            distance = float(distance)
+        except (TypeError, ValueError):
+            return None
+        return round(1 / (1 + max(distance, 0.0)), 4)
+
     @classmethod
     def normalize(cls, source: dict) -> dict:
         if not isinstance(source, dict):
@@ -51,7 +59,7 @@ class SourceNormalizer:
         )
         score = source.get("score")
         if score is None and "distance" in source:
-            score = source.get("distance")
+            score = cls._distance_to_relevance(source.get("distance"))
         if score is None and "confidence" in source:
             score = source.get("confidence")
 

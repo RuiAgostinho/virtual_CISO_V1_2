@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from .base import TimeStampedModel
+from company.models import OrgUnit, Person
 
 class Policy(TimeStampedModel):
     class Status(models.TextChoices):
@@ -16,6 +17,27 @@ class Policy(TimeStampedModel):
     objective = models.TextField(blank=True, null=True)
     scope = models.TextField(blank=True, null=True)
     owner = models.CharField(max_length=255, blank=True, null=True)
+    owner_person = models.ForeignKey(
+        Person,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_policies',
+    )
+    owner_org_unit = models.ForeignKey(
+        OrgUnit,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_policies',
+    )
+    accountable_person = models.ForeignKey(
+        Person,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accountable_policies',
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     version = models.CharField(max_length=20, default='1.0')
     approval_date = models.DateField(blank=True, null=True)
@@ -163,6 +185,5 @@ class PolicySection(models.Model):
 
     def __str__(self):
         return f"{self.policy.code} - {self.title}"
-
 
 

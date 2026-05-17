@@ -463,11 +463,11 @@ class StakeholderViewSet(viewsets.ModelViewSet):
 
 
 class PolicyViewSet(viewsets.ModelViewSet):
-    queryset = Policy.objects.all().order_by('code')
+    queryset = Policy.objects.select_related('owner_person', 'owner_org_unit', 'accountable_person').all().order_by('code')
     serializer_class = PolicySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['status', 'owner']
-    search_fields = ['code', 'title', 'description']
+    filterset_fields = ['status', 'owner', 'owner_person', 'owner_org_unit', 'accountable_person']
+    search_fields = ['code', 'title', 'description', 'owner', 'owner_person__name', 'owner_org_unit__name']
     ordering_fields = ['code', 'title', 'next_review_date', 'status']
 
     @action(detail=True, methods=['get'])
@@ -537,4 +537,3 @@ class DecisionRecordViewSet(viewsets.ModelViewSet):
         if not decided_by and self.request.user and self.request.user.is_authenticated:
             decided_by = self.request.user.get_username()
         serializer.save(decided_by=decided_by or 'system')
-
