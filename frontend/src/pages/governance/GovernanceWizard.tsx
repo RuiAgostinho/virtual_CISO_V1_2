@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -679,7 +680,8 @@ export default function GovernanceWizard() {
               <div>
                 <h2 className="text-lg font-bold text-slate-950">Politicas recomendadas</h2>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Selecionadas com base no contexto, NIS2, stakeholders e baseline de governance.
+                  Este fluxo gera rascunhos em lote com base no contexto, NIS2, stakeholders e baseline de governance.
+                  Para criar uma politica individual completa, usa o <Link to="/governance/policies/wizard" className="font-bold text-indigo-700 underline">PolicyWizard</Link>.
                 </p>
               </div>
               <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-indigo-700">
@@ -814,7 +816,7 @@ export default function GovernanceWizard() {
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-4 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 <Save className="h-4 w-4" />
-                {creating ? "A criar..." : "Criar politicas e secoes"}
+                {creating ? "A criar..." : "Gerar rascunhos de politicas"}
               </button>
             </div>
 

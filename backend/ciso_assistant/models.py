@@ -17,6 +17,7 @@ class AssistantRecommendation(models.Model):
     model_used = models.CharField(max_length=120, blank=True)
     used_rag = models.BooleanField(default=False)
     confidence = models.FloatField(null=True, blank=True)
+    duration_seconds = models.FloatField(null=True, blank=True)
 
     sources_json = models.JSONField(default=list, blank=True)
     history_json = models.JSONField(default=list, blank=True)
@@ -72,6 +73,13 @@ class KnowledgeChunk(models.Model):
         ('procedure', 'Procedure'),
         ('evidence', 'Evidence'),
         ('compliance_gap', 'Compliance Gap'),
+        ('internal_control', 'Internal Control'),
+        ('governance_document', 'Governance Document'),
+        ('governance_section', 'Governance Document Section'),
+        ('evidence_item', 'Evidence Item'),
+        ('framework_mapping', 'Internal Control Framework Mapping'),
+        ('internal_control_mechanism', 'Internal Control Mechanism'),
+        ('governance_action', 'Governance Action'),
         ('general', 'General Knowledge'),
     ]
     source_type = models.CharField(max_length=50, choices=SOURCE_CHOICES)

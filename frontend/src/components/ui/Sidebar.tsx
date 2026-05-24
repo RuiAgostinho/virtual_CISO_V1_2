@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { riskApi } from "@/lib/riskApi";
@@ -14,17 +15,16 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
+  ClipboardList,
   Database,
   FileCheck,
   FileText,
+  GitBranch,
   History,
   LayoutDashboard,
-  MoreHorizontal,
   Network,
-  Plug,
   Rocket,
   Scale,
-  Search,
   Settings,
   ShieldAlert,
   Sliders,
@@ -54,46 +54,112 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+type AssetCategory = {
+  id: string | number;
+  name: string;
+};
+
 export const sidebarData: NavGroup[] = [
-  // 1. Painel — overview e decisão diária.
+  // 1. Painel - visão transversal e decisão diária do CISO.
   {
     title: "Painel",
     icon: Rocket,
     items: [
-      { title: "Dashboard executivo", path: "/mission-control?mode=executive", icon: LayoutDashboard },
-      { title: "Painel operacional", path: "/mission-control?mode=operational", icon: Activity },
+      {
+        title: "Mission Control",
+        icon: LayoutDashboard,
+        accent: true,
+        children: [
+          { title: "Visão executiva", path: "/mission-control?mode=executive" },
+          { title: "Visão operacional", path: "/mission-control?mode=operational" },
+        ],
+      },
+      { title: "Governance Workbench", path: "/governance/workbench", icon: ClipboardCheck },
+      { title: "Saúde da governação", path: "/governance/health", icon: Activity },
+      { title: "Assistente CISO", path: "/ciso-assistant", icon: Bot },
       { title: "Configuração inicial", path: "/onboarding", icon: Rocket },
     ],
   },
-  // 2. Risco e Ativos — junta gestão de ativos + gestão de risco (resolve a fragmentação 2.10.1).
-  // Dividido visualmente em "Ativos" e "Risco" com cabeçalhos de secção, sem aumentar a profundidade.
+  // 2. Dados da Organização - contexto que alimenta risco, governação, compliance e IA.
   {
-    title: "Risco e Ativos",
-    icon: ShieldAlert,
+    title: "Dados da Organização",
+    icon: Building2,
     items: [
-      { title: "Ativos", header: true },
+      { title: "Perfil institucional", path: "/admin/institution", icon: Building2 },
+      { title: "Contexto organizacional", path: "/governance/organization", icon: Building2 },
+      { title: "Responsabilidades", path: "/governance/responsibilities", icon: ClipboardCheck },
+      { title: "Missão e objetivos", path: "/governance/mission", icon: Target },
+      { title: "Stakeholders", path: "/governance/stakeholders", icon: Network },
+      { title: "Localizações", path: "/assets/locations", icon: Network },
+      { title: "Contexto regulatório", path: "/governance/regulatory", icon: Scale },
+    ],
+  },
+  // 3. Ativos e Classificação - inventário, classificação e descoberta técnica.
+  {
+    title: "Ativos e Classificação",
+    icon: Database,
+    items: [
       { title: "Inventário de ativos", path: "/assets/inventory", icon: Database }, // categorias injetadas dinamicamente
-      { title: "Classificação de ativos", path: "/assets/classification", icon: Target },
+      { title: "Tipos de ativo", path: "/admin/asset-types", icon: Sliders },
+      { title: "Inventário de software", path: "/assets/software", icon: Database },
+      { title: "Ambientes", path: "/assets/environments", icon: Blocks },
+      { title: "Infraestruturas", path: "/assets/infrastructures", icon: Network },
+      { title: "Classificação da informação", path: "/assets/classification", icon: Target },
       { title: "Modelo de classificação", path: "/assets/model", icon: Sliders },
       {
-        title: "Redes e descoberta",
+        title: "Descoberta e redes",
         icon: Network,
         children: [
           { title: "Redes", path: "/networks" },
           { title: "Mapa de rede", path: "/networks/map" },
-          { title: "Scanner de Descoberta", path: "/assets/discovery" },
+          { title: "Scanner de descoberta", path: "/assets/discovery" },
         ],
       },
-      { title: "Risco", header: true },
-      { title: "Dashboard de risco", path: "/risks/dashboard", icon: LayoutDashboard },
-      { title: "Inventário de riscos", path: "/risks/inventory", icon: AlertTriangle },
-      { title: "Priorização contextual", path: "/risks/prioritization", icon: Target },
-      { title: "Vulnerabilidades", path: "/vulnerabilities", icon: ShieldAlert },
     ],
   },
-  // 3. Conformidade — Mecanismos com destaque (contribuição central da tese).
+  // 4. Gestão de Risco - análise, priorização e vulnerabilidades.
   {
-    title: "Conformidade",
+    title: "Gestão de Risco",
+    icon: ShieldAlert,
+    items: [
+      { title: "Dashboard de risco", path: "/risks/dashboard", icon: LayoutDashboard },
+      { title: "Registo de riscos", path: "/risks/inventory", icon: AlertTriangle },
+      { title: "Matriz de risco", path: "/risks/matrix", icon: Sliders },
+      { title: "Priorização contextual", path: "/risks/prioritization", icon: Target },
+      { title: "Vulnerabilidades", path: "/vulnerabilities", icon: ShieldAlert },
+      { title: "EPSS", path: "/admin/integrations/epss", icon: TrendingDown },
+      { title: "Aceitação de risco", path: "/governance/exceptions", icon: ShieldAlert },
+    ],
+  },
+  // 5. Governação - políticas, documentos, decisões, exceções e execução.
+  {
+    title: "Governação",
+    icon: Scale,
+    items: [
+      { title: "Dashboard de governação", path: "/governance", icon: LayoutDashboard },
+      { title: "Políticas", path: "/governance/policies", icon: FileText },
+      { title: "Documentos", path: "/governance/documents", icon: BookOpen },
+      { title: "Tarefas", path: "/governance/tasks", icon: ClipboardList },
+      { title: "Decisões", path: "/decision-records", icon: FileCheck },
+      { title: "Exceções e risco aceite", path: "/governance/exceptions", icon: ShieldAlert },
+      { title: "Plano de ações", path: "/governance/action-plan", icon: ClipboardCheck },
+      {
+        title: "Criar e redigir",
+        icon: ClipboardCheck,
+        accent: true,
+        children: [
+          { title: "Criar política", path: "/governance/policies/wizard" },
+          { title: "Criar documento", path: "/governance/documents/wizard" },
+          { title: "Gerar políticas base", path: "/governance/wizard" },
+        ],
+      },
+      { title: "Regulamentos técnicos", path: "/governance/technical-regulations", icon: BookOpen },
+      { title: "Procedimentos", path: "/governance/procedures", icon: ClipboardCheck },
+    ],
+  },
+  // 6. Compliance - frameworks, avaliações, gaps e scoring.
+  {
+    title: "Compliance",
     icon: ClipboardCheck,
     items: [
       {
@@ -106,37 +172,36 @@ export const sidebarData: NavGroup[] = [
           { title: "QNCS", path: "/compliance?fw=qncs" },
         ],
       },
-      { title: "Controlos", path: "/controls", icon: CheckCircle },
-      { title: "Mecanismos de implementação", path: "/governance/mechanisms", icon: Wrench, accent: true },
-      { title: "Mapeamento", path: "/compliance-mapping", icon: Network },
+      { title: "Controlos externos", path: "/controls", icon: CheckCircle },
       { title: "Avaliações", path: "/maturity", icon: FileCheck },
       { title: "Compliance gaps / Findings", path: "/compliance-gaps", icon: TrendingDown },
+      { title: "Scores e maturidade", path: "/maturity", icon: Target },
     ],
   },
-  // 4. Governação — orientação estratégica.
+  // 7. Catálogos e Mappings - ontologia interna e ligações entre entidades.
   {
-    title: "Governação",
-    icon: Scale,
+    title: "Catálogos e Mappings",
+    icon: GitBranch,
     items: [
-      { title: "Dashboard de governação", path: "/governance", icon: LayoutDashboard },
-      { title: "Wizard de governance", path: "/governance/wizard", icon: ClipboardCheck, accent: true },
+      { title: "Mecanismos", path: "/governance/mechanisms", icon: Wrench },
+      { title: "Evidências", path: "/governance/evidence", icon: FileCheck },
+      { title: "Documentos", path: "/governance/documents", icon: BookOpen },
+      { title: "Risco residual", path: "/governance/residual-risk-mappings", icon: ShieldAlert },
+      { title: "Mapping Review", path: "/governance/mapping-review", icon: GitBranch, accent: true },
+      { title: "Mapear frameworks", path: "/governance/framework-mapping/wizard", icon: Network },
+      { title: "Mapeamento legacy", path: "/compliance-mapping", icon: Network },
       {
-        title: "Contexto organizacional",
-        icon: Building2,
+        title: "Criar catálogo",
+        icon: ClipboardCheck,
         children: [
-          { title: "Dados da organização", path: "/governance/organization" },
-          { title: "Organograma e responsabilidades", path: "/governance/responsibilities" },
-          { title: "Missão e objetivos", path: "/governance/mission" },
-          { title: "Partes interessadas", path: "/governance/stakeholders" },
+          { title: "Criar mecanismo", path: "/governance/mechanisms/wizard" },
+          { title: "Criar evidência", path: "/governance/evidence/wizard" },
+          { title: "Criar documento", path: "/governance/documents/wizard" },
         ],
       },
-      { title: "Contexto regulatório", path: "/governance/regulatory", icon: Scale },
-      { title: "Políticas", path: "/governance/policies", icon: FileText },
-      { title: "Regulamentos técnicos", path: "/governance/technical-regulations", icon: BookOpen },
-      { title: "Procedimentos", path: "/governance/procedures", icon: ClipboardCheck },
     ],
   },
-  // 5. IA do Virtual CISO — placeholders antecipam o ecrã de Decisão.
+  // 8. IA do Virtual CISO - recomendações, histórico, base RAG e avaliação.
   {
     title: "IA do Virtual CISO",
     icon: Brain,
@@ -144,36 +209,33 @@ export const sidebarData: NavGroup[] = [
       { title: "Assistente", path: "/ciso-assistant", icon: Bot },
       { title: "Histórico de recomendações", path: "/recommendation-history", icon: History },
       { title: "Decisões registadas", path: "/decision-records", icon: FileCheck },
+      { title: "Base de conhecimento RAG", path: "/admin/rag", icon: Database },
+      { title: "Avaliação da dissertação", path: "/governance/evaluation", icon: Activity },
     ],
   },
-  // 6. Mais — Integrações + Administração (uso esporádico).
+  // 9. Integrações - ligação a fontes técnicas e externas.
   {
-    title: "Mais",
-    icon: MoreHorizontal,
+    title: "Integrações",
+    icon: Blocks,
     items: [
-      {
-        title: "Integrações",
-        icon: Blocks,
-        children: [
-          { title: "SIEM (Wazuh)", path: "/admin/integrations/wazuh" },
-          { title: "NIST NVD", path: "/admin/integrations/nist" },
-          { title: "EPSS", path: "/admin/integrations/epss" },
-          { title: "Nmap", path: "/admin/integrations/nmap" },
-          { title: "Sincronizações", path: "/admin/integrations" },
-        ],
-      },
-      {
-        title: "Administração",
-        icon: Settings,
-        roles: ["admin"],
-        children: [
-          { title: "Utilizadores", path: "/admin/users" },
-          { title: "Perfis e permissões", path: "/admin/roles" },
-          { title: "RAG / Base de Conhecimento", path: "/admin/rag" },
-          { title: "Configurações", path: "/admin/settings" },
-          { title: "Logs de auditoria", path: "/admin/logs" },
-        ],
-      },
+      { title: "SIEM / Wazuh", path: "/admin/integrations/wazuh", icon: Blocks },
+      { title: "NIST NVD", path: "/admin/integrations/nist", icon: Database },
+      { title: "EPSS", path: "/admin/integrations/epss", icon: TrendingDown },
+      { title: "Nmap", path: "/admin/integrations/nmap", icon: Network },
+      { title: "Sincronizações", path: "/admin/integrations", icon: Activity },
+    ],
+  },
+  // 10. Administração - parametrização e operação interna da plataforma.
+  {
+    title: "Administração",
+    icon: Settings,
+    items: [
+      { title: "Utilizadores", path: "/admin/users", icon: Settings },
+      { title: "Perfis e permissões", path: "/admin/roles", icon: ShieldAlert },
+      { title: "Parâmetros da plataforma", path: "/admin/settings", icon: Sliders },
+      { title: "Tipos de ativo", path: "/admin/asset-types", icon: Database },
+      { title: "RAG / Base de Conhecimento", path: "/admin/rag", icon: Brain },
+      { title: "Logs de auditoria", path: "/admin/logs", icon: FileCheck },
     ],
   },
 ];
@@ -422,9 +484,9 @@ export interface SidebarProps {
   onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ userRole = "ciso", className = "", open: _open = false, onClose: _onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ userRole = "ciso", className = "", open = false, onClose }) => {
   const location = useLocation();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<AssetCategory[]>([]);
   const currentUrl = `${location.pathname}${location.search}`;
 
   useEffect(() => {
@@ -440,7 +502,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole = "ciso", className =
     return sidebarData
       .filter((group) => !group.roles || group.roles.includes(userRole))
       .map((group) => {
-        if (group.title !== "Risco e Ativos") return group;
+        if (group.title !== "Ativos e Classificação") return group;
 
         return {
           ...group,
@@ -473,35 +535,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole = "ciso", className =
   }, [activeGroupIndex]);
 
   return (
-    <aside
-      className={`sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm lg:flex ${className}`}
-    >
-      <div className="flex-1 overflow-y-auto px-2.5 py-3 scrollbar-thin scrollbar-thumb-slate-200">
-        <nav className="space-y-1">
-          {filteredData.map((group, idx) => (
-            <SidebarGroup
-              key={group.title}
-              group={group}
-              currentUrl={currentUrl}
-              isOpen={openGroupIndex === idx}
-              onToggle={() => setOpenGroupIndex((current) => (current === idx ? null : idx))}
-            />
-          ))}
-        </nav>
-      </div>
+    <>
+      {open && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={onClose}
+          className="fixed inset-x-0 bottom-0 top-16 z-40 bg-slate-950/30 lg:hidden"
+        />
+      )}
+      <aside
+        className={`${
+          open ? "fixed left-0 top-16 z-50 flex h-[calc(100vh-4rem)] w-72" : "hidden"
+        } flex-shrink-0 flex-col border-r border-slate-200 bg-white shadow-xl lg:sticky lg:top-16 lg:z-30 lg:flex lg:h-[calc(100vh-4rem)] lg:w-64 lg:shadow-sm ${className}`}
+      >
+        <div className="flex-1 overflow-y-auto px-2.5 py-3 scrollbar-thin scrollbar-thumb-slate-200">
+          <nav className="space-y-1">
+            {filteredData.map((group, idx) => (
+              <SidebarGroup
+                key={group.title}
+                group={group}
+                currentUrl={currentUrl}
+                isOpen={openGroupIndex === idx}
+                onToggle={() => setOpenGroupIndex((current) => (current === idx ? null : idx))}
+              />
+            ))}
+          </nav>
+        </div>
 
-      <div className="shrink-0 border-t border-slate-100 p-2">
-        <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-500/10">
-            CISO
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-xs font-bold text-slate-900">Workspace</span>
-            <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{userRole}</span>
+        <div className="shrink-0 border-t border-slate-100 p-2">
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[10px] font-bold text-indigo-700 ring-1 ring-indigo-500/10">
+              CISO
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-xs font-bold text-slate-900">Workspace</span>
+              <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{userRole}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 

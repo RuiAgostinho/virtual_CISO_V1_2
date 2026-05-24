@@ -2,8 +2,16 @@ import unicodedata
 
 from django.db import models
 
-from governance.models import ComplianceGap, Control, Policy
+from governance.models import (
+    ComplianceGap,
+    Control,
+    Framework,
+    GovernanceDocument,
+    InternalControl,
+    Policy,
+)
 from governance.services.control_mapping_engine import ControlMappingEngine
+from governance.services.compliance_propagation_engine import CompliancePropagationEngine
 from risk.models import Asset, Vulnerability
 
 
@@ -201,7 +209,132 @@ class StructuredQueryService:
         }
 
     @classmethod
+    def has_internal_governance_layer(cls) -> bool:
+        return InternalControl.objects.filter(is_active=True).exists()
+
+    @classmethod
+    def framework_scores_from_propagation(cls) -> list[dict]:
+        frameworks = Framework.objects.filter(is_active=True).order_by("code", "version")
+        scores = []
+        for framework in frameworks:
+            result = CompliancePropagationEngine.calculate_framework(
+                framework,
+                mode=CompliancePropagationEngine.OFFICIAL,
+                include_details=True,
+                include_gaps=True,
+            )
+            details = result.get("details") or {}
+            controls = details.get("controls") or []
+            scores.append(
+                {
+                    "framework_id": str(framework.id),
+                    "framework_code": framework.code,
+                    "framework_name": framework.name,
+                    "version": framework.version,
+                    "score": result.get("score", 0),
+                    "status": result.get("status"),
+                    "coverage": result.get("coverage", details.get("coverage", 0)),
+                    "total_controls": details.get("total_controls", len(controls)),
+                    "assessed_controls": details.get("assessed_controls", 0),
+                    "compliant": sum(1 for item in controls if item.get("status") == "compliant"),
+                    "mostly_compliant": sum(1 for item in controls if item.get("status") == "mostly_compliant"),
+                    "partially_compliant": sum(1 for item in controls if item.get("status") == "partially_compliant"),
+                    "non_compliant": sum(1 for item in controls if item.get("status") == "non_compliant"),
+                    "not_assessed": sum(1 for item in controls if item.get("status") == "not_assessed"),
+                    "gaps": result.get("gaps", []),
+                }
+            )
+        return scores
+
+    @classmethod
+    def propagation_gap_counts(cls, target_scores: list[dict] | None = None) -> dict:
+        gaps = []
+        if target_scores:
+            for score in target_scores:
+                gaps.extend(score.get("gaps", []))
+        else:
+            gaps = CompliancePropagationEngine.collect_gaps(mode=CompliancePropagationEngine.OFFICIAL)
+
+        return {
+            "total": len(gaps),
+            "high": sum(1 for gap in gaps if gap.get("severity") == "high"),
+            "medium": sum(1 for gap in gaps if gap.get("severity") == "medium"),
+            "low": sum(1 for gap in gaps if gap.get("severity") == "low"),
+        }
+
+    @classmethod
+    def top_propagation_gaps(cls, target_scores: list[dict] | None = None, limit: int = 7) -> list[dict]:
+        if target_scores:
+            gaps = []
+            for score in target_scores:
+                for gap in score.get("gaps", []):
+                    gap = dict(gap)
+                    gap.setdefault("framework_code", score.get("framework_code"))
+                    gap.setdefault("version", score.get("version"))
+                    gaps.append(gap)
+        else:
+            gaps = CompliancePropagationEngine.collect_gaps(mode=CompliancePropagationEngine.OFFICIAL)
+
+        severity_rank = {"high": 0, "medium": 1, "low": 2}
+        return sorted(
+            gaps,
+            key=lambda gap: (
+                severity_rank.get(gap.get("severity"), 9),
+                -int(gap.get("estimated_impact") or 0),
+                gap.get("type") or "",
+            ),
+        )[:limit]
+
+    @classmethod
+    def run_compliance_propagation_query(cls, query: str) -> dict:
+        scores = cls.framework_scores_from_propagation()
+        matches = cls.match_framework_scores(query, scores)
+        target_scores = matches or scores
+        intent = cls.detect_compliance_intent(query)
+
+        if intent == "gap_count":
+            result = {
+                "type": "propagation_gap_count",
+                "scores": target_scores,
+                "counts": cls.propagation_gap_counts(target_scores if matches else None),
+                "scoped": bool(matches),
+                "raw_text": "",
+            }
+            result["raw_text"] = cls.format_structured_response(result)
+            return result
+
+        if intent == "worst_gaps":
+            scoped_scores = sorted(
+                target_scores,
+                key=lambda item: (
+                    item.get("score", 0),
+                    item.get("coverage", 0),
+                    -len(item.get("gaps", [])),
+                ),
+            )
+            result = {
+                "type": "propagation_worst_gaps",
+                "scores": scoped_scores,
+                "gaps": cls.top_propagation_gaps(scoped_scores[:1] if scoped_scores else None, limit=7),
+                "raw_text": "",
+            }
+            result["raw_text"] = cls.format_structured_response(result)
+            return result
+
+        result = {
+            "type": "propagation_framework_score_detail" if matches else "propagation_framework_score_summary",
+            "scores": sorted(target_scores, key=lambda item: (item["framework_code"], item["version"])),
+            "gaps": cls.top_propagation_gaps(target_scores, limit=5) if matches else [],
+            "raw_text": "",
+        }
+        result["raw_text"] = cls.format_structured_response(result)
+        return result
+
+    @classmethod
     def run_compliance_query(cls, query: str) -> dict:
+        if cls.has_internal_governance_layer():
+            return cls.run_compliance_propagation_query(query)
+
         scores = ControlMappingEngine.framework_scores()
         matches = cls.match_framework_scores(query, scores)
         target_scores = matches or scores
@@ -213,6 +346,7 @@ class StructuredQueryService:
                 "type": "compliance_gap_count",
                 "scores": target_scores,
                 "counts": cls.compliance_gap_counts(framework_ids),
+                "scoped": bool(matches),
                 "raw_text": "",
             }
             result["raw_text"] = cls.format_structured_response(result)
@@ -282,16 +416,49 @@ class StructuredQueryService:
                 return "Atualmente nao existem controlos registados."
             return "Os controlos registados sao:\n- " + "\n- ".join(lines[:25])
 
+        if result["type"] == "internal_control_count":
+            return (
+                f"Existem de momento {result['value']} controlos internos ativos no catalogo da organizacao. "
+                "Estes controlos sao agnosticos de frameworks e servem como centro da conformidade."
+            )
+
+        if result["type"] == "internal_control_list":
+            lines = [
+                (
+                    f"{c['code']} - {c['title']} "
+                    f"(dominio: {c['control_domain'] or 'nao definido'}, "
+                    f"criticidade: {c['criticality']}, estado: {c['status']})"
+                )
+                for c in result["data"]
+            ]
+            if not lines:
+                return "Atualmente nao existem controlos internos ativos registados."
+            response = "Os controlos internos registados sao:\n- " + "\n- ".join(lines[:25])
+            if result.get("external_controls_count"):
+                response += (
+                    f"\n\nNota: existem tambem {result['external_controls_count']} controlos externos/framework "
+                    "mapeaveis, mas a resposta acima privilegia o catalogo interno."
+                )
+            return response
+
         if result["type"] == "policy_summary":
             total = result["value"]
             by_status = result["by_status"]
-            return (
+            response = (
                 f"Existem {total} politicas registadas no SGSI. "
                 f"Ativas: {by_status.get(Policy.Status.ACTIVE, 0)}; "
                 f"Rascunho: {by_status.get(Policy.Status.DRAFT, 0)}; "
                 f"Em revisao: {by_status.get(Policy.Status.REVIEW, 0)}; "
                 f"Obsoletas: {by_status.get(Policy.Status.OBSOLETE, 0)}."
             )
+            if "governance_documents" in result:
+                docs = result["governance_documents"]
+                response += (
+                    f" Na camada documental transversal existem ainda {docs['total']} documentos de governacao "
+                    f"({docs['policies']} do tipo policy, {docs['standards']} normas, "
+                    f"{docs['procedures']} procedimentos e {docs['runbooks']} runbooks)."
+                )
+            return response
 
         if result["type"] == "policy_status_list":
             status_label = StructuredQueryService.policy_status_label(result["status"])
@@ -303,6 +470,72 @@ class StructuredQueryService:
             noun = "politica" if len(policies) == 1 else "politicas"
             lines = [f"{p['code']} - {p['title']} (versao {p['version']})" for p in policies]
             return f"Sim. {prefix} {len(policies)} {noun} {status_label} no SGSI:\n- " + "\n- ".join(lines)
+
+        if result["type"] == "propagation_framework_score_summary":
+            scores = [item for item in result["scores"] if item.get("total_controls", 0) > 0]
+            if not scores:
+                return "Nao existem frameworks ativas com controlos externos para calcular conformidade por propagacao."
+            lines = [
+                (
+                    f"{item['framework_code']} {item['version']}: {item['score']}% "
+                    f"({item['status']}; cobertura {item['coverage']}%; "
+                    f"{item['assessed_controls']}/{item['total_controls']} controlos externos avaliados)"
+                )
+                for item in scores
+            ]
+            return (
+                "Score de conformidade por propagacao, usando controlos internos como fonte principal:\n- "
+                + "\n- ".join(lines)
+            )
+
+        if result["type"] == "propagation_framework_score_detail":
+            scores = result["scores"]
+            if not scores:
+                return "Nao encontrei uma framework correspondente na base de dados."
+            lines = [
+                (
+                    f"{item['framework_code']} {item['version']}: {item['score']}% "
+                    f"({item['status']}). Cobertura: {item['coverage']}%; "
+                    f"controlos externos avaliados: {item['assessed_controls']}/{item['total_controls']}; "
+                    f"compliant: {item['compliant']}; mostly compliant: {item['mostly_compliant']}; "
+                    f"partial: {item['partially_compliant']}; non compliant: {item['non_compliant']}; "
+                    f"not assessed: {item['not_assessed']}."
+                )
+                for item in scores
+            ]
+            gap_lines = [
+                f"{gap.get('type')} ({gap.get('severity')}): {gap.get('description')}"
+                for gap in result.get("gaps", [])
+            ]
+            response = "Estado de conformidade por propagacao da framework:\n- " + "\n- ".join(lines)
+            if gap_lines:
+                response += "\n\nPrincipais gaps a tratar:\n- " + "\n- ".join(gap_lines)
+            return response
+
+        if result["type"] == "propagation_worst_gaps":
+            scores = result["scores"]
+            if not scores:
+                return "Nao existem scores de conformidade por propagacao calculaveis."
+            worst = scores[0]
+            response = (
+                f"A framework com menor score por propagacao e {worst['framework_code']} {worst['version']} "
+                f"({worst['score']}%, cobertura {worst['coverage']}%)."
+            )
+            gap_lines = [
+                f"{gap.get('type')} ({gap.get('severity')}): {gap.get('description')}"
+                for gap in result.get("gaps", [])
+            ]
+            if gap_lines:
+                response += "\n\nGaps prioritarios:\n- " + "\n- ".join(gap_lines)
+            return response
+
+        if result["type"] == "propagation_gap_count":
+            counts = result["counts"]
+            scope = "nas frameworks selecionadas" if result.get("scoped") else "em todas as frameworks"
+            return (
+                f"Existem {counts['total']} gaps de conformidade por propagacao {scope}: "
+                f"{counts['high']} altos, {counts['medium']} medios e {counts['low']} baixos."
+            )
 
         if result["type"] == "framework_score_summary":
             scores = [item for item in result["scores"] if item.get("total_controls", 0) > 0]
@@ -366,7 +599,7 @@ class StructuredQueryService:
 
         if result["type"] == "compliance_gap_count":
             counts = result["counts"]
-            scope = "nas frameworks selecionadas" if len(result.get("scores", [])) != len(ControlMappingEngine.framework_scores()) else "em todas as frameworks"
+            scope = "nas frameworks selecionadas" if result.get("scoped") else "em todas as frameworks"
             return (
                 f"Existem {counts['total']} gaps de conformidade {scope}: "
                 f"{counts['missing']} em falta, {counts['partial']} parciais e "
@@ -411,6 +644,32 @@ class StructuredQueryService:
                 return {"type": "vulnerability_top", "data": vulns, "raw_text": cls.format_structured_response({"type": "vulnerability_top", "data": vulns})}
 
         if any(term in q for term in ["controlos", "controles", "controlo", "controle"]):
+            if cls.has_internal_governance_layer():
+                if intent == "count":
+                    value = InternalControl.objects.filter(is_active=True).count()
+                    result = {
+                        "type": "internal_control_count",
+                        "value": value,
+                        "raw_text": "",
+                    }
+                    result["raw_text"] = cls.format_structured_response(result)
+                    return result
+
+                if intent == "list":
+                    controls = list(
+                        InternalControl.objects.filter(is_active=True)
+                        .order_by("code")
+                        .values("code", "title", "control_domain", "criticality", "status")[:100]
+                    )
+                    result = {
+                        "type": "internal_control_list",
+                        "data": controls,
+                        "external_controls_count": Control.objects.count(),
+                        "raw_text": "",
+                    }
+                    result["raw_text"] = cls.format_structured_response(result)
+                    return result
+
             if intent == "count":
                 value = Control.objects.count()
                 return {"type": "control_count", "value": value, "raw_text": cls.format_structured_response({"type": "control_count", "value": value})}
@@ -449,6 +708,25 @@ class StructuredQueryService:
                 "type": "policy_summary",
                 "value": total,
                 "by_status": by_status,
+                "governance_documents": {
+                    "total": GovernanceDocument.objects.filter(is_active=True).count(),
+                    "policies": GovernanceDocument.objects.filter(
+                        is_active=True,
+                        document_type=GovernanceDocument.DocumentType.POLICY,
+                    ).count(),
+                    "standards": GovernanceDocument.objects.filter(
+                        is_active=True,
+                        document_type=GovernanceDocument.DocumentType.STANDARD,
+                    ).count(),
+                    "procedures": GovernanceDocument.objects.filter(
+                        is_active=True,
+                        document_type=GovernanceDocument.DocumentType.PROCEDURE,
+                    ).count(),
+                    "runbooks": GovernanceDocument.objects.filter(
+                        is_active=True,
+                        document_type=GovernanceDocument.DocumentType.RUNBOOK,
+                    ).count(),
+                },
                 "raw_text": "",
             }
             result["raw_text"] = cls.format_structured_response(result)

@@ -1,28 +1,36 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, BookOpen, FilePlus2, FileText, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { governanceApi } from "@/lib/governanceApi";
+import { mappingReviewApi } from "@/lib/mappingReviewApi";
 
 type PolicyRecord = Record<string, any>;
+type PolicyListStats = {
+  controlCount: number;
+  mechanismCount: number;
+};
 
 function unwrap<T>(data: any): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
 function statusLabel(status?: string) {
+  const normalized = String(status || "").toLowerCase();
   const labels: Record<string, string> = {
     draft: "Rascunho",
     active: "Ativa",
     review: "Em revisao",
     obsolete: "Obsoleta",
   };
-  return labels[status || ""] || status || "Sem estado";
+  return labels[normalized] || status || "Sem estado";
 }
 
 function statusTone(status?: string) {
-  if (status === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "review") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (status === "obsolete") return "border-slate-200 bg-slate-50 text-slate-500";
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "active") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized === "review") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (normalized === "obsolete") return "border-slate-200 bg-slate-50 text-slate-500";
   return "border-indigo-100 bg-indigo-50 text-indigo-700";
 }
 
@@ -31,8 +39,34 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString("pt-PT");
 }
 
+function legacyControlCount(policy: PolicyRecord) {
+  return Number(policy.control_count || policy.policy_controls?.length || 0);
+}
+
+function legacyMechanismCount(policy: PolicyRecord) {
+  if (policy.mechanism_count !== undefined) return Number(policy.mechanism_count || 0);
+  return (policy.policy_controls || []).reduce(
+    (total: number, policyControl: any) => total + Number(policyControl.mechanism_count || policyControl.mechanisms?.length || 0),
+    0
+  );
+}
+
+function policyScore(policy: PolicyRecord) {
+  return Math.round(Number(policy.propagation_score ?? policy.compliance_score ?? 0));
+}
+
+function policyStats(policy: PolicyRecord, statsByPolicy: Record<string, PolicyListStats>) {
+  const computed = statsByPolicy[String(policy.id)];
+  return {
+    controlCount: computed?.controlCount || legacyControlCount(policy),
+    mechanismCount: computed?.mechanismCount || legacyMechanismCount(policy),
+    score: policyScore(policy),
+  };
+}
+
 export default function Policies() {
   const [policies, setPolicies] = useState<PolicyRecord[]>([]);
+  const [statsByPolicy, setStatsByPolicy] = useState<Record<string, PolicyListStats>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -43,7 +77,60 @@ export default function Policies() {
     setError(null);
     try {
       const data = await governanceApi.listPolicies({ page_size: 500, search, status });
-      setPolicies(unwrap<PolicyRecord>(data));
+      const policyList = unwrap<PolicyRecord>(data);
+      setPolicies(policyList);
+
+      const policyIds = new Set(policyList.map((policy) => String(policy.id)));
+      if (!policyIds.size) {
+        setStatsByPolicy({});
+        return;
+      }
+
+      const [policyInternalControls, internalControlMechanisms] = await Promise.all([
+        mappingReviewApi.listMappings("policy_internal_control", { page_size: 5000 }).catch(() => []),
+        mappingReviewApi.listMappings("internal_control_mechanism", { page_size: 5000 }).catch(() => []),
+      ]);
+
+      const nextStats = new Map<string, { controlIds: Set<string>; mechanismIds: Set<string> }>();
+      const internalControlToPolicyIds = new Map<string, Set<string>>();
+
+      policyList.forEach((policy) => {
+        nextStats.set(String(policy.id), { controlIds: new Set(), mechanismIds: new Set() });
+      });
+
+      policyInternalControls.forEach((mapping: any) => {
+        const policyId = String(mapping.sourceId || mapping.raw?.policy || "");
+        const internalControlId = String(mapping.targetId || mapping.raw?.internal_control || "");
+        if (!policyIds.has(policyId) || !internalControlId) return;
+
+        nextStats.get(policyId)?.controlIds.add(internalControlId);
+        if (!internalControlToPolicyIds.has(internalControlId)) {
+          internalControlToPolicyIds.set(internalControlId, new Set());
+        }
+        internalControlToPolicyIds.get(internalControlId)?.add(policyId);
+      });
+
+      internalControlMechanisms.forEach((mapping: any) => {
+        const internalControlId = String(mapping.sourceId || mapping.raw?.internal_control || "");
+        const linkedPolicyIds = internalControlToPolicyIds.get(internalControlId);
+        if (!linkedPolicyIds?.size) return;
+
+        linkedPolicyIds.forEach((policyId) => {
+          nextStats.get(policyId)?.mechanismIds.add(String(mapping.id));
+        });
+      });
+
+      setStatsByPolicy(
+        Object.fromEntries(
+          Array.from(nextStats.entries()).map(([policyId, stats]) => [
+            policyId,
+            {
+              controlCount: stats.controlIds.size,
+              mechanismCount: stats.mechanismIds.size,
+            },
+          ])
+        )
+      );
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Nao foi possivel carregar as politicas.");
@@ -54,16 +141,18 @@ export default function Policies() {
 
   useEffect(() => {
     load();
+    // A listagem deve carregar uma vez ao abrir; filtros continuam a usar o botao Filtrar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const metrics = useMemo(() => ({
     total: policies.length,
-    active: policies.filter((policy) => policy.status === "active").length,
-    review: policies.filter((policy) => policy.status === "review").length,
+    active: policies.filter((policy) => String(policy.status || "").toLowerCase() === "active").length,
+    review: policies.filter((policy) => String(policy.status || "").toLowerCase() === "review").length,
     averageScore: policies.length
-      ? Math.round(policies.reduce((sum, policy) => sum + Number(policy.compliance_score || 0), 0) / policies.length)
+      ? Math.round(policies.reduce((sum, policy) => sum + policyStats(policy, statsByPolicy).score, 0) / policies.length)
       : 0,
-  }), [policies]);
+  }), [policies, statsByPolicy]);
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
@@ -81,9 +170,9 @@ export default function Policies() {
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>
-            <Link to="/governance/policies/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
+            <Link to="/governance/policies/wizard" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
               <FilePlus2 className="h-4 w-4" />
-              Nova politica
+              Criar politica
             </Link>
           </div>
         </div>
@@ -148,45 +237,48 @@ export default function Policies() {
           </p>
         </div>
         <div className="divide-y divide-slate-100">
-          {policies.map((policy) => (
-            <Link key={policy.id} to={`/governance/policies/${policy.id}`} className="block p-5 transition-colors hover:bg-slate-50">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(policy.status)}`}>
-                      {statusLabel(policy.status)}
-                    </span>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                      {policy.code || "SEM-CODIGO"}
-                    </span>
+          {policies.map((policy) => {
+            const stats = policyStats(policy, statsByPolicy);
+            return (
+              <Link key={policy.id} to={`/governance/policies/${policy.id}`} className="block p-5 transition-colors hover:bg-slate-50">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(policy.status)}`}>
+                        {statusLabel(policy.status)}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        {policy.code || "SEM-CODIGO"}
+                      </span>
+                    </div>
+                    <h2 className="mt-3 text-base font-bold text-slate-950">{policy.title}</h2>
+                    <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{policy.description || policy.objective || "Sem descricao."}</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Owner: {policy.owner_display || policy.owner || "Nao definido"}
+                    </p>
                   </div>
-                  <h2 className="mt-3 text-base font-bold text-slate-950">{policy.title}</h2>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{policy.description || policy.objective || "Sem descricao."}</p>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-400">
-                    Owner: {policy.owner_display || policy.owner || "Nao definido"}
-                  </p>
+                  <div className="grid grid-cols-4 gap-3 text-center sm:min-w-[460px]">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-lg font-bold text-slate-950">{stats.controlCount}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Controlos</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-lg font-bold text-slate-950">{stats.mechanismCount}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Mecanismos</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-lg font-bold text-slate-950">{stats.score}%</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Score</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-sm font-bold text-slate-950">{formatDate(policy.next_review_date)}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Revisao</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3 text-center sm:min-w-[460px]">
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-bold text-slate-950">{policy.control_count || 0}</p>
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Controlos</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-bold text-slate-950">{policy.mechanism_count || 0}</p>
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Mecanismos</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-lg font-bold text-slate-950">{Math.round(Number(policy.compliance_score || 0))}%</p>
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Score</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-sm font-bold text-slate-950">{formatDate(policy.next_review_date)}</p>
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Revisao</p>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
           {!loading && policies.length === 0 && (
             <div className="p-10 text-center text-sm font-semibold text-slate-500">Sem politicas para os filtros atuais.</div>
           )}

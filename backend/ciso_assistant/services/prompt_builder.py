@@ -1,3 +1,6 @@
+from ciso_assistant.services.source_normalizer import SourceNormalizer
+
+
 class PromptBuilder:
     """
     Builds the system prompt used by the Virtual CISO assistant.
@@ -14,7 +17,10 @@ class PromptBuilder:
         if needs_rag and retrieved_chunks:
             formatted = []
             for idx, chunk in enumerate(retrieved_chunks, 1):
-                meta_tag = f"[{chunk['source_type'].upper()}]"
+                source_metadata = SourceNormalizer.source_metadata(chunk.get("source_type"))
+                meta_tag = f"[{source_metadata['source_label']}]"
+                if source_metadata.get("governance_layer"):
+                    meta_tag += f" Layer: {source_metadata['governance_layer']}"
                 if chunk.get("framework"):
                     meta_tag += f" Framework: {chunk['framework']}"
                 if chunk.get("control_code"):
@@ -32,6 +38,12 @@ class PromptBuilder:
                 "2. Do not invent assets, vulnerabilities, controls, mechanisms, policies, or evidence.\n"
                 "3. If the context is insufficient, say clearly that the current records are not enough to answer safely.\n"
                 "4. When relevant, mention the retrieved sources explicitly in the answer body.\n"
+                "\n### SOURCE PRECEDENCE:\n"
+                "- Treat internal governance records as the primary organizational truth: InternalControl, GovernanceDocument, PolicyInternalControl, InternalControlMechanism, and EvidenceItem.\n"
+                "- Use external framework controls as mapped benchmarks or regulatory references, not as replacements for the internal catalog.\n"
+                "- If internal and external sources differ, prefer the approved internal record and explain the mapping gap or uncertainty.\n"
+                "- Never describe an external framework control as if it were an internal organizational control.\n"
+                "\n### TASK-SPECIFIC INSTRUCTIONS:\n"
                 f"{role_instructions}"
             )
             return base_prompt + "\n" + rag_instructions

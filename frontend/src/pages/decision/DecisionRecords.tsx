@@ -16,8 +16,9 @@ import {
 import { governanceApi, type DecisionRecord, type DecisionValue } from "@/lib/governanceApi";
 import { buildDecisionUrl } from "@/lib/decisionApi";
 
-function asArray<T>(data: any): T[] {
-  return Array.isArray(data) ? data : data?.results || [];
+function asArray<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  return (data as { results?: T[] } | null)?.results || [];
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -27,6 +28,19 @@ function formatDateTime(value: string | null | undefined) {
   } catch {
     return value;
   }
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Sem prazo";
+  try {
+    return new Date(value).toLocaleDateString("pt-PT");
+  } catch {
+    return value;
+  }
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
 }
 
 function titleCase(value: string) {
@@ -138,7 +152,7 @@ export default function DecisionRecords() {
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, any> = {
+      const params: Record<string, string | number> = {
         page_size: 100,
         ordering: "-decided_at,-created_at",
       };
@@ -154,9 +168,9 @@ export default function DecisionRecords() {
         if (desiredId && items.some((item) => item.id === desiredId)) return desiredId;
         return current && items.some((item) => item.id === current) ? current : items[0]?.id || null;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar as decisões registadas.");
+      setError(errorMessage(err, "Não foi possível carregar as decisões registadas."));
     } finally {
       setLoading(false);
     }
@@ -322,6 +336,7 @@ export default function DecisionRecords() {
                       </div>
                       <h2 className="mt-3 text-base font-bold text-slate-950">{record.title || "Decisão sem título"}</h2>
                       <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {record.due_date ? `Prazo: ${formatDate(record.due_date)} · ` : ""}
                         {preview(record.justification, "Sem justificação registada.")}
                       </p>
                     </div>
@@ -335,8 +350,8 @@ export default function DecisionRecords() {
                         <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Fontes</p>
                       </div>
                       <div className="rounded-xl bg-slate-50 px-3 py-2">
-                        <p className="text-sm font-bold text-slate-950">{record.decided_by || "system"}</p>
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Autor</p>
+                        <p className="truncate text-sm font-bold text-slate-950">{record.responsible || record.decided_by || "system"}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Resp.</p>
                       </div>
                     </div>
                   </div>
@@ -381,6 +396,20 @@ export default function DecisionRecords() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">ResponsÃ¡vel</p>
+                  <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <UserRound className="h-4 w-4 text-slate-400" />
+                    {selected.responsible || selected.decided_by || "system"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Prazo</p>
+                  <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <Clock3 className="h-4 w-4 text-slate-400" />
+                    {formatDate(selected.due_date)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Registada por</p>
                   <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-slate-900">
                     <UserRound className="h-4 w-4 text-slate-400" />
@@ -420,6 +449,37 @@ export default function DecisionRecords() {
                       ? selected.rationale
                       : "Sem racional complementar registado nesta decisão."}
                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Impacto em risco</p>
+                    <p className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-slate-700">
+                      {selected.risk_impact?.trim() || "Sem impacto em risco registado."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Impacto em conformidade</p>
+                    <p className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-slate-700">
+                      {selected.compliance_impact?.trim() || "Sem impacto em conformidade registado."}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">EvidÃªncia associada</p>
+                    <p className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-slate-700">
+                      {selected.evidence_reference?.trim() || "Sem evidÃªncia associada."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">AÃ§Ã£o associada</p>
+                    <p className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-slate-700">
+                      {selected.action_reference?.trim() || "Sem aÃ§Ã£o associada."}
+                    </p>
+                  </div>
                 </div>
               </div>
 

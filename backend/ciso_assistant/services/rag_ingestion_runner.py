@@ -12,6 +12,7 @@ calling code — only `_spawn()` would swap `threading.Thread` for `.delay()`.
 import logging
 import threading
 import time
+import uuid
 from datetime import timedelta
 
 from django.db import close_old_connections, transaction
@@ -19,7 +20,21 @@ from django.utils import timezone
 
 from ciso_assistant.models import KnowledgeChunk, RagIngestionRun
 from ciso_assistant.services.knowledge_ingestion import KnowledgeIngestionService
-from governance.models import ComplianceGap, Control, Policy, PolicyEvidence, Procedure, TechnicalRegulation
+from governance.models import (
+    ComplianceGap,
+    Control,
+    EvidenceItem,
+    GovernanceAction,
+    GovernanceDocument,
+    GovernanceDocumentSection,
+    InternalControl,
+    InternalControlFrameworkMapping,
+    InternalControlMechanism,
+    Policy,
+    PolicyEvidence,
+    Procedure,
+    TechnicalRegulation,
+)
 from governance.models.mechanism import Mechanism
 from risk.models import Asset, Vulnerability
 
@@ -32,6 +47,8 @@ STALE_RUN_AFTER = timedelta(hours=2)
 # Cap on per-item failure lines kept in RagIngestionRun.error_detail.
 MAX_ERROR_LINES = 50
 
+GOVERNANCE_MISSING_SOURCE_TYPES = ("framework_mapping", "internal_control_mechanism", "governance_action")
+
 
 class RagIngestionAlreadyRunning(Exception):
     """Raised when a re-ingestion is requested while another is in progress."""
@@ -41,7 +58,7 @@ class RagIngestionRunner:
     """Starts and executes bulk RAG re-ingestion runs."""
 
     @classmethod
-    def start(cls, *, mode, user=None):
+    def start(cls, *, mode, user=None, source_types=None, missing_only=False, per_type_limit=None):
         """
         Create a RagIngestionRun and launch it in a background thread.
 
@@ -69,14 +86,37 @@ class RagIngestionRunner:
 
         # on_commit so the worker thread never queries the run row before the
         # request transaction that created it has committed (ATOMIC_REQUESTS).
-        transaction.on_commit(lambda: cls._spawn(run.id))
-        logger.info("[RAG_RUNNER] Queued %s run %s", mode, run.id)
+        source_types = tuple(source_types or ())
+        transaction.on_commit(
+            lambda: cls._spawn(
+                run.id,
+                source_types=source_types,
+                missing_only=bool(missing_only),
+                per_type_limit=per_type_limit,
+            )
+        )
+        logger.info(
+            "[RAG_RUNNER] Queued %s run %s source_types=%s missing_only=%s limit=%s",
+            mode,
+            run.id,
+            source_types or "all",
+            missing_only,
+            per_type_limit,
+        )
         return run
 
     @classmethod
-    def _spawn(cls, run_id):
+    def _spawn(cls, run_id, *, source_types=None, missing_only=False, per_type_limit=None):
         thread = threading.Thread(
-            target=cls._execute, args=(run_id,), name=f"rag-ingest-{run_id}", daemon=True
+            target=cls._execute,
+            args=(run_id,),
+            kwargs={
+                "source_types": source_types,
+                "missing_only": missing_only,
+                "per_type_limit": per_type_limit,
+            },
+            name=f"rag-ingest-{run_id}",
+            daemon=True,
         )
         thread.start()
 
@@ -94,7 +134,7 @@ class RagIngestionRunner:
 
     # --- the unit of work: ready to become a Celery task ---------------------
     @classmethod
-    def _execute(cls, run_id):
+    def _execute(cls, run_id, *, source_types=None, missing_only=False, per_type_limit=None):
         close_old_connections()
         try:
             run = RagIngestionRun.objects.get(id=run_id)
@@ -112,7 +152,11 @@ class RagIngestionRunner:
                 run.chunks_removed = removed
                 run.save(update_fields=["chunks_removed"])
 
-            for source_type, queryset, upsert in cls._plan():
+            for source_type, queryset, upsert in cls._plan(
+                source_types=source_types,
+                missing_only=missing_only,
+                per_type_limit=per_type_limit,
+            ):
                 processed = 0
                 failed = 0
                 for obj in queryset:
@@ -172,10 +216,10 @@ class RagIngestionRunner:
         run.save()
 
     @staticmethod
-    def _plan():
+    def _plan(source_types=None, missing_only=False, per_type_limit=None):
         """(source_type, queryset, upsert_callable) for every indexed entity type."""
         svc = KnowledgeIngestionService
-        return [
+        plan = [
             (
                 "asset",
                 Asset.objects.filter(status="Active").select_related(
@@ -239,7 +283,113 @@ class RagIngestionRunner:
                 ).order_by("title"),
                 svc.upsert_mechanism,
             ),
+            (
+                "internal_control",
+                InternalControl.objects.filter(is_active=True)
+                .prefetch_related(
+                    "framework_mappings__framework_control__framework",
+                    "policy_links__policy",
+                    "document_links__document",
+                    "mechanism_links__mechanism",
+                )
+                .order_by("code"),
+                svc.upsert_internal_control,
+            ),
+            (
+                "governance_document",
+                GovernanceDocument.objects.filter(is_active=True)
+                .select_related("parent_document")
+                .prefetch_related("sections", "runbook_steps", "control_links__internal_control")
+                .order_by("document_type", "title"),
+                svc.upsert_governance_document,
+            ),
+            (
+                "governance_section",
+                GovernanceDocumentSection.objects.select_related("document", "parent_section")
+                .filter(document__is_active=True)
+                .order_by("document__title", "order", "section_number"),
+                svc.upsert_governance_section,
+            ),
+            (
+                "evidence_item",
+                EvidenceItem.objects.filter(is_active=True).prefetch_related("links").order_by("title"),
+                svc.upsert_evidence_item,
+            ),
+            (
+                "framework_mapping",
+                InternalControlFrameworkMapping.objects.select_related(
+                    "internal_control",
+                    "framework_control",
+                    "framework_control__framework",
+                )
+                .exclude(
+                    validation_status__in=[
+                        InternalControlFrameworkMapping.ValidationStatus.REJECTED,
+                        InternalControlFrameworkMapping.ValidationStatus.DEPRECATED,
+                    ]
+                )
+                .order_by("internal_control__code", "framework_control__framework__code", "framework_control__code"),
+                svc.upsert_framework_mapping,
+            ),
+            (
+                "internal_control_mechanism",
+                InternalControlMechanism.objects.select_related("internal_control", "mechanism")
+                .exclude(
+                    validation_status__in=[
+                        InternalControlMechanism.ValidationStatus.REJECTED,
+                        InternalControlMechanism.ValidationStatus.DEPRECATED,
+                    ]
+                )
+                .order_by("internal_control__code", "mechanism__title"),
+                svc.upsert_internal_control_mechanism,
+            ),
+            (
+                "governance_action",
+                GovernanceAction.objects.select_related("linked_decision", "linked_exception")
+                .exclude(status=GovernanceAction.Status.CANCELLED)
+                .order_by("status", "due_date", "-created_at"),
+                svc.upsert_governance_action,
+            ),
         ]
+
+        source_filter = set(source_types or [])
+        if source_filter:
+            plan = [item for item in plan if item[0] in source_filter]
+
+        if missing_only:
+            plan = [
+                (source_type, RagIngestionRunner._apply_missing_only(queryset, source_type), upsert)
+                for source_type, queryset, upsert in plan
+            ]
+
+        if per_type_limit is not None:
+            limit = max(1, int(per_type_limit))
+            plan = [(source_type, queryset[:limit], upsert) for source_type, queryset, upsert in plan]
+
+        return plan
+
+    @staticmethod
+    def _apply_missing_only(queryset, source_type):
+        existing_refs = list(
+            KnowledgeChunk.objects.filter(source_type=source_type).values_list("source_ref", flat=True)
+        )
+        if not existing_refs:
+            return queryset
+
+        pk_field = queryset.model._meta.pk
+        if pk_field.get_internal_type() == "UUIDField":
+            valid_refs = []
+            for source_ref in existing_refs:
+                try:
+                    valid_refs.append(uuid.UUID(str(source_ref)))
+                except (TypeError, ValueError):
+                    continue
+            existing_refs = valid_refs
+
+        if not existing_refs:
+            return queryset
+
+        return queryset.exclude(id__in=existing_refs)
 
     @staticmethod
     def _label(obj):

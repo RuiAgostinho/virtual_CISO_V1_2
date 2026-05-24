@@ -49,11 +49,16 @@ class EmbeddingService:
             return None
 
         model = getattr(settings, "OLLAMA_EMBED_MODEL", "llama3.1:8b")
+        timeout_seconds = getattr(
+            settings,
+            "OLLAMA_EMBED_TIMEOUT_SECONDS",
+            getattr(settings, "OLLAMA_TIMEOUT_SECONDS", 180),
+        )
         try:
             response = requests.post(
                 url,
                 json={"model": model, "prompt": text},
-                timeout=30,
+                timeout=timeout_seconds,
             )
             response.raise_for_status()
             embedding = response.json().get("embedding")

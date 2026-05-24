@@ -6,6 +6,7 @@ from django.conf import settings
 from ciso_assistant.services.llm_router import LLMRouter
 from ciso_assistant.services.ollama_client import OllamaClient
 from ciso_assistant.services.prompt_builder import PromptBuilder
+from ciso_assistant.services.governance_context_adapter import GovernanceContextAdapter
 from ciso_assistant.services.semantic_retrieval import SemanticRetrievalService
 from ciso_assistant.services.source_normalizer import SourceNormalizer
 from ciso_assistant.services.structured_service import StructuredQueryService
@@ -181,10 +182,20 @@ class QueryOrchestrator:
 
         retrieved_chunks = []
         if needs_rag:
-            retrieved_chunks = SemanticRetrievalService.semantic_search(
+            governance_chunks = GovernanceContextAdapter.retrieve_internal_first(
                 query=query,
                 top_k=5,
                 filters=filters,
+            )
+            semantic_chunks = SemanticRetrievalService.semantic_search(
+                query=query,
+                top_k=5,
+                filters=filters,
+            )
+            retrieved_chunks = GovernanceContextAdapter.merge_contexts(
+                governance_chunks,
+                semantic_chunks,
+                top_k=8,
             )
             logger.info("[ORCHESTRATOR] Retrieved %s chunk(s) for RAG.", len(retrieved_chunks))
             if not retrieved_chunks:

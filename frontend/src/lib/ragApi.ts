@@ -32,11 +32,20 @@ export interface RagByType {
   count: number;
 }
 
+export interface RagGovernanceMissing {
+  source_type: string;
+  label: string;
+  eligible: number;
+  indexed: number;
+  missing: number;
+}
+
 export interface RagStats {
   total_chunks: number;
   embedded_chunks: number;
   missing_embedding: number;
   by_type: RagByType[];
+  governance_missing: RagGovernanceMissing[];
 }
 
 export interface RagOverview {
@@ -53,5 +62,15 @@ export const ragApi = {
     request<RagRun>("/api/assistant/rag/reindex/", {
       method: "POST",
       body: JSON.stringify({ mode }),
+    }),
+
+  completeGovernanceMissing: (batchSize = 50) =>
+    request<RagRun>("/api/assistant/rag/reindex/", {
+      method: "POST",
+      body: JSON.stringify({
+        mode: "incremental",
+        preset: "governance_missing",
+        batch_size: batchSize,
+      }),
     }),
 };

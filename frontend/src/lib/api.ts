@@ -80,6 +80,7 @@ const NO_REFRESH_PATHS = ["/api/auth/login/", "/api/auth/logout/", "/api/auth/re
 export async function request<T>(path: string, opts: RequestInit = {}, _retried = false): Promise<T> {
 
     const method = (opts.method || "GET").toUpperCase();
+    const hasFormDataBody = typeof FormData !== "undefined" && opts.body instanceof FormData;
 
 
 
@@ -87,7 +88,7 @@ export async function request<T>(path: string, opts: RequestInit = {}, _retried 
 
     const headers: Record<string, string> = {
 
-        "Content-Type": "application/json",
+        ...(hasFormDataBody ? {} : { "Content-Type": "application/json" }),
 
         ...(opts.headers as Record<string, string> | undefined),
 
@@ -150,7 +151,9 @@ export async function request<T>(path: string, opts: RequestInit = {}, _retried 
 
             });
 
-        } catch { }
+        } catch {
+            // Ignore logout failures while handling an expired session.
+        }
 
         if (window.location.pathname !== "/login") {
 
@@ -211,4 +214,3 @@ export const api = {
     logout: () => request<void>(`/api/auth/logout/`, { method: "POST" }),
 
 };
-

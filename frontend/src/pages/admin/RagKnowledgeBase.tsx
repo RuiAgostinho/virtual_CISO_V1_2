@@ -21,6 +21,12 @@ const TYPE_LABELS_PT: Record<string, string> = {
   vulnerability: "Vulnerabilidades",
   control: "Controlos",
   mechanism: "Mecanismos",
+  internal_control: "Controlos internos",
+  governance_document: "Documentos de governacao",
+  governance_section: "Seccoes de documentos",
+  evidence_item: "Evidencias reutilizaveis",
+  framework_mapping: "Mapeamentos interno-framework",
+  internal_control_mechanism: "Mecanismos por controlo interno",
   technical_regulation: "Normas técnicas",
   procedure: "Procedimentos",
   evidence: "Evidências",
@@ -65,6 +71,15 @@ function statusTone(status: string) {
   return "border-slate-200 bg-slate-50 text-slate-500";
 }
 
+function errorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
+}
+
 export default function RagKnowledgeBase() {
   const { user } = useAuth();
   const isAdmin = !!(user?.is_superuser || user?.is_staff);
@@ -74,6 +89,7 @@ export default function RagKnowledgeBase() {
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
   const [confirmFullOpen, setConfirmFullOpen] = useState(false);
+  const [governanceBatchSize, setGovernanceBatchSize] = useState(50);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(async (showSpinner: boolean) => {
@@ -82,8 +98,8 @@ export default function RagKnowledgeBase() {
       const data = await ragApi.getOverview();
       setOverview(data);
       setError(null);
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível carregar o estado da base de conhecimento RAG.");
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Não foi possível carregar o estado da base de conhecimento RAG."));
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -120,10 +136,10 @@ export default function RagKnowledgeBase() {
             : "Reindexação incremental iniciada — o progresso é atualizado automaticamente.",
       });
       await load(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setActionMessage({
         type: "error",
-        text: err?.message || "Não foi possível iniciar a reindexação.",
+        text: errorMessage(err, "Não foi possível iniciar a reindexação."),
       });
     } finally {
       setTriggering(false);
@@ -131,10 +147,32 @@ export default function RagKnowledgeBase() {
     }
   };
 
+  const triggerGovernanceCompletion = async () => {
+    setTriggering(true);
+    setActionMessage(null);
+    try {
+      await ragApi.completeGovernanceMissing(governanceBatchSize);
+      setActionMessage({
+        type: "success",
+        text: `Ingestao governance missing iniciada. Serao processados ate ${governanceBatchSize} itens por tipo.`,
+      });
+      await load(false);
+    } catch (err: unknown) {
+      setActionMessage({
+        type: "error",
+        text: errorMessage(err, "Nao foi possivel iniciar a ingestao governance missing."),
+      });
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   const stats = overview?.stats;
   const lastRun = overview?.last_run ?? null;
   const recentRuns = overview?.recent_runs ?? [];
   const actionsDisabled = isRunning || triggering;
+  const governanceMissing = stats?.governance_missing ?? [];
+  const governanceMissingTotal = governanceMissing.reduce((sum, row) => sum + row.missing, 0);
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
@@ -212,7 +250,7 @@ export default function RagKnowledgeBase() {
                         <p className="text-xs font-semibold text-indigo-600">
                           Iniciada {fmtDateTime(currentRun.started_at)}
                           {currentRun.triggered_by ? ` · por ${currentRun.triggered_by}` : ""}
-                          {` · ${Object.keys(currentRun.counts_by_type || {}).length}/9 tipos processados`}
+                          {` · ${Object.keys(currentRun.counts_by_type || {}).length} tipos com progresso`}
                         </p>
                       </div>
                     </div>
@@ -271,6 +309,62 @@ export default function RagKnowledgeBase() {
 
               <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Ações de reindexação</h2>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-5">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="max-w-3xl">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-emerald-700" />
+                        <p className="text-sm font-bold text-slate-950">Completar embeddings governance</p>
+                      </div>
+                      <p className="mt-2 text-xs font-semibold leading-relaxed text-emerald-900/80">
+                        Processa apenas chunks em falta da nova camada transversal, sem apagar dados e sem reprocessar a
+                        base inteira. Usa missing-only e foca mapeamentos interno-framework e mecanismos por controlo.
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {governanceMissing.map((row) => (
+                          <div key={row.source_type} className="rounded-xl border border-emerald-100 bg-white/80 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{row.label}</p>
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                              <MiniStat label="Elegiveis" value={row.eligible} />
+                              <MiniStat label="Indexados" value={row.indexed} />
+                              <MiniStat label="Em falta" value={row.missing} warn={row.missing > 0} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="w-full shrink-0 space-y-3 xl:w-56">
+                      <label className="block text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+                        Lote por tipo
+                      </label>
+                      <select
+                        value={governanceBatchSize}
+                        onChange={(event) => setGovernanceBatchSize(Number(event.target.value))}
+                        disabled={actionsDisabled}
+                        className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
+                      >
+                        {[10, 25, 50, 100, 200].map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={triggerGovernanceCompletion}
+                        disabled={actionsDisabled || governanceMissingTotal === 0}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {triggering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                        Completar agora
+                      </button>
+                      <p className="text-[11px] font-semibold text-emerald-800">
+                        {governanceMissingTotal > 0
+                          ? `${governanceMissingTotal} itens ainda sem chunk dedicado.`
+                          : "Governance detalhado completo."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-5">
                     <div className="flex items-center gap-2">
@@ -495,6 +589,15 @@ function RunStat({ label, value, tone }: { label: string; value: number; tone: s
     <div>
       <p className={`text-2xl font-bold ${tone}`}>{value}</p>
       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
+  return (
+    <div>
+      <p className={`text-lg font-bold ${warn ? "text-amber-700" : "text-slate-950"}`}>{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
 }

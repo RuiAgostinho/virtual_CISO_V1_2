@@ -2,7 +2,22 @@ import logging
 
 from ciso_assistant.models import KnowledgeChunk
 from ciso_assistant.services.retrieval.embedding_service import EmbeddingService
-from governance.models import ComplianceGap, Control, Policy, PolicyEvidence, Procedure, TechnicalRegulation
+from governance.models import (
+    ComplianceGap,
+    Control,
+    EvidenceItem,
+    EvidenceLink,
+    GovernanceAction,
+    GovernanceDocument,
+    GovernanceDocumentSection,
+    InternalControl,
+    InternalControlFrameworkMapping,
+    InternalControlMechanism,
+    Policy,
+    PolicyEvidence,
+    Procedure,
+    TechnicalRegulation,
+)
 from governance.models.mechanism import Mechanism
 from risk.models import Asset, Vulnerability
 
@@ -67,6 +82,600 @@ class KnowledgeIngestionService:
                 "metadata_json": metadata or {},
             },
         )
+
+    @classmethod
+    def build_internal_control_text(cls, control: InternalControl) -> tuple[str, dict]:
+        framework_mappings = []
+        for mapping in control.framework_mappings.all()[:12]:
+            framework_control = mapping.framework_control
+            framework = framework_control.framework
+            framework_mappings.append(
+                (
+                    f"{framework.code} {framework.version}:{framework_control.code} - {framework_control.title} "
+                    f"({mapping.relationship_type}, cobertura={mapping.coverage_percentage}%, "
+                    f"validacao={mapping.validation_status})"
+                )
+            )
+
+        policies = [
+            f"{link.policy.code} - {link.policy.title} ({link.applicability}, {link.validation_status})"
+            for link in control.policy_links.all()[:10]
+        ]
+        documents = [
+            f"{link.document.title} ({link.document.document_type}, {link.purpose}, {link.validation_status})"
+            for link in control.document_links.all()[:10]
+        ]
+        mechanisms = [
+            (
+                f"{link.mechanism.title} ({link.relationship_type}, estado={link.implementation_status}, "
+                f"peso={link.contribution_weight}%, obrigatorio={'sim' if link.mandatory else 'nao'}, "
+                f"validacao={link.validation_status})"
+            )
+            for link in control.mechanism_links.all()[:10]
+        ]
+
+        text = (
+            f"Controlo interno: {control.code} - {control.title}. "
+            f"Dominio: {cls.label(control.control_domain)}. "
+            f"Criticalidade: {control.criticality}. Estado: {control.status}. Fonte: {control.source}. "
+            f"Owner role: {cls.label(control.owner_role)}. "
+            f"Objetivo: {cls.label(control.objective)}. "
+            f"Risco tratado: {cls.label(control.risk_statement)}. "
+            f"Descricao: {cls.label(control.description)}. "
+            f"Politicas associadas: {'; '.join(policies) if policies else 'Nao definido'}. "
+            f"Documentos de governacao associados: {'; '.join(documents) if documents else 'Nao definido'}. "
+            f"Mecanismos associados: {'; '.join(mechanisms) if mechanisms else 'Nao definido'}. "
+            f"Mapeamentos para frameworks externas: {'; '.join(framework_mappings) if framework_mappings else 'Nao definido'}."
+        )
+        metadata = {
+            "internal_control_id": str(control.id),
+            "internal_control_code": control.code,
+            "control_domain": control.control_domain,
+            "criticality": control.criticality,
+            "status": control.status,
+            "source": control.source,
+            "legacy_control_id": str(control.legacy_control_id) if control.legacy_control_id else None,
+            "framework_mappings": framework_mappings,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_internal_control(cls, control_or_id) -> bool:
+        try:
+            if isinstance(control_or_id, InternalControl):
+                control = control_or_id
+            else:
+                control = (
+                    InternalControl.objects.prefetch_related(
+                        "framework_mappings__framework_control__framework",
+                        "policy_links__policy",
+                        "document_links__document",
+                        "mechanism_links__mechanism",
+                    )
+                    .get(id=control_or_id)
+                )
+
+            if not control.is_active:
+                cls.delete_internal_control(control.id)
+                return True
+
+            text, metadata = cls.build_internal_control_text(control)
+            embedding = cls.embed(text, control.code)
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="internal_control",
+                source_ref=str(control.id),
+                title=f"{control.code} - {control.title}",
+                text=text,
+                embedding=embedding,
+                control_code=control.code,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Internal control indexed: %s", control.code)
+            return True
+        except InternalControl.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Internal control not found for indexing: %s", control_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index internal control: %s", control_or_id)
+            return False
+
+    @classmethod
+    def delete_internal_control(cls, control_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="internal_control", source_ref=str(control_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_governance_document_text(cls, document: GovernanceDocument) -> tuple[str, dict]:
+        sections = [
+            f"{section.section_number or section.order} {section.title}: {cls.label(section.content)[:500]}"
+            for section in document.sections.all()[:10]
+        ]
+        runbook_steps = [
+            (
+                f"{step.step_number}. {step.title}: {cls.label(step.description)[:300]} "
+                f"(output esperado: {cls.label(step.expected_output)}, evidencia obrigatoria={'sim' if step.evidence_required else 'nao'})"
+            )
+            for step in document.runbook_steps.all()[:10]
+        ]
+        controls = [
+            f"{link.internal_control.code} - {link.internal_control.title} ({link.purpose}, {link.validation_status})"
+            for link in document.control_links.all()[:12]
+        ]
+        text = (
+            f"Documento de governacao: {document.title}. "
+            f"Tipo: {document.document_type}. Versao: {document.version}. Estado: {document.status}. "
+            f"Owner: {cls.label(document.owner)}. "
+            f"Documento pai: {cls.label(document.parent_document.title if document.parent_document else None)}. "
+            f"Ambito: {cls.label(document.scope)}. Proposito: {cls.label(document.purpose)}. "
+            f"Conteudo: {cls.label(document.content)[:1600]}. "
+            f"Secoes: {' | '.join(sections) if sections else 'Nao definido'}. "
+            f"Runbook steps: {' | '.join(runbook_steps) if runbook_steps else 'Nao aplicavel'}. "
+            f"Controlos internos associados: {'; '.join(controls) if controls else 'Nao definido'}."
+        )
+        metadata = {
+            "governance_document_id": str(document.id),
+            "document_type": document.document_type,
+            "status": document.status,
+            "version": document.version,
+            "parent_document_id": str(document.parent_document_id) if document.parent_document_id else None,
+            "legacy_policy_id": str(document.legacy_policy_id) if document.legacy_policy_id else None,
+            "legacy_technical_regulation_id": (
+                str(document.legacy_technical_regulation_id) if document.legacy_technical_regulation_id else None
+            ),
+            "legacy_procedure_id": str(document.legacy_procedure_id) if document.legacy_procedure_id else None,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_governance_document(cls, document_or_id) -> bool:
+        try:
+            if isinstance(document_or_id, GovernanceDocument):
+                document = document_or_id
+            else:
+                document = (
+                    GovernanceDocument.objects.select_related("parent_document")
+                    .prefetch_related("sections", "runbook_steps", "control_links__internal_control")
+                    .get(id=document_or_id)
+                )
+
+            if not document.is_active:
+                cls.delete_governance_document(document.id)
+                return True
+
+            text, metadata = cls.build_governance_document_text(document)
+            embedding = cls.embed(text, document.title)
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="governance_document",
+                source_ref=str(document.id),
+                title=document.title,
+                text=text,
+                embedding=embedding,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Governance document indexed: %s", document.title)
+            return True
+        except GovernanceDocument.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Governance document not found for indexing: %s", document_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index governance document: %s", document_or_id)
+            return False
+
+    @classmethod
+    def delete_governance_document(cls, document_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(
+            source_type="governance_document",
+            source_ref=str(document_id),
+        ).delete()
+        return deleted
+
+    @classmethod
+    def build_governance_section_text(cls, section: GovernanceDocumentSection) -> tuple[str, dict]:
+        document = section.document
+        text = (
+            f"Seccao de documento de governacao: {section.section_number or section.order} {section.title}. "
+            f"Documento: {document.title} ({document.document_type}, versao {document.version}, estado {document.status}). "
+            f"Seccao pai: {cls.label(section.parent_section.title if section.parent_section else None)}. "
+            f"Conteudo: {cls.label(section.content)}."
+        )
+        metadata = {
+            "governance_section_id": str(section.id),
+            "governance_document_id": str(section.document_id),
+            "document_type": document.document_type,
+            "section_number": section.section_number,
+            "order": section.order,
+            "parent_section_id": str(section.parent_section_id) if section.parent_section_id else None,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_governance_section(cls, section_or_id) -> bool:
+        try:
+            if isinstance(section_or_id, GovernanceDocumentSection):
+                section = section_or_id
+            else:
+                section = GovernanceDocumentSection.objects.select_related(
+                    "document",
+                    "parent_section",
+                ).get(id=section_or_id)
+
+            if not section.document.is_active:
+                cls.delete_governance_section(section.id)
+                return True
+
+            text, metadata = cls.build_governance_section_text(section)
+            embedding = cls.embed(text, section.title)
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="governance_section",
+                source_ref=str(section.id),
+                title=f"{section.document.title} - {section.title}",
+                text=text,
+                embedding=embedding,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Governance section indexed: %s", section.title)
+            return True
+        except GovernanceDocumentSection.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Governance section not found for indexing: %s", section_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index governance section: %s", section_or_id)
+            return False
+
+    @classmethod
+    def delete_governance_section(cls, section_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="governance_section", source_ref=str(section_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_evidence_item_text(cls, evidence: EvidenceItem) -> tuple[str, dict]:
+        links = [
+            f"{link.target_type}:{link.target_id} ({link.link_type}, {link.validation_status})"
+            for link in evidence.links.all()[:15]
+        ]
+        text = (
+            f"Evidencia reutilizavel: {evidence.title}. "
+            f"Tipo: {evidence.evidence_type}. Estado: {evidence.status}. "
+            f"Owner: {cls.label(evidence.owner)}. Fonte: {cls.label(evidence.source)}. "
+            f"Referencia externa: {cls.label(evidence.external_reference)}. "
+            f"Recolhida em: {cls.label(evidence.collected_at)}. Valida ate: {cls.label(evidence.valid_until)}. "
+            f"Nivel de confianca: {evidence.confidence_level}. Expirada: {'sim' if evidence.is_expired else 'nao'}. "
+            f"Descricao: {cls.label(evidence.description)}. "
+            f"Ligacoes: {'; '.join(links) if links else 'Nao definido'}."
+        )
+        metadata = {
+            "evidence_item_id": str(evidence.id),
+            "evidence_type": evidence.evidence_type,
+            "status": evidence.status,
+            "confidence_level": float(evidence.confidence_level),
+            "valid_until": evidence.valid_until.isoformat() if evidence.valid_until else None,
+            "is_expired": evidence.is_expired,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_evidence_item(cls, evidence_or_id) -> bool:
+        try:
+            if isinstance(evidence_or_id, EvidenceItem):
+                evidence = evidence_or_id
+            else:
+                evidence = EvidenceItem.objects.prefetch_related("links").get(id=evidence_or_id)
+
+            if not evidence.is_active:
+                cls.delete_evidence_item(evidence.id)
+                return True
+
+            text, metadata = cls.build_evidence_item_text(evidence)
+            embedding = cls.embed(text, evidence.title)
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="evidence_item",
+                source_ref=str(evidence.id),
+                title=evidence.title,
+                text=text,
+                embedding=embedding,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Evidence item indexed: %s", evidence.title)
+            return True
+        except EvidenceItem.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Evidence item not found for indexing: %s", evidence_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index evidence item: %s", evidence_or_id)
+            return False
+
+    @classmethod
+    def delete_evidence_item(cls, evidence_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="evidence_item", source_ref=str(evidence_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_framework_mapping_text(cls, mapping: InternalControlFrameworkMapping) -> tuple[str, dict]:
+        internal_control = mapping.internal_control
+        framework_control = mapping.framework_control
+        framework = framework_control.framework
+        text = (
+            f"Mapeamento InternalControl para framework: {internal_control.code} - {internal_control.title} "
+            f"-> {framework.code} {framework.version}:{framework_control.code} - {framework_control.title}. "
+            f"Tipo de relacao: {mapping.relationship_type}. Cobertura: {mapping.coverage_percentage}%. "
+            f"Confianca: {mapping.confidence_score}%. Fonte: {mapping.mapping_source}. "
+            f"Validacao: {mapping.validation_status}. Rationale: {cls.label(mapping.rationale)}. "
+            f"Descricao do controlo interno: {cls.label(internal_control.description)}. "
+            f"Descricao do controlo externo: {cls.label(framework_control.description)}."
+        )
+        metadata = {
+            "mapping_id": str(mapping.id),
+            "internal_control_id": str(internal_control.id),
+            "internal_control_code": internal_control.code,
+            "framework_control_id": str(framework_control.id),
+            "framework_code": framework.code,
+            "framework_version": framework.version,
+            "framework_control_code": framework_control.code,
+            "relationship_type": mapping.relationship_type,
+            "coverage_percentage": float(mapping.coverage_percentage),
+            "validation_status": mapping.validation_status,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_framework_mapping(cls, mapping_or_id) -> bool:
+        try:
+            if isinstance(mapping_or_id, InternalControlFrameworkMapping):
+                mapping = mapping_or_id
+            else:
+                mapping = InternalControlFrameworkMapping.objects.select_related(
+                    "internal_control",
+                    "framework_control",
+                    "framework_control__framework",
+                ).get(id=mapping_or_id)
+
+            if not mapping.is_active:
+                cls.delete_framework_mapping(mapping.id)
+                return True
+
+            text, metadata = cls.build_framework_mapping_text(mapping)
+            framework = mapping.framework_control.framework
+            embedding = cls.embed(text, f"{mapping.internal_control.code}:{mapping.framework_control.code}")
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="framework_mapping",
+                source_ref=str(mapping.id),
+                title=f"{mapping.internal_control.code} -> {framework.code}:{mapping.framework_control.code}",
+                text=text,
+                embedding=embedding,
+                framework=f"{framework.code} {framework.version}",
+                control_code=mapping.internal_control.code,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Framework mapping indexed: %s", mapping.id)
+            return True
+        except InternalControlFrameworkMapping.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Framework mapping not found for indexing: %s", mapping_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index framework mapping: %s", mapping_or_id)
+            return False
+
+    @classmethod
+    def delete_framework_mapping(cls, mapping_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="framework_mapping", source_ref=str(mapping_id)).delete()
+        return deleted
+
+    @classmethod
+    def build_internal_control_mechanism_text(cls, link: InternalControlMechanism) -> tuple[str, dict]:
+        internal_control = link.internal_control
+        mechanism = link.mechanism
+        text = (
+            f"Associacao entre controlo interno e mecanismo: {internal_control.code} - {internal_control.title} "
+            f"-> {mechanism.title}. Tipo de relacao: {link.relationship_type}. "
+            f"Estado operacional: {link.implementation_status}. Peso de contribuicao: {link.contribution_weight}%. "
+            f"Obrigatorio: {'sim' if link.mandatory else 'nao'}. Fonte: {link.mapping_source}. "
+            f"Validacao: {link.validation_status}. Confianca: {link.confidence_score}%. "
+            f"Rationale: {cls.label(link.rationale)}. "
+            f"Descricao do mecanismo: {cls.label(mechanism.description)}."
+        )
+        metadata = {
+            "internal_control_mechanism_id": str(link.id),
+            "internal_control_id": str(internal_control.id),
+            "internal_control_code": internal_control.code,
+            "mechanism_id": str(mechanism.id),
+            "mechanism_type": mechanism.mechanism_type,
+            "relationship_type": link.relationship_type,
+            "implementation_status": link.implementation_status,
+            "contribution_weight": float(link.contribution_weight),
+            "mandatory": link.mandatory,
+            "validation_status": link.validation_status,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_internal_control_mechanism(cls, link_or_id) -> bool:
+        try:
+            if isinstance(link_or_id, InternalControlMechanism):
+                link = link_or_id
+            else:
+                link = InternalControlMechanism.objects.select_related(
+                    "internal_control",
+                    "mechanism",
+                ).get(id=link_or_id)
+
+            if not link.is_active:
+                cls.delete_internal_control_mechanism(link.id)
+                return True
+
+            text, metadata = cls.build_internal_control_mechanism_text(link)
+            embedding = cls.embed(text, f"{link.internal_control.code}:{link.mechanism.title}")
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="internal_control_mechanism",
+                source_ref=str(link.id),
+                title=f"{link.internal_control.code} -> {link.mechanism.title}",
+                text=text,
+                embedding=embedding,
+                control_code=link.internal_control.code,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Internal control mechanism indexed: %s", link.id)
+            return True
+        except InternalControlMechanism.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Internal control mechanism not found for indexing: %s", link_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index internal control mechanism: %s", link_or_id)
+            return False
+
+    @classmethod
+    def delete_internal_control_mechanism(cls, link_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(
+            source_type="internal_control_mechanism",
+            source_ref=str(link_id),
+        ).delete()
+        return deleted
+
+    @classmethod
+    def governance_action_target_label(cls, action: GovernanceAction) -> str:
+        target_type = action.target_type
+        target_id = action.target_id
+        if not target_type or not target_id:
+            return "Nao definido"
+
+        try:
+            if target_type == "mechanism":
+                mechanism = Mechanism.objects.get(id=target_id)
+                return f"Mecanismo: {mechanism.title}"
+            if target_type == "internal_control":
+                control = InternalControl.objects.get(id=target_id)
+                return f"Controlo interno: {control.code} - {control.title}"
+            if target_type == "policy":
+                policy = Policy.objects.get(id=target_id)
+                return f"Politica: {policy.code} - {policy.title}"
+            if target_type == "governance_document":
+                document = GovernanceDocument.objects.get(id=target_id)
+                return f"Documento de governacao: {document.title}"
+            if target_type == "evidence_item":
+                evidence = EvidenceItem.objects.get(id=target_id)
+                return f"Evidencia: {evidence.title}"
+            if target_type in {"framework_control", "control"}:
+                control = Control.objects.select_related("framework").get(id=target_id)
+                return f"Controlo externo: {control.framework.code} {control.framework.version}:{control.code} - {control.title}"
+            if target_type == "asset":
+                asset = Asset.objects.get(id=target_id)
+                return f"Ativo: {asset.name}"
+            if target_type == "vulnerability":
+                vulnerability = Vulnerability.objects.get(id=target_id)
+                return f"Vulnerabilidade: {vulnerability.cve_id}"
+        except Exception:
+            logger.debug(
+                "[RAG_INGESTION] Could not resolve governance action target %s:%s",
+                target_type,
+                target_id,
+                exc_info=True,
+            )
+        return f"{target_type}:{target_id}"
+
+    @classmethod
+    def build_governance_action_text(cls, action: GovernanceAction) -> tuple[str, dict]:
+        target_label = cls.governance_action_target_label(action)
+        linked_decision = action.linked_decision
+        linked_exception = action.linked_exception
+        text = (
+            f"Tarefa de governacao: {action.title}. "
+            f"Tipo de acao: {action.action_type} ({action.get_action_type_display()}). "
+            f"Prioridade: {action.priority} ({action.get_priority_display()}). "
+            f"Estado: {action.status} ({action.get_status_display()}). "
+            f"Owner: {cls.label(action.owner)}. Prazo: {cls.label(action.due_date)}. "
+            f"Atrasada: {'sim' if action.is_overdue else 'nao'}. "
+            f"Alvo: {target_label}. Fonte: {action.source_type}. "
+            f"Descricao: {cls.label(action.description)}. "
+            f"Recomendacao IA/CISO: {cls.label(action.recommendation)}. "
+            f"Como executar: {cls.label(action.notes)}. "
+            f"Recursos humanos necessarios: {cls.label(action.required_roles)}. "
+            f"Recursos materiais necessarios: {cls.label(action.required_materials)}. "
+            f"Dependencias: {cls.label(action.dependency_notes)}. "
+            f"Evidencia obrigatoria: {'sim' if action.evidence_required else 'nao'}. "
+            f"Evidencia esperada: {cls.label(action.expected_evidence)}. "
+            f"Impacto estimado no score: {action.score_impact}. "
+            f"Rationale IA: {cls.label(action.ai_rationale)}. "
+            f"Decisao ligada: {cls.label(getattr(linked_decision, 'title', None))}. "
+            f"Excecao ligada: {cls.label(getattr(linked_exception, 'title', None))}."
+        )
+        metadata = {
+            "governance_action_id": str(action.id),
+            "action_type": action.action_type,
+            "priority": action.priority,
+            "status": action.status,
+            "source_type": action.source_type,
+            "target_type": action.target_type,
+            "target_id": str(action.target_id or ""),
+            "target_label": target_label,
+            "owner": action.owner,
+            "due_date": action.due_date.isoformat() if action.due_date else None,
+            "is_overdue": action.is_overdue,
+            "evidence_required": action.evidence_required,
+            "ai_generated": action.ai_generated,
+            "score_impact": float(action.score_impact),
+            "linked_decision_id": str(action.linked_decision_id) if action.linked_decision_id else None,
+            "linked_exception_id": str(action.linked_exception_id) if action.linked_exception_id else None,
+        }
+        return text, metadata
+
+    @classmethod
+    def upsert_governance_action(cls, action_or_id) -> bool:
+        try:
+            if isinstance(action_or_id, GovernanceAction):
+                action = action_or_id
+            else:
+                action = (
+                    GovernanceAction.objects.select_related("linked_decision", "linked_exception")
+                    .get(id=action_or_id)
+                )
+
+            if action.status == GovernanceAction.Status.CANCELLED:
+                cls.delete_governance_action(action.id)
+                return True
+
+            text, metadata = cls.build_governance_action_text(action)
+            embedding = cls.embed(text, action.title)
+            if not embedding:
+                return False
+
+            cls.save_chunk(
+                source_type="governance_action",
+                source_ref=str(action.id),
+                title=action.title,
+                text=text,
+                embedding=embedding,
+                metadata=metadata,
+            )
+            logger.info("[RAG_INGESTION] Governance action indexed: %s", action.title)
+            return True
+        except GovernanceAction.DoesNotExist:
+            logger.warning("[RAG_INGESTION] Governance action not found for indexing: %s", action_or_id)
+            return False
+        except Exception:
+            logger.exception("[RAG_INGESTION] Failed to index governance action: %s", action_or_id)
+            return False
+
+    @classmethod
+    def delete_governance_action(cls, action_id) -> int:
+        deleted, _ = KnowledgeChunk.objects.filter(source_type="governance_action", source_ref=str(action_id)).delete()
+        return deleted
 
     @classmethod
     def build_policy_text(cls, policy: Policy) -> tuple[str, list[str]]:

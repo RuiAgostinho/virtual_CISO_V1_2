@@ -14,7 +14,7 @@ export default function AppShell({ children }: Props) {
 
   useEffect(() => {
     setSidebarOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -23,8 +23,7 @@ export default function AppShell({ children }: Props) {
       <div className="flex">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* Em desktop reserva 18rem (w-72) para a sidebar */}
-        <main className="flex-1 p-6 lg:ml-72 min-h-[calc(100vh-4rem)]">
+        <main className="min-h-[calc(100vh-4rem)] min-w-0 flex-1 p-6">
           {children}
         </main>
       </div>

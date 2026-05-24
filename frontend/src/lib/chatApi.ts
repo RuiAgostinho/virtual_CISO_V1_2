@@ -6,6 +6,11 @@ export interface ChatSource {
   label?: string;
   source?: string;
   source_type: string;
+  source_label?: string;
+  governance_layer?: string;
+  entity_type?: string;
+  is_internal_governance?: boolean;
+  is_external_framework?: boolean;
   source_ref?: string;
   content_excerpt?: string;
   framework?: string;
@@ -35,9 +40,10 @@ export interface AssistantHistoryEntry {
   model_used?: string;
   used_rag?: boolean;
   confidence?: number | null;
+  duration_seconds?: number | null;
   sources_json: ChatSource[];
   history_json?: Array<{ role: string; content: string }>;
-  filters_json?: Record<string, any>;
+  filters_json?: Record<string, unknown>;
   created_by?: string | null;
   created_by_label?: string;
   converted_decision_id?: string | null;
@@ -54,6 +60,12 @@ export interface ConvertRecommendationPayload {
   decision_code: string;
   justification: string;
   title?: string;
+  responsible?: string;
+  due_date?: string | null;
+  risk_impact?: string;
+  compliance_impact?: string;
+  evidence_reference?: string;
+  action_reference?: string;
 }
 
 export interface ConvertRecommendationResponse {
@@ -63,21 +75,50 @@ export interface ConvertRecommendationResponse {
   decision_display: string;
 }
 
+export interface PolicyAdviceSection {
+  section_number?: string;
+  title?: string;
+  content?: string;
+}
+
+export interface PolicyAdvicePayload {
+  policy_id?: string | null;
+  advice_mode?: "full_review" | "coverage" | "auditability" | "wording" | "draft_text";
+  policy_snapshot: {
+    code?: string;
+    title?: string;
+    version?: string;
+    status?: string;
+    owner?: string;
+    sections?: PolicyAdviceSection[];
+  };
+}
+
+export interface AssistantResponse {
+  task_type: string;
+  model_used: string;
+  used_rag: boolean;
+  confidence: number;
+  duration_seconds?: number | null;
+  response: string;
+  sources: ChatSource[];
+}
+
 export const chatApi = {
   async ask(
     query: string,
     history: Pick<ChatMessage, "role" | "content">[] = []
-  ): Promise<{
-    task_type: string;
-    model_used: string;
-    used_rag: boolean;
-    confidence: number;
-    response: string;
-    sources: ChatSource[];
-  }> {
+  ): Promise<AssistantResponse> {
     return await request("/api/assistant/ask/", {
       method: "POST",
       body: JSON.stringify({ query, history }),
+    });
+  },
+
+  async askPolicyAdvice(payload: PolicyAdvicePayload): Promise<AssistantResponse> {
+    return await request("/api/assistant/policy-advice/", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   },
 

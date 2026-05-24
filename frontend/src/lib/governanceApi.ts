@@ -263,10 +263,347 @@ export type DecisionRecord = {
     decision_display?: string;
     decision_type_display?: string;
     justification: string;
+    responsible: string;
+    due_date: string | null;
+    risk_impact: string;
+    compliance_impact: string;
+    evidence_reference: string;
+    action_reference: string;
     decided_by: string;
     decided_at: string | null;
     created_at: string;
     updated_at: string;
+};
+
+export type GovernanceExceptionStatus =
+    | "draft"
+    | "pending_review"
+    | "approved"
+    | "rejected"
+    | "expired"
+    | "revoked";
+
+export type GovernanceExceptionType =
+    | "policy_exception"
+    | "control_exception"
+    | "risk_acceptance"
+    | "implementation_delay"
+    | "compensating_control";
+
+export type GovernanceExceptionTargetType =
+    | "policy"
+    | "internal_control"
+    | "framework_control"
+    | "mechanism"
+    | "internal_control_mechanism"
+    | "governance_document"
+    | "risk"
+    | "asset"
+    | "vulnerability";
+
+export type GovernanceException = {
+    id: string;
+    exception_type: GovernanceExceptionType;
+    exception_type_display?: string;
+    target_type: GovernanceExceptionTargetType;
+    target_type_display?: string;
+    target_id: string;
+    target_label?: string;
+    title: string;
+    description: string;
+    business_justification: string;
+    compensating_control_description: string;
+    risk_impact: string;
+    compliance_impact: string;
+    score_impact: string | number;
+    valid_from: string | null;
+    valid_until: string | null;
+    owner: string;
+    approver: string;
+    approval_status: GovernanceExceptionStatus;
+    approval_status_display?: string;
+    review_note: string;
+    evidence_reference: string;
+    action_reference: string;
+    linked_decision: string | null;
+    approved_by: string | null;
+    approved_at: string | null;
+    is_expired: boolean;
+    is_currently_active: boolean;
+    created_at: string;
+    updated_at: string;
+};
+
+export type GovernanceRiskLinkSourceType =
+    | "internal_control"
+    | "mechanism"
+    | "internal_control_mechanism"
+    | "policy"
+    | "governance_document";
+
+export type GovernanceRiskLinkTargetType =
+    | "risk"
+    | "asset"
+    | "vulnerability"
+    | "asset_vulnerability";
+
+export type GovernanceRiskLinkStatus = "draft" | "pending_review" | "approved" | "rejected" | "deprecated";
+export type GovernanceRiskCalculationMode = "official" | "simulation" | "exploratory";
+
+export type GovernanceRiskLink = {
+    id: string;
+    source_type: GovernanceRiskLinkSourceType;
+    source_id: string;
+    source_label?: string;
+    target_type: GovernanceRiskLinkTargetType;
+    target_id: string;
+    target_label?: string;
+    relationship_type:
+        | "mitigates"
+        | "reduces_likelihood"
+        | "reduces_impact"
+        | "detects"
+        | "prevents"
+        | "compensates"
+        | "monitors";
+    relationship_type_display?: string;
+    effectiveness_percentage: string | number;
+    residual_impact_percentage: string | number;
+    rationale: string;
+    mapping_source: "manual" | "migrated" | "imported" | "ai_suggested" | "rule_based" | "template";
+    validation_status: GovernanceRiskLinkStatus;
+    validation_status_display?: string;
+    confidence_score: string | number;
+    validated_at: string | null;
+    is_active: boolean;
+    is_official: boolean;
+    created_at: string;
+    updated_at: string;
+};
+
+export type ResidualRiskImpact = {
+    found: boolean;
+    mode: GovernanceRiskCalculationMode;
+    risk?: { id: string; code: string; title: string; label: string };
+    asset?: { id: string; code: string; title: string; label: string } | null;
+    vulnerability?: { id: string; code: string; title: string; label: string } | null;
+    base_score: number;
+    governance_reduction_percentage: number;
+    adjusted_residual_score: number;
+    adjusted_level: string;
+    links_used: Array<Record<string, any>>;
+    inactive_links: Array<Record<string, any>>;
+    generated_at: string;
+};
+
+export type GovernanceActionType =
+    | "correct_policy"
+    | "map_control"
+    | "implement_mechanism"
+    | "collect_evidence"
+    | "review_document"
+    | "approve_mapping"
+    | "update_framework"
+    | "review_exception"
+    | "review_score"
+    | "other";
+
+export type GovernanceActionPriority = "low" | "medium" | "high" | "critical";
+export type GovernanceActionStatus = "open" | "in_progress" | "blocked" | "done" | "deferred" | "cancelled";
+export type GovernanceActionSourceType = "manual" | "workbench" | "compliance_gap" | "ai_recommendation" | "score" | "exception";
+
+export type GovernanceAction = {
+    id: string;
+    action_type: GovernanceActionType;
+    action_type_display?: string;
+    title: string;
+    description: string;
+    recommendation: string;
+    target_type: string;
+    target_id: string;
+    target_label?: string;
+    source_type: GovernanceActionSourceType;
+    source_type_display?: string;
+    source_key: string;
+    owner: string;
+    priority: GovernanceActionPriority;
+    priority_display?: string;
+    status: GovernanceActionStatus;
+    status_display?: string;
+    due_date: string | null;
+    estimated_effort_hours?: string | number | null;
+    required_roles?: string;
+    required_materials?: string;
+    evidence_required?: boolean;
+    expected_evidence?: string;
+    ai_generated?: boolean;
+    ai_rationale?: string;
+    dependency_notes?: string;
+    score_impact: string | number;
+    notes: string;
+    linked_decision: string | null;
+    linked_exception: string | null;
+    completed_at: string | null;
+    completed_by: string | null;
+    is_overdue: boolean;
+    created_at: string;
+    updated_at: string;
+};
+
+export type GovernanceActionGenerationResult = {
+    created: number;
+    updated: number;
+    skipped: number;
+    total: number;
+    actions: GovernanceAction[];
+};
+
+export type MechanismImplementationReadiness = {
+    mechanism: string;
+    generated_at?: string;
+    recommendation_source?: string;
+    requires_human_validation?: boolean;
+    readiness_status: string;
+    recommended_status: string | null;
+    recommended_status_label: string;
+    can_apply: boolean;
+    tasks: {
+        total: number;
+        done: number;
+        open: number;
+        in_progress: number;
+        blocked?: number;
+        deferred?: number;
+        progress_percentage?: number;
+        all_done: boolean;
+        items?: Array<{
+            id: string;
+            title: string;
+            status: GovernanceActionStatus;
+            priority: GovernanceActionPriority;
+            due_date: string | null;
+            evidence_required: boolean;
+        }>;
+    };
+    evidence: {
+        valid_approved: number;
+        has_valid_approved: boolean;
+        items: Array<{
+            id: string;
+            title: string;
+            evidence_type: string;
+            valid_until: string | null;
+            confidence_level: number;
+        }>;
+    };
+    internal_control_mechanisms: Array<{
+        id: string;
+        internal_control: string;
+        internal_control_code: string;
+        internal_control_title: string;
+        current_status: string;
+        current_status_label: string;
+        will_change: boolean;
+    }>;
+    applicable_count: number;
+    reasons: string[];
+    blockers: string[];
+};
+
+export type GovernanceHealthSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+export type GovernanceHealthSection = {
+    id: string;
+    title: string;
+    description: string;
+    count: number;
+    href: string;
+    action_label: string;
+    severity: GovernanceHealthSeverity;
+};
+
+export type GovernanceHealthListItem = {
+    id: string;
+    code?: string;
+    title: string;
+    owner?: string;
+    status?: string;
+    priority?: string;
+    due_date?: string | null;
+    valid_until?: string | null;
+    evidence_type?: string;
+    mechanism_type?: string;
+    expected_evidence_count?: number;
+    target_type?: string;
+    target_id?: string;
+    href: string;
+};
+
+export type GovernanceHealthMappingRow = {
+    key: string;
+    label: string;
+    pending_review: number;
+    draft: number;
+    approved: number;
+    rejected: number;
+    deprecated: number;
+    href: string;
+};
+
+export type GovernanceHealthRagRow = {
+    source_type: string;
+    label: string;
+    expected_count: number;
+    chunk_count: number;
+    missing_count: number;
+    chunks_without_embedding: number;
+    missing_examples: string[];
+    href: string;
+};
+
+export type GovernanceHealthPayload = {
+    generated_at: string;
+    metrics: {
+        policies_without_controls: number;
+        mechanisms_without_valid_evidence: number;
+        overdue_tasks: number;
+        expired_evidence: number;
+        pending_mappings: number;
+        draft_mappings: number;
+        rag_missing_chunks: number;
+        rag_chunks_without_embedding: number;
+        total_attention: number;
+    };
+    sections: GovernanceHealthSection[];
+    lists: {
+        policies_without_controls: GovernanceHealthListItem[];
+        mechanisms_without_valid_evidence: GovernanceHealthListItem[];
+        overdue_tasks: GovernanceHealthListItem[];
+        expired_evidence: GovernanceHealthListItem[];
+    };
+    pending_mappings: GovernanceHealthMappingRow[];
+    rag_health: GovernanceHealthRagRow[];
+    recommendations: string[];
+};
+
+export type GovernanceEvaluationOverview = {
+    generated_at: string;
+    assistant: Record<string, any>;
+    rag: Record<string, any>;
+    frameworks: {
+        total_frameworks: number;
+        average_score: number;
+        average_coverage: number;
+        items: Array<Record<string, any>>;
+    };
+    policies: {
+        total_policies: number;
+        average_score: number;
+        items: Array<Record<string, any>>;
+    };
+    traceability: Record<string, any>;
+    mappings: Record<string, number>;
+    gaps: Record<string, any>;
 };
 
 export interface RegulatoryContextRecord {
@@ -552,6 +889,36 @@ export const governanceApi = {
         body: JSON.stringify({ min_shared_mechanisms: minSharedMechanisms })
     }),
 
+    // Reusable mechanisms / cross-framework implementation layer
+    listMechanisms: (params?: Record<string, any>) => {
+        let url = "/api/governance/mechanisms/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<any> | any[]>(url);
+    },
+    createMechanism: (data: any) => request<any>("/api/governance/mechanisms/", {
+        method: "POST",
+        body: JSON.stringify(data)
+    }),
+    listControlMechanisms: (params?: Record<string, any>) => {
+        let url = "/api/governance/control-mechanisms/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<any> | any[]>(url);
+    },
+    createControlMechanism: (data: any) => request<any>("/api/governance/control-mechanisms/", {
+        method: "POST",
+        body: JSON.stringify(data)
+    }),
+    createMechanismEvidence: (data: any) => request<any>("/api/governance/mechanism-evidences/", {
+        method: "POST",
+        body: JSON.stringify(data)
+    }),
+
     // Decision Records / Human validation
     listDecisionRecords: (params?: Record<string, any>) => {
         let url = "/api/governance/decision-records/";
@@ -565,6 +932,184 @@ export const governanceApi = {
         method: "POST",
         body: JSON.stringify(data)
     }),
+
+    // Governance exceptions / temporary risk acceptance
+    listGovernanceExceptions: (params?: Record<string, any>) => {
+        let url = "/api/governance/governance-exceptions/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<GovernanceException>>(url);
+    },
+    createGovernanceException: (data: Partial<GovernanceException>) =>
+        request<GovernanceException>("/api/governance/governance-exceptions/", {
+            method: "POST",
+            body: JSON.stringify(data)
+        }),
+    updateGovernanceException: (id: string, data: Partial<GovernanceException>) =>
+        request<GovernanceException>(`/api/governance/governance-exceptions/${id}/`, {
+            method: "PATCH",
+            body: JSON.stringify(data)
+        }),
+    approveGovernanceException: (id: string, review_note?: string) =>
+        request<GovernanceException>(`/api/governance/governance-exceptions/${id}/approve/`, {
+            method: "POST",
+            body: JSON.stringify({ review_note })
+        }),
+    rejectGovernanceException: (id: string, review_note: string) =>
+        request<GovernanceException>(`/api/governance/governance-exceptions/${id}/reject/`, {
+            method: "POST",
+            body: JSON.stringify({ review_note })
+        }),
+    revokeGovernanceException: (id: string, review_note?: string) =>
+        request<GovernanceException>(`/api/governance/governance-exceptions/${id}/revoke/`, {
+            method: "POST",
+            body: JSON.stringify({ review_note })
+        }),
+
+    // Governance links to residual risk
+    listGovernanceRiskLinks: (params?: Record<string, unknown>) => {
+        let url = "/api/governance/governance-risk-links/";
+        if (params) {
+            const query = new URLSearchParams(
+                Object.entries(params).reduce<Record<string, string>>((acc, [key, value]) => {
+                    if (value === undefined || value === null || value === "") return acc;
+                    acc[key] = String(value);
+                    return acc;
+                }, {})
+            ).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<GovernanceRiskLink> | GovernanceRiskLink[]>(url);
+    },
+    createGovernanceRiskLink: (data: Partial<GovernanceRiskLink>) =>
+        request<GovernanceRiskLink>("/api/governance/governance-risk-links/", {
+            method: "POST",
+            body: JSON.stringify(data)
+        }),
+    updateGovernanceRiskLink: (id: string, data: Partial<GovernanceRiskLink>) =>
+        request<GovernanceRiskLink>(`/api/governance/governance-risk-links/${id}/`, {
+            method: "PATCH",
+            body: JSON.stringify(data)
+        }),
+    approveGovernanceRiskLink: (id: string) =>
+        request<GovernanceRiskLink>(`/api/governance/governance-risk-links/${id}/approve/`, {
+            method: "POST",
+            body: JSON.stringify({})
+        }),
+    rejectGovernanceRiskLink: (id: string, rationale: string) =>
+        request<GovernanceRiskLink>(`/api/governance/governance-risk-links/${id}/reject/`, {
+            method: "POST",
+            body: JSON.stringify({ rationale })
+        }),
+    markGovernanceRiskLinkDeprecated: (id: string) =>
+        request<GovernanceRiskLink>(`/api/governance/governance-risk-links/${id}/mark-deprecated/`, {
+            method: "POST",
+            body: JSON.stringify({})
+        }),
+    getResidualRiskOverview: (mode: GovernanceRiskCalculationMode = "official") =>
+        request<Record<string, any>>(`/api/governance/residual-risk/overview/?mode=${mode}`),
+    getResidualRiskForRisk: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
+        request<ResidualRiskImpact>(`/api/governance/residual-risk/risk/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+    getResidualRiskForAsset: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
+        request<Record<string, any>>(`/api/governance/residual-risk/asset/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+    getResidualRiskForVulnerability: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
+        request<Record<string, any>>(`/api/governance/residual-risk/vulnerability/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+    getResidualRiskForInternalControl: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
+        request<Record<string, any>>(`/api/governance/residual-risk/internal-control/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+    getResidualRiskForMechanism: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
+        request<Record<string, any>>(`/api/governance/residual-risk/mechanism/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+
+    // Governance action plan
+    listGovernanceActions: (params?: Record<string, any>) => {
+        let url = "/api/governance/governance-actions/";
+        if (params) {
+            const query = new URLSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<GovernanceAction>>(url);
+    },
+    getGovernanceAction: (id: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/`),
+    createGovernanceAction: (data: Partial<GovernanceAction>) =>
+        request<GovernanceAction>("/api/governance/governance-actions/", {
+            method: "POST",
+            body: JSON.stringify(data)
+        }),
+    updateGovernanceAction: (id: string, data: Partial<GovernanceAction>) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/`, {
+            method: "PATCH",
+            body: JSON.stringify(data)
+        }),
+    generateGovernanceActionsFromWorkbench: (owner?: string) =>
+        request<GovernanceActionGenerationResult>("/api/governance/governance-actions/generate-from-workbench/", {
+            method: "POST",
+            body: JSON.stringify({ owner })
+        }),
+    generateMechanismTasks: (owner?: string, force = false) =>
+        request<GovernanceActionGenerationResult>("/api/governance/governance-actions/generate-mechanism-tasks/", {
+            method: "POST",
+            body: JSON.stringify({ owner, force })
+        }),
+    listMechanismImplementationActions: (mechanismId: string) =>
+        request<GovernanceAction[]>(`/api/governance/mechanisms/${mechanismId}/implementation-actions/`),
+    createMechanismImplementationAction: (mechanismId: string, data: Partial<GovernanceAction>) =>
+        request<GovernanceAction>(`/api/governance/mechanisms/${mechanismId}/implementation-actions/`, {
+            method: "POST",
+            body: JSON.stringify(data)
+        }),
+    suggestMechanismImplementationPlan: (mechanismId: string) =>
+        request<{ generated_by: string; llm_available: boolean; tasks: Array<Record<string, unknown>> }>(`/api/governance/mechanisms/${mechanismId}/suggest-implementation-plan/`, {
+            method: "POST",
+            body: JSON.stringify({})
+        }),
+    generateMechanismImplementationActions: (mechanismId: string, tasks?: Array<Record<string, unknown>>, owner?: string) =>
+        request<GovernanceActionGenerationResult & { suggestion?: unknown }>(`/api/governance/mechanisms/${mechanismId}/generate-implementation-actions/`, {
+            method: "POST",
+            body: JSON.stringify({ tasks, owner })
+        }),
+    getMechanismImplementationReadiness: (mechanismId: string) =>
+        request<MechanismImplementationReadiness>(`/api/governance/mechanisms/${mechanismId}/implementation-readiness/`),
+    applyMechanismImplementationRecommendation: (mechanismId: string, internalControlMechanisms?: string[], rationale?: string) =>
+        request<{ updated: number; readiness: MechanismImplementationReadiness; links: Array<Record<string, unknown>> }>(`/api/governance/mechanisms/${mechanismId}/apply-implementation-recommendation/`, {
+            method: "POST",
+            body: JSON.stringify({
+                internal_control_mechanisms: internalControlMechanisms,
+                confirmed_human_validation: true,
+                rationale,
+            })
+        }),
+    startGovernanceAction: (id: string, notes?: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/start/`, {
+            method: "POST",
+            body: JSON.stringify({ notes })
+        }),
+    completeGovernanceAction: (id: string, notes?: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/complete/`, {
+            method: "POST",
+            body: JSON.stringify({ notes })
+        }),
+    blockGovernanceAction: (id: string, notes?: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/block/`, {
+            method: "POST",
+            body: JSON.stringify({ notes })
+        }),
+    deferGovernanceAction: (id: string, notes?: string, due_date?: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/defer/`, {
+            method: "POST",
+            body: JSON.stringify({ notes, due_date })
+        }),
+    cancelGovernanceAction: (id: string, notes?: string) =>
+        request<GovernanceAction>(`/api/governance/governance-actions/${id}/cancel/`, {
+            method: "POST",
+            body: JSON.stringify({ notes })
+        }),
+
+    getGovernanceHealth: () =>
+        request<GovernanceHealthPayload>("/api/governance/health/overview/"),
+    getGovernanceEvaluationOverview: () =>
+        request<GovernanceEvaluationOverview>("/api/governance/evaluation/overview/"),
 
     getFrameworks: () => request<PaginatedResponse<any>>("/api/governance/frameworks/"),
     listControls: (params?: Record<string, any>) => {

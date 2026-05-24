@@ -3,14 +3,23 @@ import { useSearchParams } from "react-router-dom";
 import { Bot, Database, FileText, Send, ShieldCheck, User } from "lucide-react";
 import { chatApi, type ChatMessage, type ChatSource } from "@/lib/chatApi";
 
-function sourceTypeLabel(type: string) {
+function sourceTypeLabel(source: ChatSource) {
+    if (source.source_label) return source.source_label;
+
     const labels: Record<string, string> = {
         structured_query: "Consulta estruturada",
         vulnerability_prioritization: "Priorização",
         policy: "Política",
+        policy_internal_control: "Politica interna e controlo",
+        internal_control: "Controlo interno",
+        governance_document: "Documento de governacao",
+        governance_section: "Seccao de documento",
+        internal_control_mechanism: "Mecanismo de controlo interno",
+        evidence_item: "Evidencia reutilizavel",
+        framework_mapping: "Mapeamento interno-framework",
         asset: "Ativo",
         vulnerability: "Vulnerabilidade",
-        control: "Controlo",
+        control: "Controlo externo/framework",
         mechanism: "Mecanismo",
         technical_regulation: "Regulamento técnico",
         procedure: "Procedimento",
@@ -19,7 +28,34 @@ function sourceTypeLabel(type: string) {
         general: "Conhecimento",
         internal: "Fonte interna",
     };
+    const type = source.source_type;
     return labels[type] || type;
+}
+
+function sourceLayerLabel(layer?: string) {
+    const labels: Record<string, string> = {
+        internal_governance: "Interno",
+        external_framework: "Externo",
+        mapping_bridge: "Mapping",
+        legacy_compatibility: "Legacy",
+        risk: "Risco",
+        system: "Sistema",
+        knowledge: "Conhecimento",
+    };
+    return layer ? labels[layer] || layer : null;
+}
+
+function sourceLayerClass(source: ChatSource) {
+    if (source.is_external_framework || source.governance_layer === "external_framework") {
+        return "border-amber-200 bg-amber-50 text-amber-700";
+    }
+    if (source.is_internal_governance || source.governance_layer === "internal_governance") {
+        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    }
+    if (source.governance_layer === "mapping_bridge") {
+        return "border-indigo-200 bg-indigo-50 text-indigo-700";
+    }
+    return "border-slate-200 bg-white text-slate-500";
 }
 
 function taskTypeLabel(type?: string) {
@@ -63,17 +99,24 @@ function SourceCard({ source }: { source: ChatSource }) {
                 <div className="min-w-0">
                     <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-indigo-600">
                         {sourceIcon(source.source_type)}
-                        {sourceTypeLabel(source.source_type)}
+                        {sourceTypeLabel(source)}
                     </div>
                     <h4 className="truncate text-xs font-bold text-slate-900" title={source.title}>
                         {source.title}
                     </h4>
                 </div>
-                {score && (
-                    <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-500">
-                        {score}
-                    </span>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                    {sourceLayerLabel(source.governance_layer) && (
+                        <span className={`rounded-lg border px-2 py-1 text-[10px] font-bold ${sourceLayerClass(source)}`}>
+                            {sourceLayerLabel(source.governance_layer)}
+                        </span>
+                    )}
+                    {score && (
+                        <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-slate-500">
+                            {score}
+                        </span>
+                    )}
+                </div>
             </div>
             {source.source_ref && (
                 <p className="mt-1 truncate font-mono text-[10px] font-bold text-slate-400" title={source.source_ref}>
@@ -122,7 +165,7 @@ export default function Assistant() {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete("q");
         setSearchParams(nextParams, { replace: true });
-    }, []);
+    }, [searchParams, setSearchParams]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;

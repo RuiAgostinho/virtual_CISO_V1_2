@@ -41,16 +41,35 @@ const Assistant = React.lazy(() => import("@/pages/Assistant"));
 const ComplianceGaps = React.lazy(() => import("@/pages/ComplianceGaps"));
 const ControlMappings = React.lazy(() => import("@/pages/ControlMappings"));
 const GovernanceDashboard = React.lazy(() => import("@/pages/governance/GovernanceDashboard"));
+const GovernanceWorkbench = React.lazy(() => import("@/pages/governance/GovernanceWorkbench"));
+const GovernanceHealth = React.lazy(() => import("@/pages/governance/GovernanceHealth"));
+const GovernanceEvaluation = React.lazy(() => import("@/pages/governance/GovernanceEvaluation"));
+const GovernanceExceptions = React.lazy(() => import("@/pages/governance/GovernanceExceptions"));
+const ResidualRiskMappings = React.lazy(() => import("@/pages/governance/ResidualRiskMappings"));
+const GovernanceActionPlan = React.lazy(() => import("@/pages/governance/GovernanceActionPlan"));
+const GovernanceTasksList = React.lazy(() => import("@/pages/governance/GovernanceTasksList"));
+const GovernanceTaskDetail = React.lazy(() => import("@/pages/governance/GovernanceTaskDetail"));
 const GovernanceWizard = React.lazy(() => import("@/pages/governance/GovernanceWizard"));
+const GovernanceDocumentWizard = React.lazy(() => import("@/pages/governance/GovernanceDocumentWizard"));
+const GovernanceDocumentsList = React.lazy(() => import("@/pages/governance/GovernanceDocumentsList"));
+const GovernanceDocumentDetail = React.lazy(() => import("@/pages/governance/GovernanceDocumentDetail"));
 const OrganizationContext = React.lazy(() => import("@/pages/governance/OrganizationContext"));
 const OrgResponsibilities = React.lazy(() => import("@/pages/governance/OrgResponsibilities"));
 const MissionObjectives = React.lazy(() => import("@/pages/governance/MissionObjectives"));
 const Stakeholders = React.lazy(() => import("@/pages/governance/Stakeholders"));
 const RegulatoryContext = React.lazy(() => import("@/pages/governance/RegulatoryContext"));
-const Mechanisms = React.lazy(() => import("@/pages/governance/Mechanisms"));
+const MechanismsList = React.lazy(() => import("@/pages/governance/MechanismsList"));
+const MechanismDetail = React.lazy(() => import("@/pages/governance/MechanismDetail"));
+const MechanismWizard = React.lazy(() => import("@/pages/governance/MechanismWizard"));
+const EvidenceWizard = React.lazy(() => import("@/pages/governance/EvidenceWizard"));
+const EvidenceItemsList = React.lazy(() => import("@/pages/governance/EvidenceItemsList"));
+const EvidenceItemDetail = React.lazy(() => import("@/pages/governance/EvidenceItemDetail"));
+const FrameworkMappingWizard = React.lazy(() => import("@/pages/governance/FrameworkMappingWizard"));
+const MappingReview = React.lazy(() => import("@/pages/governance/MappingReview"));
 const Policies = React.lazy(() => import("@/pages/governance/Policies"));
 const PolicyDetail = React.lazy(() => import("@/pages/governance/PolicyDetail"));
 const PolicyForm = React.lazy(() => import("@/pages/governance/PolicyForm"));
+const PolicyWizard = React.lazy(() => import("@/pages/governance/PolicyWizard"));
 const TechnicalRegulations = React.lazy(() => import("@/pages/governance/TechnicalRegulations"));
 const RiskDashboard = React.lazy(() => import("@/pages/risk/RiskDashboard"));
 const RiskList = React.lazy(() => import("@/pages/risk/RiskList"));
@@ -61,8 +80,6 @@ const Procedures = React.lazy(() => import("@/pages/governance/Procedures"));
 const DecisionScreen = React.lazy(() => import("@/pages/decision/DecisionScreen"));
 const DecisionRecords = React.lazy(() => import("@/pages/decision/DecisionRecords"));
 const RecommendationHistory = React.lazy(() => import("@/pages/decision/RecommendationHistory"));
-
-import ModulePlaceholder from "@/pages/ModulePlaceholder";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -127,15 +144,34 @@ export default function App() {
 
             {/* Governance Routes */}
             <Route path="/governance" element={<GovernanceDashboard />} />
+            <Route path="/governance/workbench" element={<GovernanceWorkbench />} />
+            <Route path="/governance/health" element={<GovernanceHealth />} />
+            <Route path="/governance/evaluation" element={<GovernanceEvaluation />} />
+            <Route path="/governance/exceptions" element={<GovernanceExceptions />} />
+            <Route path="/governance/residual-risk-mappings" element={<ResidualRiskMappings />} />
+            <Route path="/governance/action-plan" element={<GovernanceActionPlan />} />
+            <Route path="/governance/tasks" element={<GovernanceTasksList />} />
+            <Route path="/governance/tasks/:id" element={<GovernanceTaskDetail />} />
             <Route path="/governance/wizard" element={<GovernanceWizard />} />
+            <Route path="/governance/documents/wizard" element={<GovernanceDocumentWizard />} />
+            <Route path="/governance/documents" element={<GovernanceDocumentsList />} />
+            <Route path="/governance/documents/:id" element={<GovernanceDocumentDetail />} />
             <Route path="/governance/organization" element={<OrganizationContext />} />
             <Route path="/governance/responsibilities" element={<OrgResponsibilities />} />
             <Route path="/governance/mission" element={<MissionObjectives />} />
             <Route path="/governance/stakeholders" element={<Stakeholders />} />
             <Route path="/governance/regulatory" element={<RegulatoryContext />} />
-            <Route path="/governance/mechanisms" element={<Mechanisms />} />
+            <Route path="/governance/mechanisms/wizard" element={<MechanismWizard />} />
+            <Route path="/governance/evidence/wizard" element={<EvidenceWizard />} />
+            <Route path="/governance/evidence" element={<EvidenceItemsList />} />
+            <Route path="/governance/evidence/:id" element={<EvidenceItemDetail />} />
+            <Route path="/governance/framework-mapping/wizard" element={<FrameworkMappingWizard />} />
+            <Route path="/governance/mechanisms" element={<MechanismsList />} />
+            <Route path="/governance/mechanisms/:id" element={<MechanismDetail />} />
+            <Route path="/governance/mapping-review" element={<MappingReview />} />
             <Route path="/governance/policies" element={<Policies />} />
-            <Route path="/governance/policies/new" element={<PolicyForm />} />
+            <Route path="/governance/policies/wizard" element={<PolicyWizard />} />
+            <Route path="/governance/policies/new" element={<Navigate to="/governance/policies/wizard" replace />} />
             <Route path="/governance/policies/:id/edit" element={<PolicyForm />} />
             <Route path="/governance/policies/:id" element={<PolicyDetail />} />
             <Route path="/governance/technical-regulations" element={<TechnicalRegulations />} />

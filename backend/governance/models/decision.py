@@ -32,6 +32,12 @@ class DecisionRecord(TimeStampedModel):
 
     decision = models.CharField(max_length=30, choices=Decision.choices, default=Decision.DEFERRED)
     justification = models.TextField(blank=True)
+    responsible = models.CharField(max_length=255, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    risk_impact = models.TextField(blank=True)
+    compliance_impact = models.TextField(blank=True)
+    evidence_reference = models.TextField(blank=True)
+    action_reference = models.TextField(blank=True)
     decided_by = models.CharField(max_length=150, blank=True)
     decided_at = models.DateTimeField(null=True, blank=True)
 

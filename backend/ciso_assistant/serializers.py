@@ -23,6 +23,25 @@ class ChatRequestSerializer(serializers.Serializer):
 
 
 
+class PolicyAdviceRequestSerializer(serializers.Serializer):
+
+    policy_id = serializers.UUIDField(required=False, allow_null=True)
+
+    advice_mode = serializers.ChoiceField(
+        required=False,
+        default="full_review",
+        choices=[
+            ("full_review", "Revisao completa"),
+            ("coverage", "Cobertura de controlos internos"),
+            ("auditability", "Auditabilidade e evidencia"),
+            ("wording", "Redacao normativa"),
+            ("draft_text", "Exemplo de redacao"),
+        ],
+    )
+
+    policy_snapshot = serializers.DictField(required=True)
+
+
 class ChatResponseSerializer(serializers.Serializer):
 
     task_type = serializers.CharField()
@@ -33,6 +52,8 @@ class ChatResponseSerializer(serializers.Serializer):
 
     confidence = serializers.FloatField()
 
+    duration_seconds = serializers.FloatField(required=False, allow_null=True)
+
     response = serializers.CharField()
 
     sources = serializers.ListField(child=serializers.DictField())
@@ -40,7 +61,7 @@ class ChatResponseSerializer(serializers.Serializer):
 
 class AssistantRecommendationSerializer(serializers.ModelSerializer):
     created_by = serializers.SerializerMethodField()
-    converted_decision_id = serializers.UUIDField(source="converted_decision_id", read_only=True)
+    converted_decision_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = AssistantRecommendation
@@ -52,6 +73,7 @@ class AssistantRecommendationSerializer(serializers.ModelSerializer):
             "model_used",
             "used_rag",
             "confidence",
+            "duration_seconds",
             "sources_json",
             "history_json",
             "filters_json",
@@ -72,5 +94,9 @@ class ConvertRecommendationSerializer(serializers.Serializer):
     decision_code = serializers.ChoiceField(choices=DecisionRecord.Decision.choices)
     justification = serializers.CharField(min_length=10, max_length=4000)
     title = serializers.CharField(required=False, allow_blank=True, max_length=255)
-
-
+    responsible = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    risk_impact = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+    compliance_impact = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+    evidence_reference = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+    action_reference = serializers.CharField(required=False, allow_blank=True, max_length=4000)

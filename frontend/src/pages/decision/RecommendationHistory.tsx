@@ -52,6 +52,29 @@ function taskTypeLabel(type?: string) {
   return type ? labels[type] || type : "Sem classificação";
 }
 
+function contextLabel(context?: unknown) {
+  const labels: Record<string, string> = {
+    policy_advice: "Analise de politica",
+  };
+  const key = String(context || "");
+  return key ? labels[key] || key : "Sem contexto";
+}
+
+function adviceModeLabel(mode?: unknown) {
+  const labels: Record<string, string> = {
+    auditability: "Gaps e auditabilidade",
+    coverage: "Cobertura",
+    draft_text: "Redacao normativa",
+    review: "Revisao completa",
+  };
+  const key = String(mode || "");
+  return key ? labels[key] || key : "Sem modo";
+}
+
+function isPolicyAdvice(entry: AssistantHistoryEntry) {
+  return entry.filters_json?.context === "policy_advice";
+}
+
 function confidenceLabel(confidence?: number | null) {
   if (confidence === undefined || confidence === null || Number.isNaN(Number(confidence))) return null;
   return `${Math.round(Number(confidence) * 100)}%`;
@@ -70,6 +93,10 @@ function preview(text: string, max = 240) {
   const clean = (text || "").trim();
   if (clean.length <= max) return clean;
   return `${clean.slice(0, max).trim()}...`;
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
 }
 
 function sourceIcon(type: string) {
@@ -131,12 +158,24 @@ type ConvertForm = {
   decision_code: string;
   justification: string;
   title: string;
+  responsible: string;
+  due_date: string;
+  risk_impact: string;
+  compliance_impact: string;
+  evidence_reference: string;
+  action_reference: string;
 };
 
 const initialConvertForm: ConvertForm = {
   decision_code: "converted_to_action",
   justification: "",
   title: "",
+  responsible: "",
+  due_date: "",
+  risk_impact: "",
+  compliance_impact: "",
+  evidence_reference: "",
+  action_reference: "",
 };
 
 export default function RecommendationHistory() {
@@ -146,6 +185,11 @@ export default function RecommendationHistory() {
   const [search, setSearch] = useState("");
   const [ragOnly, setRagOnly] = useState(false);
   const [convertedFilter, setConvertedFilter] = useState<"all" | "converted" | "pending">("all");
+  const [contextFilter, setContextFilter] = useState<"all" | "policy_advice">(
+    searchParams.get("context") === "policy_advice" ? "policy_advice" : "all",
+  );
+  const [adviceModeFilter, setAdviceModeFilter] = useState(searchParams.get("advice_mode") || "all");
+  const [policyIdFilter, setPolicyIdFilter] = useState(searchParams.get("policy_id") || "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [convertForm, setConvertForm] = useState<ConvertForm>(initialConvertForm);
@@ -166,6 +210,9 @@ export default function RecommendationHistory() {
         search: search.trim(),
         rag_only: ragOnly,
         ...(converted !== undefined ? { converted } : {}),
+        ...(contextFilter !== "all" ? { context: contextFilter } : {}),
+        ...(adviceModeFilter !== "all" ? { advice_mode: adviceModeFilter } : {}),
+        ...(policyIdFilter.trim() ? { policy_id: policyIdFilter.trim() } : {}),
       });
       const items = data.results || [];
       const desiredId = searchParams.get("id");
@@ -174,9 +221,9 @@ export default function RecommendationHistory() {
         if (desiredId && items.some((item) => item.id === desiredId)) return desiredId;
         return current && items.some((item) => item.id === current) ? current : items[0]?.id || null;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar o histórico persistente do assistente.");
+      setError(errorMessage(err, "Não foi possível carregar o histórico persistente do assistente."));
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -201,10 +248,25 @@ export default function RecommendationHistory() {
   const metrics = useMemo(() => {
     const total = entries.length;
     const withRag = entries.filter((entry) => entry.used_rag).length;
-    const structured = entries.filter((entry) => entry.task_type === "structured_query").length;
+    const policyAdvice = entries.filter(isPolicyAdvice).length;
     const withSources = entries.filter((entry) => (entry.sources_json || []).length > 0).length;
-    return { total, withRag, structured, withSources };
+    return { total, withRag, policyAdvice, withSources };
   }, [entries]);
+
+  const applyFilters = () => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (contextFilter === "all") next.delete("context");
+      else next.set("context", contextFilter);
+      if (adviceModeFilter === "all") next.delete("advice_mode");
+      else next.set("advice_mode", adviceModeFilter);
+      if (policyIdFilter.trim()) next.set("policy_id", policyIdFilter.trim());
+      else next.delete("policy_id");
+      next.delete("id");
+      return next;
+    }, { replace: true });
+    load();
+  };
 
   useEffect(() => {
     setConvertForm((current) => ({
@@ -236,13 +298,19 @@ export default function RecommendationHistory() {
         decision_code: convertForm.decision_code,
         justification: convertForm.justification.trim(),
         title: convertForm.title.trim() || selected.question.slice(0, 255),
+        responsible: convertForm.responsible.trim(),
+        due_date: convertForm.due_date || null,
+        risk_impact: convertForm.risk_impact.trim(),
+        compliance_impact: convertForm.compliance_impact.trim(),
+        evidence_reference: convertForm.evidence_reference.trim(),
+        action_reference: convertForm.action_reference.trim(),
       });
       setConvertSuccess(`Recomendação convertida em decisão formal: ${result.decision_display}.`);
       setConvertForm(initialConvertForm);
       await load(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setConvertError(err?.message || "Não foi possível converter a recomendação em decisão.");
+      setConvertError(errorMessage(err, "Não foi possível converter a recomendação em decisão."));
     } finally {
       setConvertBusy(false);
     }
@@ -290,9 +358,9 @@ export default function RecommendationHistory() {
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Com RAG</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <Database className="h-5 w-5 text-emerald-600" />
-          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.structured}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Consultas estruturadas</p>
+          <ShieldCheck className="h-5 w-5 text-emerald-600" />
+          <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.policyAdvice}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Analises de politicas</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <FileText className="h-5 w-5 text-sky-600" />
@@ -302,7 +370,7 @@ export default function RecommendationHistory() {
       </section>
 
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_190px_190px_auto_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -322,6 +390,33 @@ export default function RecommendationHistory() {
             Só com RAG
           </label>
           <select
+            value={contextFilter}
+            onChange={(event) => setContextFilter(event.target.value as "all" | "policy_advice")}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+          >
+            <option value="all">Todos os contextos</option>
+            <option value="policy_advice">Analises de politica</option>
+          </select>
+          <select
+            value={adviceModeFilter}
+            onChange={(event) => setAdviceModeFilter(event.target.value)}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+          >
+            <option value="all">Todos os modos</option>
+            <option value="auditability">Gaps e auditabilidade</option>
+            <option value="coverage">Cobertura</option>
+            <option value="draft_text">Redacao normativa</option>
+            <option value="review">Revisao completa</option>
+          </select>
+          {contextFilter === "policy_advice" && (
+            <input
+              value={policyIdFilter}
+              onChange={(event) => setPolicyIdFilter(event.target.value)}
+              placeholder="ID da politica"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+            />
+          )}
+          <select
             value={convertedFilter}
             onChange={(event) => setConvertedFilter(event.target.value as "all" | "converted" | "pending")}
             className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
@@ -331,7 +426,7 @@ export default function RecommendationHistory() {
             <option value="pending">Por converter</option>
           </select>
           <button
-            onClick={() => load()}
+            onClick={applyFilters}
             className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700"
           >
             Filtrar
@@ -374,6 +469,11 @@ export default function RecommendationHistory() {
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {taskTypeLabel(entry.task_type)}
                     </span>
+                    {isPolicyAdvice(entry) && (
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                        {adviceModeLabel(entry.filters_json?.advice_mode)}
+                      </span>
+                    )}
                     {entry.model_used && (
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {entry.model_used}
@@ -401,6 +501,7 @@ export default function RecommendationHistory() {
                   </div>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {formatDateTime(entry.created_at)} {entry.created_by ? `· ${entry.created_by}` : ""}
+                    {entry.filters_json?.policy_id ? " · politica ligada" : ""}
                   </p>
                 </div>
               </button>
@@ -426,6 +527,11 @@ export default function RecommendationHistory() {
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     {taskTypeLabel(selected.task_type)}
                   </span>
+                  {isPolicyAdvice(selected) && (
+                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+                      {adviceModeLabel(selected.filters_json?.advice_mode)}
+                    </span>
+                  )}
                   {selected.model_used && (
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {selected.model_used}
@@ -435,6 +541,30 @@ export default function RecommendationHistory() {
                     {selected.used_rag ? `RAG ativo (${(selected.sources_json || []).length} fontes)` : "Sem RAG"}
                   </span>
                 </div>
+                {Boolean(selected.filters_json?.context) && (
+                  <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-violet-700">Contexto da recomendacao</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-violet-400">Tipo</p>
+                        <p className="mt-1 text-sm font-bold text-slate-950">{contextLabel(selected.filters_json?.context)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-violet-400">Modo</p>
+                        <p className="mt-1 text-sm font-bold text-slate-950">{adviceModeLabel(selected.filters_json?.advice_mode)}</p>
+                      </div>
+                    </div>
+                    {Boolean(selected.filters_json?.policy_id) && (
+                      <Link
+                        to={`/governance/policies/${encodeURIComponent(String(selected.filters_json?.policy_id))}`}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-violet-800"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Abrir politica analisada
+                      </Link>
+                    )}
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Pergunta original</p>
                   <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">{selected.question}</h2>
@@ -509,12 +639,55 @@ export default function RecommendationHistory() {
                     placeholder="Título da decisão"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                   />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      value={convertForm.responsible}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, responsible: event.target.value }))}
+                      placeholder="Responsável pela decisão/ação"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <input
+                      type="date"
+                      value={convertForm.due_date}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, due_date: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
                   <textarea
                     value={convertForm.justification}
                     onChange={(event) => setConvertForm((current) => ({ ...current, justification: event.target.value }))}
                     placeholder="Justificação da decisão formal com base nesta recomendação..."
                     className="min-h-[96px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                   />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <textarea
+                      value={convertForm.risk_impact}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, risk_impact: event.target.value }))}
+                      placeholder="Impacto em risco"
+                      className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <textarea
+                      value={convertForm.compliance_impact}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, compliance_impact: event.target.value }))}
+                      placeholder="Impacto em conformidade"
+                      className="min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <textarea
+                      value={convertForm.evidence_reference}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, evidence_reference: event.target.value }))}
+                      placeholder="Evidência associada"
+                      className="min-h-[72px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <textarea
+                      value={convertForm.action_reference}
+                      onChange={(event) => setConvertForm((current) => ({ ...current, action_reference: event.target.value }))}
+                      placeholder="Ação associada"
+                      className="min-h-[72px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
                   {convertError && (
                     <p className="inline-flex items-center gap-1 text-xs font-bold text-red-700">
                       <XCircle className="h-3.5 w-3.5" />
@@ -556,6 +729,15 @@ export default function RecommendationHistory() {
                   <Bot className="h-4 w-4" />
                   Reabrir no assistente
                 </Link>
+                {Boolean(selected.filters_json?.policy_id) && (
+                  <Link
+                    to={`/governance/policies/${encodeURIComponent(String(selected.filters_json?.policy_id))}`}
+                    className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700 hover:bg-violet-100"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Abrir politica
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={removeSelected}

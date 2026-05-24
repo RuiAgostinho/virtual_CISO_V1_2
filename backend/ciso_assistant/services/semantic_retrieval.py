@@ -25,19 +25,52 @@ class SemanticRetrievalService:
 
         if any(term in normalized for term in ["evidencia", "evidencias", "comprovativo", "prova", "provas"]):
             if any(term in normalized for term in ["tenho", "existem", "quais", "lista", "mostra", "registadas"]):
-                return ["evidence"]
+                return ["evidence_item", "evidence"]
 
         if any(term in normalized for term in ["politica", "politicas", "sgsi"]):
-            return ["policy"]
+            return ["governance_document", "governance_section", "policy"]
 
         if any(term in normalized for term in ["procedimento", "procedimentos", "processo operacional"]):
-            return ["procedure"]
+            return ["governance_document", "governance_section", "procedure"]
 
         if any(term in normalized for term in ["regulamento", "regulamentos", "norma tecnica", "requisito tecnico"]):
-            return ["technical_regulation"]
+            return ["governance_document", "governance_section", "technical_regulation"]
+
+        if any(
+            term in normalized
+            for term in [
+                "acao",
+                "acoes",
+                "atrasada",
+                "atrasadas",
+                "executar",
+                "implementar",
+                "plano de acao",
+                "plano",
+                "prazo",
+                "prazos",
+                "responsavel",
+                "tarefa",
+                "tarefas",
+            ]
+        ):
+            return ["governance_action", "internal_control_mechanism", "mechanism", "evidence_item"]
 
         if any(term in normalized for term in ["gap", "gaps", "desvio", "desvios", "conformidade", "score", "pontuacao"]):
-            return ["compliance_gap"]
+            return [
+                "internal_control",
+                "framework_mapping",
+                "internal_control_mechanism",
+                "governance_action",
+                "evidence_item",
+                "compliance_gap",
+            ]
+
+        if any(term in normalized for term in ["controlo", "controlos", "controle", "controles", "framework", "iso", "nist", "qnrc", "nis2"]):
+            return ["internal_control", "framework_mapping", "internal_control_mechanism", "control", "mechanism"]
+
+        if any(term in normalized for term in ["mecanismo", "mecanismos", "mechanism", "mechanisms"]):
+            return ["internal_control_mechanism", "mechanism", "evidence_item"]
 
         return []
 
@@ -79,7 +112,11 @@ class SemanticRetrievalService:
                 if "framework" in filters:
                     queryset = queryset.filter(framework=filters["framework"])
                 if "source_type" in filters:
-                    queryset = queryset.filter(source_type=filters["source_type"])
+                    source_type = filters["source_type"]
+                    if isinstance(source_type, (list, tuple, set)):
+                        queryset = queryset.filter(source_type__in=list(source_type))
+                    else:
+                        queryset = queryset.filter(source_type=source_type)
                 if "control_code" in filters:
                     queryset = queryset.filter(control_code=filters["control_code"])
                 if "asset_id" in filters:
@@ -91,6 +128,30 @@ class SemanticRetrievalService:
                     control_id = str(filters["control_id"])
                     queryset = queryset.filter(
                         Q(source_type="control", source_ref=control_id) | Q(metadata_json__control_id=control_id)
+                    )
+                if "internal_control_id" in filters:
+                    internal_control_id = str(filters["internal_control_id"])
+                    queryset = queryset.filter(
+                        Q(source_type="internal_control", source_ref=internal_control_id)
+                        | Q(metadata_json__internal_control_id=internal_control_id)
+                    )
+                if "governance_document_id" in filters:
+                    document_id = str(filters["governance_document_id"])
+                    queryset = queryset.filter(
+                        Q(source_type="governance_document", source_ref=document_id)
+                        | Q(metadata_json__governance_document_id=document_id)
+                    )
+                if "evidence_item_id" in filters:
+                    evidence_id = str(filters["evidence_item_id"])
+                    queryset = queryset.filter(
+                        Q(source_type="evidence_item", source_ref=evidence_id)
+                        | Q(metadata_json__evidence_item_id=evidence_id)
+                    )
+                if "governance_action_id" in filters:
+                    action_id = str(filters["governance_action_id"])
+                    queryset = queryset.filter(
+                        Q(source_type="governance_action", source_ref=action_id)
+                        | Q(metadata_json__governance_action_id=action_id)
                     )
                 if "document_type" in filters:
                     queryset = queryset.filter(metadata_json__document_type=filters["document_type"])

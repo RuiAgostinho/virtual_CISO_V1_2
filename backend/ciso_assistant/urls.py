@@ -5,12 +5,14 @@ from .views import (
     AssistantRecommendationDetailView,
     AssistantRecommendationHistoryView,
     ConvertAssistantRecommendationView,
+    PolicyAdviceView,
     RagOverviewView,
     RagReindexView,
 )
 
 urlpatterns = [
     path("ask/", AskCISOView.as_view(), name="ciso-assistant-ask"),
+    path("policy-advice/", PolicyAdviceView.as_view(), name="ciso-policy-advice"),
     path("history/", AssistantRecommendationHistoryView.as_view(), name="ciso-assistant-history"),
     path("history/<uuid:recommendation_id>/", AssistantRecommendationDetailView.as_view(), name="ciso-assistant-history-detail"),
     path("history/<uuid:recommendation_id>/convert/", ConvertAssistantRecommendationView.as_view(), name="ciso-assistant-history-convert"),
