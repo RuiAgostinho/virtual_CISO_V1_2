@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
+import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import { mappingReviewApi, type MappingRecord, type SearchOption, type TraceabilityPayload } from "@/lib/mappingReviewApi";
 
 type RelationshipType = "equivalent" | "partial" | "supports" | "overlaps" | "derived";
@@ -112,14 +113,6 @@ function coverageValue(payload?: any) {
   if (raw === undefined || raw === null || raw === "") return "-";
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? `${Math.round(parsed)}%` : String(raw);
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
 }
 
 function WizardStepper({ currentStep }: { currentStep: number }) {
@@ -244,7 +237,7 @@ function SearchPicker({
             <div>
               <p className="text-sm font-black text-indigo-950">{selected.label}</p>
               {selected.description && <p className="mt-1 line-clamp-3 text-sm text-indigo-800/80">{selected.description}</p>}
-              {selected.meta && <Badge className="mt-3 border-indigo-200 bg-white text-indigo-700">{selected.meta}</Badge>}
+              {selected.meta && <GovernanceBadge className="mt-3 border-indigo-200 bg-white text-indigo-700">{selected.meta}</GovernanceBadge>}
             </div>
             <button
               type="button"
@@ -290,7 +283,7 @@ function SearchPicker({
                     <p className="text-sm font-black text-slate-900">{option.label}</p>
                     {option.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500">{option.description}</p>}
                   </div>
-                  {option.meta && <Badge className="border-slate-200 bg-slate-50 text-slate-600">{option.meta}</Badge>}
+                  {option.meta && <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-600">{option.meta}</GovernanceBadge>}
                 </div>
               </button>
             ))}
@@ -306,7 +299,7 @@ function ImpactList({ title, items, empty }: { title: string; items: any[]; empt
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-black text-slate-900">{title}</h3>
-        <Badge className="border-slate-200 bg-slate-50 text-slate-600">{items.length}</Badge>
+        <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-600">{items.length}</GovernanceBadge>
       </div>
       {items.length === 0 ? (
         <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">{empty}</p>
@@ -335,7 +328,7 @@ function ExistingMappingsPanel({ mappings }: { mappings: MappingRecord[] }) {
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-black text-slate-900">Mappings existentes</h3>
-        <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">{active.length} ativos</Badge>
+        <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">{active.length} ativos</GovernanceBadge>
       </div>
       {mappings.length === 0 ? (
         <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">Ainda nao existem mappings conhecidos neste contexto.</p>
@@ -349,9 +342,9 @@ function ExistingMappingsPanel({ mappings }: { mappings: MappingRecord[] }) {
                   <p className="mt-1 text-xs text-slate-500">{mapping.targetLabel}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge className={statusTone(mapping.validation_status)}>{mapping.validation_status}</Badge>
-                  {mapping.relationship_type && <Badge className="border-slate-200 bg-white text-slate-600">{mapping.relationship_type}</Badge>}
-                  {mapping.coverage_percentage !== undefined && <Badge className="border-slate-200 bg-white text-slate-600">{mapping.coverage_percentage}%</Badge>}
+                  <GovernanceBadge className={statusTone(mapping.validation_status)}>{mapping.validation_status}</GovernanceBadge>
+                  {mapping.relationship_type && <GovernanceBadge className="border-slate-200 bg-white text-slate-600">{mapping.relationship_type}</GovernanceBadge>}
+                  {mapping.coverage_percentage !== undefined && <GovernanceBadge className="border-slate-200 bg-white text-slate-600">{mapping.coverage_percentage}%</GovernanceBadge>}
                 </div>
               </div>
             </div>
@@ -631,7 +624,7 @@ export default function FrameworkMappingWizard() {
         <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-8 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <Badge className="border-emerald-200 bg-white text-emerald-700">Mapping criado</Badge>
+              <GovernanceBadge className="border-emerald-200 bg-white text-emerald-700">Mapping criado</GovernanceBadge>
               <h1 className="mt-4 text-3xl font-black tracking-tight text-emerald-950">Matriz framework atualizada.</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-800">
                 O mapeamento foi criado como manual/draft para validacao humana. A aprovacao final pode ser feita na Mapping Review.
@@ -676,7 +669,7 @@ export default function FrameworkMappingWizard() {
       <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">Framework Mapping Wizard</Badge>
+            <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">Framework Mapping Wizard</GovernanceBadge>
             <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950">Mapear controlos internos para frameworks.</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
               Cria mapeamentos defensaveis entre o catalogo interno de controlos e os requisitos externos, com rationale,

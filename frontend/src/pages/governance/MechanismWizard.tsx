@@ -16,6 +16,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
+import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import { mappingReviewApi, type MappingRecord, type SearchOption, type TraceabilityPayload } from "@/lib/mappingReviewApi";
 
 type WizardMode = "existing" | "new";
@@ -139,14 +140,6 @@ function validApprovedEvidence(link: MappingRecord | any) {
     && (raw.evidence_status === "valid" || raw.evidence_item?.status === "valid")
     && !raw.evidence_is_expired
     && !raw.evidence_item?.is_expired
-  );
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
   );
 }
 
@@ -734,7 +727,7 @@ export default function MechanismWizard() {
                 <h2 className="text-base font-bold text-slate-950">Associacoes InternalControlMechanism</h2>
                 <p className="text-xs font-semibold text-slate-500">Define estado operacional, peso, obrigatoriedade e rationale por controlo.</p>
               </div>
-              <Badge className="border-slate-200 bg-slate-50 text-slate-500">{selectedControls.length} selecionado(s)</Badge>
+              <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-500">{selectedControls.length} selecionado(s)</GovernanceBadge>
             </div>
 
             <div className="mt-4 space-y-3">
@@ -828,7 +821,7 @@ export default function MechanismWizard() {
                       <p className="text-sm font-bold text-slate-950">{link.sourceLabel}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{link.raw?.evidence_type || "EvidenceItem"} - {link.raw?.evidence_status || "status n/d"}</p>
                     </div>
-                    <Badge className={statusTone(link.validation_status)}>{link.validation_status}</Badge>
+                    <GovernanceBadge className={statusTone(link.validation_status)}>{link.validation_status}</GovernanceBadge>
                   </div>
                 </div>
               ))}
@@ -894,9 +887,9 @@ export default function MechanismWizard() {
                 <div key={control.option.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-950">{control.option.label}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge className="border-emerald-100 bg-emerald-50 text-emerald-700">official {scoreValue(control.traceability?.scores?.official)}</Badge>
-                    <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">simulation {scoreValue(control.traceability?.scores?.simulation)}</Badge>
-                    <Badge className={statusTone(control.implementation_status)}>{implementationLabel(control.implementation_status)}</Badge>
+                    <GovernanceBadge className="border-emerald-100 bg-emerald-50 text-emerald-700">official {scoreValue(control.traceability?.scores?.official)}</GovernanceBadge>
+                    <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">simulation {scoreValue(control.traceability?.scores?.simulation)}</GovernanceBadge>
+                    <GovernanceBadge className={statusTone(control.implementation_status)}>{implementationLabel(control.implementation_status)}</GovernanceBadge>
                   </div>
                 </div>
               ))}
@@ -931,9 +924,9 @@ export default function MechanismWizard() {
                     <p className="mt-1 text-xs font-semibold text-slate-500">{control.rationale}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge className={statusTone(control.implementation_status)}>{implementationLabel(control.implementation_status)}</Badge>
-                    <Badge className="border-slate-200 bg-white text-slate-500">peso {control.contribution_weight}%</Badge>
-                    {control.mandatory && <Badge className="border-amber-200 bg-amber-50 text-amber-700">mandatory</Badge>}
+                    <GovernanceBadge className={statusTone(control.implementation_status)}>{implementationLabel(control.implementation_status)}</GovernanceBadge>
+                    <GovernanceBadge className="border-slate-200 bg-white text-slate-500">peso {control.contribution_weight}%</GovernanceBadge>
+                    {control.mandatory && <GovernanceBadge className="border-amber-200 bg-amber-50 text-amber-700">mandatory</GovernanceBadge>}
                   </div>
                 </div>
               </div>
@@ -987,7 +980,7 @@ function ImpactList({ title, items }: { title: string; items: any[] }) {
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">{title}</h3>
-        <Badge className="border-slate-200 bg-white text-slate-500">{items.length}</Badge>
+        <GovernanceBadge className="border-slate-200 bg-white text-slate-500">{items.length}</GovernanceBadge>
       </div>
       {items.length > 0 ? (
         <div className="mt-3 space-y-2">

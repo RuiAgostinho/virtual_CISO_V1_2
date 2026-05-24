@@ -1,10 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Boxes, Bug, RefreshCw, Search, ShieldAlert } from "lucide-react";
-import { riskApi, type Software } from "@/lib/riskApi";
+import { riskApi, type PaginatedResponse, type Software, type SoftwareStats } from "@/lib/riskApi";
 
-function unwrap<T>(data: any): T[] {
+type SoftwareInventoryStats = SoftwareStats & {
+  with_vulnerabilities?: number;
+  critical_or_high?: number;
+  assets_count?: number;
+};
+
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function severityTone(severity?: string) {
@@ -17,32 +27,32 @@ function severityTone(severity?: string) {
 
 export default function SoftwareInventory() {
   const [items, setItems] = useState<Software[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<SoftwareInventoryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [softwareData, statsData] = await Promise.all([
         riskApi.listSoftware({ page_size: 500, search }),
-        riskApi.getSoftwareStats().catch(() => null),
+        riskApi.getSoftwareStats().catch((): SoftwareInventoryStats | null => null),
       ]);
       setItems(unwrap<Software>(softwareData));
       setStats(statsData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o inventario de software.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o inventario de software."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const metrics = useMemo(() => {
     const vulnerable = items.filter((item) => Number(item.vulnerabilities_count || 0) > 0).length;
@@ -68,7 +78,7 @@ export default function SoftwareInventory() {
             </p>
           </div>
           <button
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-cyan-200 hover:text-cyan-700"
           >
             <RefreshCw className="h-4 w-4" />
@@ -108,14 +118,14 @@ export default function SoftwareInventory() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") load();
+                if (event.key === "Enter") void load();
               }}
               className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none focus:border-cyan-300 focus:ring-4 focus:ring-cyan-50"
               placeholder="Pesquisar por nome, versao ou fabricante"
             />
           </div>
           <button
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-cyan-900"
           >
             <Search className="h-4 w-4" />

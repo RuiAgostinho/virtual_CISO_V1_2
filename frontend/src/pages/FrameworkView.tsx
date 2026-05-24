@@ -1,34 +1,38 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, RefreshCw, Layers, ShieldCheck, FileText, Activity } from "lucide-react";
-import { governanceApi } from "@/lib/governanceApi";
+import { BookOpen, RefreshCw, Layers, ShieldCheck, Activity } from "lucide-react";
+import { governanceApi, type FrameworkRecord, type PaginatedResponse } from "@/lib/governanceApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function FrameworkView() {
-  const [frameworks, setFrameworks] = useState<any[]>([]);
+  const [frameworks, setFrameworks] = useState<FrameworkRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await governanceApi.getFrameworks();
-      setFrameworks(unwrap(data));
-    } catch (err: any) {
+      setFrameworks(unwrap<FrameworkRecord>(data));
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar as frameworks.");
+      setError(getErrorMessage(err, "Não foi possível carregar as frameworks."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
@@ -42,7 +46,7 @@ export default function FrameworkView() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>

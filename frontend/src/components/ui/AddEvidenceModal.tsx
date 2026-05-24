@@ -9,6 +9,10 @@ interface AddEvidenceModalProps {
   onAdded: () => void;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AddEvidenceModal({ open, controlMechanismId, onClose, onAdded }: AddEvidenceModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -36,9 +40,9 @@ export function AddEvidenceModal({ open, controlMechanismId, onClose, onAdded }:
       setDescription("");
       setUrl("");
       onAdded();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel adicionar a evidencia.");
+      setError(getErrorMessage(err, "Nao foi possivel adicionar a evidencia."));
     } finally {
       setSaving(false);
     }

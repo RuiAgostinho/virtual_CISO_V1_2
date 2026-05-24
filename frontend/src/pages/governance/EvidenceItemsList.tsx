@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, FileCheck2, FilePlus2, Link2, Pencil, RefreshCw, Save, Search, ShieldCheck, Timer, Workflow, X } from "lucide-react";
+import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import { mappingReviewApi } from "@/lib/mappingReviewApi";
 
 type EvidenceRecord = Record<string, any>;
@@ -163,14 +163,6 @@ function validityTone(evidence: EvidenceRecord) {
     : "border-emerald-100 bg-emerald-50 text-emerald-700";
 }
 
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
-}
-
 function scoreTone(score?: number) {
   const value = Number(score || 0);
   if (value >= 90) return "text-emerald-700";
@@ -293,9 +285,9 @@ function MechanismEvidenceOverview({
               A conformidade oficial exige evidencia real valida e EvidenceLink aprovado. Tipos esperados orientam a recolha, mas nao provam por si so.
             </p>
           </div>
-          <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">
+          <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">
             Score medio {metrics.average_official_score ?? 0}%
-          </Badge>
+          </GovernanceBadge>
         </div>
 
         {loading ? (
@@ -311,12 +303,12 @@ function MechanismEvidenceOverview({
                 <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="border-slate-200 bg-slate-50 text-slate-700">{row.mechanism.mechanism_type || "Mecanismo"}</Badge>
-                      <Badge className={row.valid_actual_evidence_count > 0 ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-red-100 bg-red-50 text-red-700"}>
+                      <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-700">{row.mechanism.mechanism_type || "Mecanismo"}</GovernanceBadge>
+                      <GovernanceBadge className={row.valid_actual_evidence_count > 0 ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-red-100 bg-red-50 text-red-700"}>
                         {row.valid_actual_evidence_count > 0 ? "Com evidencia valida" : "Sem evidencia valida"}
-                      </Badge>
-                      {row.pending_review_count > 0 && <Badge className="border-amber-100 bg-amber-50 text-amber-700">{row.pending_review_count} pending review</Badge>}
-                      {row.expired_evidence_count > 0 && <Badge className="border-red-100 bg-red-50 text-red-700">{row.expired_evidence_count} expiradas</Badge>}
+                      </GovernanceBadge>
+                      {row.pending_review_count > 0 && <GovernanceBadge className="border-amber-100 bg-amber-50 text-amber-700">{row.pending_review_count} pending review</GovernanceBadge>}
+                      {row.expired_evidence_count > 0 && <GovernanceBadge className="border-red-100 bg-red-50 text-red-700">{row.expired_evidence_count} expiradas</GovernanceBadge>}
                     </div>
                     <Link to={row.mechanism.href} className="mt-3 block text-xl font-bold text-slate-950 hover:text-indigo-700">
                       {row.mechanism.title}
@@ -349,7 +341,7 @@ function MechanismEvidenceOverview({
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-xs font-bold uppercase tracking-wide text-emerald-800">Evidencia esperada</h3>
-                      <Badge className="border-emerald-100 bg-white text-emerald-700">{row.expected_evidence_count}</Badge>
+                      <GovernanceBadge className="border-emerald-100 bg-white text-emerald-700">{row.expected_evidence_count}</GovernanceBadge>
                     </div>
                     <div className="mt-3 space-y-2">
                       {row.expected_evidence.length === 0 ? (
@@ -361,8 +353,8 @@ function MechanismEvidenceOverview({
                           <p className="text-sm font-bold text-slate-950">{item.title}</p>
                           <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{item.description || item.rationale || "Tipo esperado."}</p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            <Badge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</Badge>
-                            <Badge className={priorityTone(item.priority)}>{priorityLabel(item.priority)}</Badge>
+                            <GovernanceBadge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</GovernanceBadge>
+                            <GovernanceBadge className={priorityTone(item.priority)}>{priorityLabel(item.priority)}</GovernanceBadge>
                           </div>
                         </div>
                       ))}
@@ -372,7 +364,7 @@ function MechanismEvidenceOverview({
                   <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-800">Evidencia real recolhida</h3>
-                      <Badge className="border-indigo-100 bg-white text-indigo-700">{row.actual_evidence_count}</Badge>
+                      <GovernanceBadge className="border-indigo-100 bg-white text-indigo-700">{row.actual_evidence_count}</GovernanceBadge>
                     </div>
                     <div className="mt-3 space-y-2">
                       {row.actual_evidence.length === 0 ? (
@@ -384,12 +376,12 @@ function MechanismEvidenceOverview({
                           <p className="text-sm font-bold text-slate-950">{item.title}</p>
                           <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{item.description || item.source || item.external_reference || "Evidencia recolhida."}</p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            <Badge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</Badge>
-                            <Badge className={statusTone(item.evidence_status)}>{statusLabel(item.evidence_status)}</Badge>
-                            <Badge className={statusTone(item.validation_status)}>{statusLabel(item.validation_status)}</Badge>
-                            <Badge className={item.expired ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
+                            <GovernanceBadge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</GovernanceBadge>
+                            <GovernanceBadge className={statusTone(item.evidence_status)}>{statusLabel(item.evidence_status)}</GovernanceBadge>
+                            <GovernanceBadge className={statusTone(item.validation_status)}>{statusLabel(item.validation_status)}</GovernanceBadge>
+                            <GovernanceBadge className={item.expired ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
                               {item.expired ? "Expirada" : item.valid_until ? `Valida ate ${formatDate(item.valid_until)}` : "Sem prazo"}
-                            </Badge>
+                            </GovernanceBadge>
                           </div>
                         </Link>
                       ))}
@@ -399,7 +391,7 @@ function MechanismEvidenceOverview({
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Mecanismo no contexto</h3>
-                      <Badge className="border-slate-200 bg-white text-slate-600">{row.context_count}</Badge>
+                      <GovernanceBadge className="border-slate-200 bg-white text-slate-600">{row.context_count}</GovernanceBadge>
                     </div>
                     <div className="mt-3 space-y-2">
                       {row.score_contexts.length === 0 ? (
@@ -416,8 +408,8 @@ function MechanismEvidenceOverview({
                             <span className={`text-sm font-bold ${scoreTone(context.score)}`}>{context.score ?? 0}%</span>
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {context.mandatory && <Badge className="border-amber-100 bg-amber-50 text-amber-700">Obrigatorio</Badge>}
-                            {context.validation_status && <Badge className={statusTone(context.validation_status)}>{statusLabel(context.validation_status)}</Badge>}
+                            {context.mandatory && <GovernanceBadge className="border-amber-100 bg-amber-50 text-amber-700">Obrigatorio</GovernanceBadge>}
+                            {context.validation_status && <GovernanceBadge className={statusTone(context.validation_status)}>{statusLabel(context.validation_status)}</GovernanceBadge>}
                           </div>
                         </div>
                       ))}
@@ -1013,14 +1005,14 @@ export default function EvidenceItemsList() {
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge className={evidenceTypeTone(requirement.evidence_type)}>{evidenceTypeLabel(requirement.evidence_type)}</Badge>
-                            <Badge className={priorityTone(requirement.priority)}>{priorityLabel(requirement.priority)}</Badge>
-                            <Badge className={requirement.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
+                            <GovernanceBadge className={evidenceTypeTone(requirement.evidence_type)}>{evidenceTypeLabel(requirement.evidence_type)}</GovernanceBadge>
+                            <GovernanceBadge className={priorityTone(requirement.priority)}>{priorityLabel(requirement.priority)}</GovernanceBadge>
+                            <GovernanceBadge className={requirement.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
                               {requirement.is_active === false ? "Inativo" : "Ativo"}
-                            </Badge>
-                            <Badge className={requirement.mechanism ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-indigo-100 bg-indigo-50 text-indigo-700"}>
+                            </GovernanceBadge>
+                            <GovernanceBadge className={requirement.mechanism ? "border-cyan-100 bg-cyan-50 text-cyan-700" : "border-indigo-100 bg-indigo-50 text-indigo-700"}>
                               {requirement.mechanism ? "Mecanismo" : "Template"}
-                            </Badge>
+                            </GovernanceBadge>
                           </div>
                           <h3 className="mt-3 text-lg font-bold text-slate-950">{requirement.title}</h3>
                           <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
@@ -1165,15 +1157,15 @@ export default function EvidenceItemsList() {
                     <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{item.description || item.external_reference || "Sem descricao."}</p>
                   </td>
                   <td className="px-5 py-4">
-                    <Badge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</Badge>
+                    <GovernanceBadge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</GovernanceBadge>
                   </td>
                   <td className="px-5 py-4">
-                    <Badge className={statusTone(item.status)}>{statusLabel(item.status)}</Badge>
+                    <GovernanceBadge className={statusTone(item.status)}>{statusLabel(item.status)}</GovernanceBadge>
                   </td>
                   <td className="px-5 py-4 font-semibold text-slate-600">{item.source || item.external_reference || "-"}</td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col gap-1">
-                      <Badge className={validityTone(item)}>{validityLabel(item)}</Badge>
+                      <GovernanceBadge className={validityTone(item)}>{validityLabel(item)}</GovernanceBadge>
                       <span className="text-xs font-semibold text-slate-500">{formatDate(item.valid_until)}</span>
                     </div>
                   </td>

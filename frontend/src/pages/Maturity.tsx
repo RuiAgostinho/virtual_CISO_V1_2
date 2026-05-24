@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -19,20 +19,27 @@ import {
 } from "lucide-react";
 import {
   governanceApi,
+  type AssessmentEvidence,
   type AssessmentRecommendation,
   type AssessmentSummary,
   type ControlAssessmentRecord,
   type ControlAssessmentStatus,
   type FrameworkScore,
+  type PaginatedResponse,
+  type QueryParams,
 } from "@/lib/governanceApi";
 
-function asArray<T>(data: any): T[] {
+function asArray<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
-function getPaginatedCount(data: any) {
+function getPaginatedCount<T>(data: T[] | PaginatedResponse<T> | null | undefined) {
   if (Array.isArray(data)) return data.length;
   return Number(data?.count || data?.results?.length || 0);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function formatPercent(value: number | string | null | undefined) {
@@ -117,27 +124,28 @@ export default function Maturity() {
     [frameworkScores, selectedFramework]
   );
 
-  const loadMeta = async () => {
+  const loadMeta = useCallback(async () => {
     const overview = await governanceApi.getControlMappingOverview();
     const frameworks = overview.framework_scores || [];
     setFrameworkScores(frameworks);
-    if (!selectedFramework) {
+    setSelectedFramework((current) => {
+      if (current) return current;
       const first = frameworks.find((framework) => framework.total_controls > 0);
-      if (first) setSelectedFramework(first.framework_id);
-    }
-  };
+      return first?.framework_id || "";
+    });
+  }, []);
 
-  const loadAssessments = async (showLoading = true) => {
+  const loadAssessments = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError(null);
 
-      const params: Record<string, any> = {
+      const params: QueryParams = {
         page,
         page_size: pageSize,
         ordering: "control__code",
       };
-      const summaryParams: Record<string, any> = {};
+      const summaryParams: QueryParams = {};
       if (selectedFramework) {
         params.framework = selectedFramework;
         summaryParams.framework = selectedFramework;
@@ -160,25 +168,25 @@ export default function Maturity() {
         if (refreshedCurrent) return refreshedCurrent;
         return nextAssessments[0] || null;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao carregar avaliacoes de conformidade.");
+      setError(getErrorMessage(err, "Falha ao carregar avaliacoes de conformidade."));
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [gapFilter, page, pageSize, searchTerm, selectedFramework, statusFilter]);
 
   useEffect(() => {
-    loadMeta().catch((err) => {
+    loadMeta().catch((err: unknown) => {
       console.error(err);
-      setError(err.message || "Falha ao carregar frameworks.");
+      setError(getErrorMessage(err, "Falha ao carregar frameworks."));
       setLoading(false);
     });
-  }, []);
+  }, [loadMeta]);
 
   useEffect(() => {
-    loadAssessments();
-  }, [selectedFramework, statusFilter, gapFilter, searchTerm, page, pageSize]);
+    void loadAssessments();
+  }, [loadAssessments]);
 
   const bootstrapAssessments = async () => {
     if (!selectedFramework) return;
@@ -194,9 +202,9 @@ export default function Maturity() {
         `Avaliação inicializada: ${result.created} novas avaliacao(oes), ${result.existing} existentes.`
       );
       await loadAssessments(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao inicializar avaliacoes.");
+      setError(getErrorMessage(err, "Falha ao inicializar avaliacoes."));
     } finally {
       setWorking(false);
     }
@@ -210,9 +218,9 @@ export default function Maturity() {
       setSelectedAssessment(updated);
       setMessage("Avaliação atualizada e gap recalculado.");
       await loadAssessments(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao atualizar avaliacao.");
+      setError(getErrorMessage(err, "Falha ao atualizar avaliacao."));
     } finally {
       setWorking(false);
     }
@@ -236,7 +244,7 @@ export default function Maturity() {
             Erro ao carregar avaliacoes
           </div>
           <p className="mt-2 text-sm font-medium">{error}</p>
-          <button onClick={() => loadAssessments()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
+          <button onClick={() => void loadAssessments()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
             Tentar novamente
           </button>
         </div>
@@ -597,7 +605,7 @@ function AssessmentDetailPanel({
   const [notes, setNotes] = useState("");
   const [assessedBy, setAssessedBy] = useState("");
   const [evidenceTitle, setEvidenceTitle] = useState("");
-  const [evidenceType, setEvidenceType] = useState("policy");
+  const [evidenceType, setEvidenceType] = useState<AssessmentEvidence["evidence_type"]>("policy");
   const [findingTitle, setFindingTitle] = useState("");
   const [actionTitle, setActionTitle] = useState("");
   const [busyLocal, setBusyLocal] = useState(false);
@@ -611,7 +619,7 @@ function AssessmentDetailPanel({
     setEvidenceTitle("");
     setFindingTitle("");
     setActionTitle("");
-  }, [assessment?.id]);
+  }, [assessment?.assessed_by, assessment?.id, assessment?.notes]);
 
   useEffect(() => {
     setRecommendation(null);
@@ -643,7 +651,7 @@ function AssessmentDetailPanel({
       await governanceApi.createAssessmentEvidence({
         assessment: assessment.id,
         title: evidenceTitle.trim(),
-        evidence_type: evidenceType as any,
+        evidence_type: evidenceType,
       });
       await onReload();
       setEvidenceTitle("");
@@ -694,9 +702,9 @@ function AssessmentDetailPanel({
     try {
       const result = await governanceApi.getControlAssessmentRecommendation(assessment.id);
       setRecommendation(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setRecommendationError(err.message || "Falha ao gerar sugestao.");
+      setRecommendationError(getErrorMessage(err, "Falha ao gerar sugestao."));
     } finally {
       setLoadingRecommendation(false);
     }
@@ -846,7 +854,7 @@ function AssessmentDetailPanel({
           extra={
             <select
               value={evidenceType}
-              onChange={(event) => setEvidenceType(event.target.value)}
+              onChange={(event) => setEvidenceType(event.target.value as AssessmentEvidence["evidence_type"])}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
             >
               <option value="policy">Politica</option>

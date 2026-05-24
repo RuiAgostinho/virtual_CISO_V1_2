@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, RefreshCw, Search, ShieldAlert, Target } from "lucide-react";
-import { riskApi, type Risk } from "@/lib/riskApi";
+import { riskApi, type PaginatedResponse, type Risk } from "@/lib/riskApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function levelTone(level?: string) {
@@ -21,23 +25,23 @@ export default function RiskList() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listRisks({ page_size: 500, search, status });
       setRisks(unwrap<Risk>(data));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar os riscos.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar os riscos."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, status]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const metrics = useMemo(() => ({
     open: risks.filter((risk) => risk.status === "open").length,
@@ -56,7 +60,7 @@ export default function RiskList() {
               Riscos calculados por ativo, vulnerabilidade, impacto e probabilidade, prontos para tratamento ou aceitacao formal.
             </p>
           </div>
-          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-red-700">
+          <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-red-700">
             <RefreshCw className="h-4 w-4" />
             Atualizar
           </button>
@@ -99,7 +103,7 @@ export default function RiskList() {
             <option value="mitigated">Mitigado</option>
             <option value="accepted">Aceite</option>
           </select>
-          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-red-700">
+          <button onClick={() => void load()} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-red-700">
             Filtrar
           </button>
         </div>

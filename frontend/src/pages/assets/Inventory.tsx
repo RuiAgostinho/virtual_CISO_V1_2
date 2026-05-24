@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Database, Plus, RefreshCw, Search, Server, ShieldAlert } from "lucide-react";
-import { riskApi, type Asset } from "@/lib/riskApi";
+import { riskApi, type Asset, type PaginatedResponse } from "@/lib/riskApi";
 import { AssetFormModal } from "@/components/ui/AssetFormModal";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function toneForCriticality(value?: string) {
@@ -23,23 +27,23 @@ export default function Inventory() {
   const [source, setSource] = useState("");
   const [formOpen, setFormOpen] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listAssets({ page_size: 500, search, source });
       setAssets(unwrap<Asset>(data));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o inventario.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o inventario."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, source]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const metrics = useMemo(() => {
     const critical = assets.filter((asset) => asset.criticality === "Critical" || asset.criticality === "High").length;
@@ -68,7 +72,7 @@ export default function Inventory() {
               Novo ativo
             </button>
             <button
-              onClick={load}
+              onClick={() => void load()}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
             >
               <RefreshCw className="h-4 w-4" />
@@ -122,7 +126,7 @@ export default function Inventory() {
             <option value="wazuh">Wazuh</option>
             <option value="discovery">Discovery</option>
           </select>
-          <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700">
+          <button onClick={() => void load()} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700">
             Filtrar
           </button>
         </div>
@@ -177,7 +181,7 @@ export default function Inventory() {
         </div>
       </section>
 
-      <AssetFormModal open={formOpen} mode="create" onClose={() => setFormOpen(false)} onSaved={load} />
+      <AssetFormModal open={formOpen} mode="create" onClose={() => setFormOpen(false)} onSaved={() => void load()} />
     </div>
   );
 }

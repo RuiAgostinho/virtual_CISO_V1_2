@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -21,6 +20,12 @@ import {
   XCircle,
 } from "lucide-react";
 import { mappingReviewApi, type TraceabilityPayload } from "@/lib/mappingReviewApi";
+import {
+  GovernanceBadge as Badge,
+  GovernanceEmptyState as EmptyState,
+  GovernanceInfoCard as InfoCard,
+  GovernanceSectionCard as SectionCard,
+} from "@/components/governance/GovernancePrimitives";
 
 type EvidenceRecord = Record<string, any>;
 type EvidenceWorkspaceTab = "overview" | "links" | "impact" | "scoring" | "audit";
@@ -134,47 +139,6 @@ function targetUrl(link: any) {
   if (link.target_type === "asset") return `/assets/inventory/${id}`;
   if (link.target_type === "risk") return `/risks/${id}`;
   return undefined;
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
-}
-
-function InfoCard({ icon: Icon, label, value, tone = "text-indigo-700" }: { icon: any; label: string; value: ReactNode; tone?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <Icon className={`h-5 w-5 ${tone}`} />
-      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
-    </div>
-  );
-}
-
-function SectionCard({ title, icon: Icon, children, action }: { title: string; icon: any; children: ReactNode; action?: ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-100 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-indigo-700" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{title}</h2>
-        </div>
-        {action}
-      </div>
-      <div className="p-5">{children}</div>
-    </section>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-      {text}
-    </div>
-  );
 }
 
 function RelationshipList({ title, items, empty }: { title: string; items: any[]; empty: string }) {

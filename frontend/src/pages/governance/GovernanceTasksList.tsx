@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ElementType, ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -22,6 +21,10 @@ import {
   type GovernanceActionStatus,
   type GovernanceActionType,
 } from "@/lib/governanceApi";
+import {
+  GovernanceBadge as Badge,
+  GovernanceInfoCard as MetricCard,
+} from "@/components/governance/GovernancePrimitives";
 
 type FilterValue<T extends string> = T | "";
 
@@ -144,37 +147,6 @@ function targetLink(action: GovernanceAction) {
 function apiErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error || "Erro desconhecido");
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string | number;
-  detail: string;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <Icon className={`h-5 w-5 ${tone}`} />
-      <p className="mt-3 text-3xl font-black text-slate-950">{value}</p>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-500">{detail}</p>
-    </div>
-  );
 }
 
 export default function GovernanceTasksList() {

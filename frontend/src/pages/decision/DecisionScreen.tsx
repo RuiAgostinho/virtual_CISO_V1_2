@@ -81,6 +81,10 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -714,8 +718,8 @@ export default function DecisionScreen() {
     try {
       const ctx = await decisionApi.getContext(occurrenceId);
       setData(ctx);
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível carregar o contexto desta ocorrência.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Não foi possível carregar o contexto desta ocorrência."));
     } finally {
       setLoading(false);
     }
@@ -746,14 +750,14 @@ export default function DecisionScreen() {
       );
       setForm({ decisionCode: "", justification: "", transferTo: "", dueDate: "" });
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Backend returns 400 with body { errors: { field: msg } }.
       // request() throws Error(responseBodyText) so we parse defensively.
       let parsedErrors: Record<string, string> | null = null;
       try {
-        const parsed = JSON.parse(err?.message || "");
+        const parsed = JSON.parse(getErrorMessage(err, ""));
         if (parsed && typeof parsed === "object" && parsed.errors) {
-          parsedErrors = parsed.errors;
+          parsedErrors = parsed.errors as Record<string, string>;
         }
       } catch {
         // not JSON
@@ -761,7 +765,7 @@ export default function DecisionScreen() {
       if (parsedErrors) {
         setErrors(parsedErrors);
       } else {
-        setErrors({ decision_code: err?.message || "Erro inesperado ao registar." });
+        setErrors({ decision_code: getErrorMessage(err, "Erro inesperado ao registar.") });
       }
     } finally {
       setSubmitting(false);
@@ -775,8 +779,8 @@ export default function DecisionScreen() {
     try {
       const rec = await decisionApi.recommend(occurrenceId);
       setAiRec(rec);
-    } catch (err: any) {
-      setAiError(err?.message || "Não foi possível gerar a recomendação.");
+    } catch (err: unknown) {
+      setAiError(getErrorMessage(err, "Não foi possível gerar a recomendação."));
     } finally {
       setAiLoading(false);
     }
@@ -813,4 +817,3 @@ export default function DecisionScreen() {
     </div>
   );
 }
-

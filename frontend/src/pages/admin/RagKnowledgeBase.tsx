@@ -167,6 +167,31 @@ export default function RagKnowledgeBase() {
     }
   };
 
+  const terminateRunningRun = async () => {
+    const confirmed = window.confirm(
+      "Terminar a reindexacao RAG em execucao? Use esta acao apenas quando o processo ficou preso. Os chunks ja existentes nao sao apagados.",
+    );
+    if (!confirmed) return;
+
+    setTriggering(true);
+    setActionMessage(null);
+    try {
+      await ragApi.terminateRunningRun();
+      setActionMessage({
+        type: "success",
+        text: "Execucao RAG terminada manualmente. Os chunks existentes foram preservados.",
+      });
+      await load(false);
+    } catch (err: unknown) {
+      setActionMessage({
+        type: "error",
+        text: errorMessage(err, "Nao foi possivel terminar a execucao RAG."),
+      });
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   const stats = overview?.stats;
   const lastRun = overview?.last_run ?? null;
   const recentRuns = overview?.recent_runs ?? [];
@@ -259,8 +284,21 @@ export default function RagKnowledgeBase() {
                       <RunStat label="Criados" value={currentRun.chunks_created} tone="text-emerald-600" />
                       <RunStat label="Atualizados" value={currentRun.chunks_updated} tone="text-blue-600" />
                       <RunStat label="Erros" value={currentRun.chunks_failed} tone="text-red-600" />
+                      <button
+                        type="button"
+                        onClick={terminateRunningRun}
+                        disabled={triggering}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {triggering ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                        Terminar execucao presa
+                      </button>
                     </div>
                   </div>
+                  <p className="mt-4 rounded-xl border border-indigo-100 bg-white/70 p-3 text-xs font-semibold leading-relaxed text-indigo-800">
+                    Se o progresso ficar parado durante demasiado tempo, pode terminar a execucao manualmente. Isto
+                    apenas fecha o registo de ingestao; nao apaga chunks nem embeddings ja existentes.
+                  </p>
                 </section>
               )}
 

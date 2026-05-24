@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ElementType, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -15,6 +15,10 @@ import {
   ShieldCheck,
   Wrench,
 } from "lucide-react";
+import {
+  GovernanceMetricCard,
+  GovernancePanel,
+} from "@/components/governance/GovernancePrimitives";
 import {
   governanceApi,
   type GovernanceHealthListItem,
@@ -42,26 +46,6 @@ function formatDate(value?: string | null) {
 function apiErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error || "Erro desconhecido");
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: number;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <Icon className={`mb-8 h-5 w-5 ${tone}`} />
-      <div className="text-3xl font-black text-slate-950">{formatNumber(value)}</div>
-      <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">{label}</div>
-    </div>
-  );
 }
 
 function SectionHealthCard({
@@ -98,21 +82,6 @@ function SectionHealthCard({
         </Link>
       </div>
     </div>
-  );
-}
-
-function Panel({ title, icon: Icon, children, empty }: { title: string; icon: ElementType; children: ReactNode; empty?: boolean }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <Icon className="h-5 w-5 text-indigo-600" />
-          <h2 className="text-lg font-black text-slate-950">{title}</h2>
-        </div>
-        {empty && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -232,12 +201,12 @@ export default function GovernanceHealth() {
       ) : data && metrics ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <MetricCard icon={AlertTriangle} label="Itens de atenção" value={metrics.total_attention} tone="text-orange-600" />
-            <MetricCard icon={FileText} label="Políticas sem controlos" value={metrics.policies_without_controls} tone="text-indigo-600" />
-            <MetricCard icon={Wrench} label="Mecanismos sem evidência real" value={metrics.mechanisms_without_valid_evidence} tone="text-amber-600" />
-            <MetricCard icon={ClipboardList} label="Tarefas vencidas" value={metrics.overdue_tasks} tone="text-red-600" />
-            <MetricCard icon={GitBranch} label="Mappings pendentes" value={metrics.pending_mappings} tone="text-violet-600" />
-            <MetricCard icon={Database} label="Chunks RAG em falta" value={metrics.rag_missing_chunks} tone="text-slate-600" />
+            <GovernanceMetricCard icon={AlertTriangle} label="Itens de atenção" value={formatNumber(metrics.total_attention)} tone="text-orange-600" />
+            <GovernanceMetricCard icon={FileText} label="Políticas sem controlos" value={formatNumber(metrics.policies_without_controls)} tone="text-indigo-600" />
+            <GovernanceMetricCard icon={Wrench} label="Mecanismos sem evidência real" value={formatNumber(metrics.mechanisms_without_valid_evidence)} tone="text-amber-600" />
+            <GovernanceMetricCard icon={ClipboardList} label="Tarefas vencidas" value={formatNumber(metrics.overdue_tasks)} tone="text-red-600" />
+            <GovernanceMetricCard icon={GitBranch} label="Mappings pendentes" value={formatNumber(metrics.pending_mappings)} tone="text-violet-600" />
+            <GovernanceMetricCard icon={Database} label="Chunks RAG em falta" value={formatNumber(metrics.rag_missing_chunks)} tone="text-slate-600" />
           </div>
 
           <section className="grid gap-4 lg:grid-cols-3">
@@ -255,7 +224,7 @@ export default function GovernanceHealth() {
           </section>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <Panel title="Políticas sem controlos internos" icon={FileText} empty={!data.lists.policies_without_controls.length}>
+            <GovernancePanel title="Políticas sem controlos internos" icon={FileText} empty={!data.lists.policies_without_controls.length}>
               <CompactList
                 items={data.lists.policies_without_controls}
                 emptyLabel="Todas as políticas estão associadas a controlos internos ativos."
@@ -267,9 +236,9 @@ export default function GovernanceHealth() {
                   />
                 )}
               />
-            </Panel>
+            </GovernancePanel>
 
-            <Panel title="Mecanismos sem evidência real válida" icon={Wrench} empty={!data.lists.mechanisms_without_valid_evidence.length}>
+            <GovernancePanel title="Mecanismos sem evidência real válida" icon={Wrench} empty={!data.lists.mechanisms_without_valid_evidence.length}>
               <CompactList
                 items={data.lists.mechanisms_without_valid_evidence}
                 emptyLabel="Todos os mecanismos têm evidência real válida e aprovada."
@@ -281,9 +250,9 @@ export default function GovernanceHealth() {
                   />
                 )}
               />
-            </Panel>
+            </GovernancePanel>
 
-            <Panel title="Tarefas vencidas" icon={ClipboardList} empty={!data.lists.overdue_tasks.length}>
+            <GovernancePanel title="Tarefas vencidas" icon={ClipboardList} empty={!data.lists.overdue_tasks.length}>
               <CompactList
                 items={data.lists.overdue_tasks}
                 emptyLabel="Não existem tarefas de governação vencidas."
@@ -295,9 +264,9 @@ export default function GovernanceHealth() {
                   />
                 )}
               />
-            </Panel>
+            </GovernancePanel>
 
-            <Panel title="Evidências expiradas" icon={FileCheck} empty={!data.lists.expired_evidence.length}>
+            <GovernancePanel title="Evidências expiradas" icon={FileCheck} empty={!data.lists.expired_evidence.length}>
               <CompactList
                 items={data.lists.expired_evidence}
                 emptyLabel="Não existem evidências expiradas."
@@ -309,11 +278,11 @@ export default function GovernanceHealth() {
                   />
                 )}
               />
-            </Panel>
+            </GovernancePanel>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-            <Panel title="Estado dos mappings" icon={GitBranch}>
+            <GovernancePanel title="Estado dos mappings" icon={GitBranch}>
               <div className="divide-y divide-slate-100">
                 {data.pending_mappings.map((row) => (
                   <Link key={row.key} to={row.href} className="block px-6 py-4 hover:bg-slate-50">
@@ -332,9 +301,9 @@ export default function GovernanceHealth() {
                   </Link>
                 ))}
               </div>
-            </Panel>
+            </GovernancePanel>
 
-            <Panel title="Cobertura RAG por entidade" icon={Database} empty={!topRagIssues.length}>
+            <GovernancePanel title="Cobertura RAG por entidade" icon={Database} empty={!topRagIssues.length}>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-100 text-sm">
                   <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-400">
@@ -364,10 +333,10 @@ export default function GovernanceHealth() {
                   </tbody>
                 </table>
               </div>
-            </Panel>
+            </GovernancePanel>
           </div>
 
-          <Panel title="Recomendações de melhoria" icon={ShieldCheck}>
+          <GovernancePanel title="Recomendações de melhoria" icon={ShieldCheck}>
             <div className="grid gap-3 p-6 lg:grid-cols-2">
               {data.recommendations.map((recommendation) => (
                 <div key={recommendation} className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-bold leading-6 text-indigo-900">
@@ -375,7 +344,7 @@ export default function GovernanceHealth() {
                 </div>
               ))}
             </div>
-          </Panel>
+          </GovernancePanel>
         </>
       ) : null}
     </div>

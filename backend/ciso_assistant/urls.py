@@ -8,6 +8,7 @@ from .views import (
     PolicyAdviceView,
     RagOverviewView,
     RagReindexView,
+    RagTerminateRunView,
 )
 
 urlpatterns = [
@@ -18,4 +19,5 @@ urlpatterns = [
     path("history/<uuid:recommendation_id>/convert/", ConvertAssistantRecommendationView.as_view(), name="ciso-assistant-history-convert"),
     path("rag/overview/", RagOverviewView.as_view(), name="rag-overview"),
     path("rag/reindex/", RagReindexView.as_view(), name="rag-reindex"),
+    path("rag/terminate/", RagTerminateRunView.as_view(), name="rag-terminate"),
 ]

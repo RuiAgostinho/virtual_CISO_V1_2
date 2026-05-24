@@ -1,17 +1,93 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Loader2, Plus, Save, X } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
-import { companyApi } from "@/lib/companyApi";
+import { riskApi, type Asset, type AssetCategory, type AssetLookup, type AssetType } from "@/lib/riskApi";
+import { companyApi, type OrgUnit, type Person } from "@/lib/companyApi";
 
 interface AssetFormModalProps {
   open: boolean;
   mode: "create" | "edit";
-  asset?: Record<string, any> | null;
+  asset?: AssetModalRecord | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
 type Lookup = { id: number | string; name: string };
+type FormScalar = string | number;
+type FormIdArray = Array<string | number>;
+
+type AssetFormState = {
+  name: string;
+  description: string;
+  category: FormScalar | "";
+  asset_type: FormScalar | "";
+  status: string;
+  location: FormScalar | "";
+  environment: FormScalar | "";
+  deployment_type: FormScalar | "";
+  supported_service: string;
+  business_process: string;
+  business_owner: FormScalar | "";
+  technical_owner: FormScalar | "";
+  org_unit: FormScalar | "";
+  parent: FormScalar | "";
+  dependent_assets: FormIdArray;
+  external_service_assets: FormIdArray;
+  integration_assets: FormIdArray;
+  confidentiality: number;
+  integrity: number;
+  availability: number;
+  exposure: number;
+  business_value: number;
+  dependency_score: number;
+};
+
+type AssetPayload = {
+  name: string;
+  description: string;
+  category: FormScalar | null;
+  asset_type: FormScalar | null;
+  status: string;
+  location: FormScalar | null;
+  environment: FormScalar | null;
+  deployment_type: FormScalar | null;
+  supported_service: string;
+  business_process: string;
+  business_owner: FormScalar | null;
+  technical_owner: FormScalar | null;
+  org_unit: FormScalar | null;
+  parent: FormScalar | null;
+  dependent_assets: FormIdArray;
+  external_service_assets: FormIdArray;
+  integration_assets: FormIdArray;
+  confidentiality: number;
+  integrity: number;
+  availability: number;
+  exposure: number;
+  business_value: number;
+  dependency_score: number;
+  source?: string;
+};
+
+type AssetModalRecord = Partial<Asset> & {
+  id: string | number;
+  supported_service?: string;
+  org_unit?: FormScalar;
+  dependent_assets?: FormIdArray;
+  external_service_assets?: FormIdArray;
+  integration_assets?: FormIdArray;
+  business_value?: number | string;
+  dependency_score?: number | string;
+};
+
+type ClassificationFieldKey =
+  | "confidentiality"
+  | "integrity"
+  | "availability"
+  | "exposure"
+  | "business_value"
+  | "dependency_score";
+
+type DependencyFieldKey = "dependent_assets" | "external_service_assets" | "integration_assets";
 
 const STATUS_OPTIONS = [
   { value: "Active", label: "Ativo" },
@@ -28,7 +104,7 @@ const SCALE_LABEL: Record<number, string> = {
   5: "Crítico",
 };
 
-const CLASSIFICATION_FIELDS = [
+const CLASSIFICATION_FIELDS: Array<{ key: ClassificationFieldKey; label: string; hint: string }> = [
   { key: "confidentiality", label: "Confidencialidade", hint: "Impacto da divulgação não autorizada" },
   { key: "integrity", label: "Integridade", hint: "Impacto da alteração indevida dos dados" },
   { key: "availability", label: "Disponibilidade", hint: "Impacto da indisponibilidade do ativo" },
@@ -37,7 +113,7 @@ const CLASSIFICATION_FIELDS = [
   { key: "dependency_score", label: "Dependência", hint: "Dependência de/para outros ativos" },
 ];
 
-const DEPENDENCY_FIELDS = [
+const DEPENDENCY_FIELDS: Array<{ key: DependencyFieldKey; label: string; hint: string }> = [
   { key: "dependent_assets", label: "Depende de", hint: "Ativos de que este ativo depende para funcionar" },
   { key: "external_service_assets", label: "Serviços externos", hint: "Serviços externos consumidos por este ativo" },
   { key: "integration_assets", label: "Integrações", hint: "Ativos com que este ativo está integrado" },
@@ -46,7 +122,7 @@ const DEPENDENCY_FIELDS = [
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
-const EMPTY_FORM: Record<string, any> = {
+const EMPTY_FORM: AssetFormState = {
   name: "",
   description: "",
   category: "",
@@ -72,14 +148,27 @@ const EMPTY_FORM: Record<string, any> = {
   dependency_score: 3,
 };
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | { results?: T[] } | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function toLookup(item: Asset | AssetLookup | AssetCategory | AssetType | Person | OrgUnit): Lookup {
+  return { id: item.id ?? "", name: item.name };
+}
+
+function toNumber(value: number | string | undefined, fallback = 3) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFormModalProps) {
-  const [form, setForm] = useState<Record<string, any>>(EMPTY_FORM);
+  const [form, setForm] = useState<AssetFormState>(EMPTY_FORM);
   const [categories, setCategories] = useState<Lookup[]>([]);
-  const [types, setTypes] = useState<any[]>([]);
+  const [types, setTypes] = useState<AssetType[]>([]);
   const [locations, setLocations] = useState<Lookup[]>([]);
   const [environments, setEnvironments] = useState<Lookup[]>([]);
   const [infrastructures, setInfrastructures] = useState<Lookup[]>([]);
@@ -102,14 +191,14 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       riskApi.listAssets({ page_size: 500 }),
     ])
       .then(([c, t, l, e, i, p, o, a]) => {
-        setCategories(unwrap(c));
+        setCategories(unwrap(c).map(toLookup));
         setTypes(unwrap(t));
-        setLocations(unwrap(l));
-        setEnvironments(unwrap(e));
-        setInfrastructures(unwrap(i));
-        setPeople(unwrap(p));
-        setOrgUnits(unwrap(o));
-        setAssetOptions(unwrap<any>(a).map((x) => ({ id: x.id, name: x.name })));
+        setLocations(unwrap(l).map(toLookup));
+        setEnvironments(unwrap(e).map(toLookup));
+        setInfrastructures(unwrap(i).map(toLookup));
+        setPeople(unwrap<Person>(p).map(toLookup));
+        setOrgUnits(unwrap<OrgUnit>(o).map(toLookup));
+        setAssetOptions(unwrap(a).map(toLookup));
       })
       .catch(() => {});
   }, [open]);
@@ -136,12 +225,12 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
         dependent_assets: asset.dependent_assets ?? [],
         external_service_assets: asset.external_service_assets ?? [],
         integration_assets: asset.integration_assets ?? [],
-        confidentiality: asset.confidentiality ?? 3,
-        integrity: asset.integrity ?? 3,
-        availability: asset.availability ?? 3,
-        exposure: asset.exposure ?? 3,
-        business_value: asset.business_value ?? 3,
-        dependency_score: asset.dependency_score ?? 3,
+        confidentiality: toNumber(asset.confidentiality),
+        integrity: toNumber(asset.integrity),
+        availability: toNumber(asset.availability),
+        exposure: toNumber(asset.exposure),
+        business_value: toNumber(asset.business_value),
+        dependency_score: toNumber(asset.dependency_score),
       });
     } else {
       setForm({ ...EMPTY_FORM });
@@ -162,11 +251,12 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
 
   if (!open) return null;
 
-  const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof AssetFormState>(key: K, value: AssetFormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const createPerson = async (name: string): Promise<Lookup | null> => {
     try {
-      const created: any = await companyApi.createPerson({ name });
+      const created = await companyApi.createPerson({ name });
       const lookup = { id: created.id, name: created.name };
       setPeople((prev) => [...prev, lookup]);
       return lookup;
@@ -178,7 +268,7 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
 
   const createOrgUnit = async (name: string): Promise<Lookup | null> => {
     try {
-      const created: any = await companyApi.createOrgUnit({ name });
+      const created = await companyApi.createOrgUnit({ name });
       const lookup = { id: created.id, name: created.name };
       setOrgUnits((prev) => [...prev, lookup]);
       return lookup;
@@ -193,8 +283,8 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       setError("O nome do ativo é obrigatório.");
       return;
     }
-    const fk = (v: any) => (v === "" || v == null ? null : v);
-    const payload: Record<string, any> = {
+    const fk = (v: FormScalar | "") => (v === "" || v == null ? null : v);
+    const payload: AssetPayload = {
       name: String(form.name).trim(),
       description: form.description || "",
       category: fk(form.category),
@@ -230,8 +320,8 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       }
       onSaved();
       onClose();
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível guardar o ativo.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Não foi possível guardar o ativo."));
     } finally {
       setSaving(false);
     }
@@ -511,7 +601,7 @@ function CreatableSelect({
   placeholder,
   createPlaceholder,
 }: {
-  value: string;
+  value: string | number;
   options: Lookup[];
   onChange: (v: string) => void;
   onCreate: (name: string) => Promise<Lookup | null>;

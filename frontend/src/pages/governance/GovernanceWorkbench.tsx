@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowRight,
-  CheckCircle2,
   ClipboardList,
   FileCheck,
   FileText,
@@ -16,6 +15,12 @@ import {
   Target,
   Wrench,
 } from "lucide-react";
+import {
+  GovernanceEmptyState,
+  GovernanceMetricCard,
+  GovernancePanel,
+  GovernanceStatusPill,
+} from "@/components/governance/GovernancePrimitives";
 import { request } from "@/lib/api";
 
 type WorkbenchSeverity = "critical" | "high" | "medium" | "low" | "info";
@@ -190,26 +195,6 @@ function apiErrorMessage(error: unknown) {
   return String(error || "Erro desconhecido");
 }
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string | number;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <Icon className={`mb-8 h-5 w-5 ${tone}`} />
-      <div className="text-3xl font-black text-slate-950">{value}</div>
-      <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">{label}</div>
-    </div>
-  );
-}
-
 function StatusTile({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="rounded-xl bg-slate-50 p-5">
@@ -219,16 +204,7 @@ function StatusTile({ label, value, tone }: { label: string; value: number; tone
   );
 }
 
-function EmptyState({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-28 items-center justify-center gap-3 text-sm font-semibold text-slate-500">
-      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-      {children}
-    </div>
-  );
-}
-
-function SectionCard({
+function WorkbenchSectionCard({
   icon: Icon,
   title,
   count,
@@ -240,18 +216,14 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <Icon className="h-5 w-5 text-indigo-600" />
-          <h2 className="text-xl font-black text-slate-950">{title}</h2>
-        </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
-          {formatNumber(count)}
-        </span>
-      </div>
-      <div className="p-6">{children}</div>
-    </section>
+    <GovernancePanel
+      title={title}
+      icon={Icon}
+      bodyClassName="p-6"
+      action={<GovernanceStatusPill>{formatNumber(count)}</GovernanceStatusPill>}
+    >
+      {children}
+    </GovernancePanel>
   );
 }
 
@@ -267,7 +239,7 @@ function RecordList<T>({
   render: (record: T) => ReactNode;
 }) {
   if (total === 0) {
-    return <EmptyState>{empty}</EmptyState>;
+    return <GovernanceEmptyState>{empty}</GovernanceEmptyState>;
   }
 
   return (
@@ -432,43 +404,43 @@ export default function GovernanceWorkbench() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
-        <MetricCard
+        <GovernanceMetricCard
           icon={ClipboardList}
           label="Itens de atenção"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.total_attention)}
           tone="text-indigo-600"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={ShieldAlert}
           label="Críticos"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.critical_categories)}
           tone="text-red-600"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={AlertTriangle}
           label="Altos"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.high_categories)}
           tone="text-orange-600"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={GitBranch}
           label="Pending review"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.pending_review)}
           tone="text-orange-500"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={Wrench}
           label="Controlos sem mecanismos"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.controls_without_mechanisms)}
           tone="text-slate-600"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={FileCheck}
           label="Evidências expiradas"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.expired_evidence)}
           tone="text-rose-600"
         />
-        <MetricCard
+        <GovernanceMetricCard
           icon={ShieldAlert}
           label="Excecoes ativas"
           value={loading && !payload ? "..." : formatNumber(payload?.metrics.active_exceptions)}
@@ -515,7 +487,7 @@ export default function GovernanceWorkbench() {
               ))}
             </div>
           ) : (
-            <EmptyState>Não existem itens nesta categoria.</EmptyState>
+            <GovernanceEmptyState>Não existem itens nesta categoria.</GovernanceEmptyState>
           )}
         </section>
 
@@ -578,7 +550,7 @@ export default function GovernanceWorkbench() {
                 ))}
               </div>
             ) : (
-              <EmptyState>Sem frameworks ativas para apresentar.</EmptyState>
+              <GovernanceEmptyState>Sem frameworks ativas para apresentar.</GovernanceEmptyState>
             )}
           </section>
         </div>
@@ -586,7 +558,7 @@ export default function GovernanceWorkbench() {
 
       {payload ? (
         <div className="grid gap-6 xl:grid-cols-3">
-          <SectionCard
+          <WorkbenchSectionCard
             icon={FileText}
             title="Políticas sem controlos"
             count={countFor("policies_without_controls")}
@@ -604,9 +576,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard
+          <WorkbenchSectionCard
             icon={Target}
             title="Controlos sem framework oficial"
             count={countFor("controls_without_framework")}
@@ -624,9 +596,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard
+          <WorkbenchSectionCard
             icon={Wrench}
             title="Mecanismos sem evidência"
             count={countFor("mechanisms_without_evidence")}
@@ -644,9 +616,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard icon={FileCheck} title="Evidências expiradas" count={countFor("expired_evidence")}>
+          <WorkbenchSectionCard icon={FileCheck} title="Evidências expiradas" count={countFor("expired_evidence")}>
             <RecordList
               records={payload.lists.expired_evidence}
               total={countFor("expired_evidence")}
@@ -660,9 +632,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard icon={FileText} title="Documentos com revisão vencida" count={countFor("overdue_documents")}>
+          <WorkbenchSectionCard icon={FileText} title="Documentos com revisão vencida" count={countFor("overdue_documents")}>
             <RecordList
               records={payload.lists.overdue_documents}
               total={countFor("overdue_documents")}
@@ -676,9 +648,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard
+          <WorkbenchSectionCard
             icon={ShieldAlert}
             title="Excecoes e risco aceite"
             count={
@@ -704,9 +676,9 @@ export default function GovernanceWorkbench() {
                 />
               )}
             />
-          </SectionCard>
+          </WorkbenchSectionCard>
 
-          <SectionCard icon={ShieldAlert} title="Gaps operacionais" count={payload.gaps.length}>
+          <WorkbenchSectionCard icon={ShieldAlert} title="Gaps operacionais" count={payload.gaps.length}>
             {payload.gaps.length ? (
               <div className="space-y-3">
                 {payload.gaps.map((gap) => (
@@ -722,9 +694,9 @@ export default function GovernanceWorkbench() {
                 ))}
               </div>
             ) : (
-              <EmptyState>Sem gaps operacionais devolvidos pela BD.</EmptyState>
+              <GovernanceEmptyState>Sem gaps operacionais devolvidos pela BD.</GovernanceEmptyState>
             )}
-          </SectionCard>
+          </WorkbenchSectionCard>
         </div>
       ) : null}
 

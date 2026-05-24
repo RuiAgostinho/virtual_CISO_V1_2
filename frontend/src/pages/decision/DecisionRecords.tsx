@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -148,7 +148,7 @@ export default function DecisionRecords() {
   const [typeFilter, setTypeFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -174,11 +174,11 @@ export default function DecisionRecords() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [decisionFilter, search, searchParams, typeFilter]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     const desiredId = searchParams.get("id");

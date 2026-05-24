@@ -10,6 +10,10 @@ import { useNavigate, Link } from 'react-router-dom'
 
 import { useAuth } from "@/auth/AuthProvider";
 
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+}
+
 export default function Login() {
     const nav = useNavigate()
     const [email, setEmail] = useState('')
@@ -29,8 +33,8 @@ export default function Login() {
         try {
             await login(email, password); // chama Django via api.ts
             nav("/dashboard", { replace: true });
-        } catch (err: any) {
-            setError(err?.message || "Falha na autenticação.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Falha na autenticação."));
         } finally { setLoading(false); }
     }
 

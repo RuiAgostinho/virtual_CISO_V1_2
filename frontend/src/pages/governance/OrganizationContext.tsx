@@ -1,10 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, Globe2, RefreshCw, Save, ShieldAlert, Target, Users } from "lucide-react";
-import { governanceApi } from "@/lib/governanceApi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Building2, CheckCircle2, Globe2, RefreshCw, Save, ShieldAlert, Target, Users, type LucideIcon } from "lucide-react";
+import { governanceApi, type ApiRecord, type OrganizationContextRecord } from "@/lib/governanceApi";
 
-type OrganizationRecord = Record<string, any>;
+type DisplayValue = string | number | boolean | null | undefined;
 
-const arrayToText = (value: any) => Array.isArray(value) ? value.join(", ") : value || "";
+type OrganizationRecord = OrganizationContextRecord & {
+  legal_name?: string;
+  tax_id?: string;
+  sector?: string;
+  org_type?: string;
+  geographic_scope?: string;
+  critical_services?: string;
+  mission?: string;
+  security_objectives?: string;
+  country?: string;
+  city?: string;
+  employee_count?: string | number | null;
+  annual_revenue?: string | number | null;
+  website?: string;
+  main_email?: string;
+  main_phone?: string;
+  vision?: string;
+  strategic_objectives?: string;
+  risk_appetite?: string;
+  notes?: string;
+  primary_security_goals?: string[];
+  preferred_frameworks?: string[];
+};
+
+const arrayToText = (value: unknown) => Array.isArray(value) ? value.map(String).join(", ") : value ? String(value) : "";
 const textToArray = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
 function nullableNumber(value: string) {
@@ -22,7 +46,11 @@ function orgTypeLabel(value?: string) {
   return labels[value || ""] || value || "-";
 }
 
-function Metric({ icon: Icon, label, value, tone }: { icon: any; label: string; value: any; tone: string }) {
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function Metric({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: DisplayValue; tone: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <Icon className={`h-5 w-5 ${tone}`} />
@@ -42,26 +70,26 @@ export default function OrganizationContext() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await governanceApi.getOrganizationContext();
+      const data = await governanceApi.getOrganizationContext() as OrganizationRecord;
       setProfile(data);
       setForm(data || {});
       setGoalsText(arrayToText(data?.primary_security_goals));
       setFrameworksText(arrayToText(data?.preferred_frameworks));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o contexto organizacional.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o contexto organizacional."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const completion = useMemo(() => {
     const fields = [
@@ -78,7 +106,7 @@ export default function OrganizationContext() {
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   }, [form, goalsText, frameworksText]);
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: keyof OrganizationRecord, value: string | number | null | undefined) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -88,7 +116,7 @@ export default function OrganizationContext() {
     setError(null);
     setMessage(null);
 
-    const payload = {
+    const payload: ApiRecord = {
       ...form,
       employee_count: nullableNumber(String(form.employee_count ?? "")),
       annual_revenue: form.annual_revenue === "" || form.annual_revenue === undefined ? null : form.annual_revenue,
@@ -97,15 +125,15 @@ export default function OrganizationContext() {
     };
 
     try {
-      const updated = await governanceApi.updateOrganizationContext(profile.id, payload);
+      const updated = await governanceApi.updateOrganizationContext(profile.id, payload) as OrganizationRecord;
       setProfile(updated);
       setForm(updated || {});
       setGoalsText(arrayToText(updated?.primary_security_goals));
       setFrameworksText(arrayToText(updated?.preferred_frameworks));
       setMessage("Contexto organizacional atualizado.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel guardar o contexto.");
+      setError(getErrorMessage(err, "Nao foi possivel guardar o contexto."));
     } finally {
       setSaving(false);
     }
@@ -127,7 +155,7 @@ export default function OrganizationContext() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>

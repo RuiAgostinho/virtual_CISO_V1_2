@@ -1,8 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardList, FilePlus2, GitBranch, Link2, RefreshCw, Save, Search, ShieldCheck, Wrench, X } from "lucide-react";
+import {
+  GovernanceBadge,
+  GovernanceMetricCard,
+  GovernanceProgressBar,
+} from "@/components/governance/GovernancePrimitives";
 import { governanceApi, type GovernanceAction } from "@/lib/governanceApi";
 import { mappingReviewApi, type MappingRecord, type SearchOption } from "@/lib/mappingReviewApi";
 
@@ -85,24 +89,6 @@ function statusTone(status?: string) {
   if (status === "not_implemented" || status === "rejected") return "border-red-100 bg-red-50 text-red-700";
   if (status === "deprecated" || status === "not_applicable") return "border-slate-200 bg-slate-50 text-slate-500";
   return "border-indigo-100 bg-indigo-50 text-indigo-700";
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
-}
-
-function InfoCard({ icon: Icon, label, value, tone = "text-indigo-700" }: { icon: any; label: string; value: ReactNode; tone?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <Icon className={`h-5 w-5 ${tone}`} />
-      <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
-    </div>
-  );
 }
 
 function frameworkKey(mapping: MappingRecord) {
@@ -490,11 +476,11 @@ export default function MechanismsList() {
       {activeTab === "catalog" && (
         <>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <InfoCard icon={Wrench} label="Mecanismos" value={metrics.total} />
-        <InfoCard icon={ShieldCheck} label="Com controlos internos" value={metrics.linked} tone="text-emerald-600" />
-        <InfoCard icon={GitBranch} label="Com evidencias" value={metrics.evidenced} tone="text-cyan-600" />
-        <InfoCard icon={ClipboardList} label="Tarefas associadas" value={metrics.tasks} tone="text-indigo-600" />
-        <InfoCard icon={AlertTriangle} label="Links nao implementados" value={metrics.notImplemented} tone="text-amber-600" />
+        <GovernanceMetricCard icon={Wrench} label="Mecanismos" value={metrics.total} />
+        <GovernanceMetricCard icon={ShieldCheck} label="Com controlos internos" value={metrics.linked} tone="text-emerald-600" />
+        <GovernanceMetricCard icon={GitBranch} label="Com evidencias" value={metrics.evidenced} tone="text-cyan-600" />
+        <GovernanceMetricCard icon={ClipboardList} label="Tarefas associadas" value={metrics.tasks} tone="text-indigo-600" />
+        <GovernanceMetricCard icon={AlertTriangle} label="Links nao implementados" value={metrics.notImplemented} tone="text-amber-600" />
       </section>
 
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -531,7 +517,73 @@ export default function MechanismsList() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="grid gap-3 p-3 lg:hidden">
+          {filteredMechanisms.map((mechanism) => {
+            const controls = controlMappingsByMechanism.get(String(mechanism.id)) || [];
+            const evidence = evidenceByMechanism.get(String(mechanism.id)) || [];
+            const tasks = taskSummaryByMechanism.get(String(mechanism.id)) || emptyTaskSummary();
+            const frameworks = frameworkCountByMechanism.get(String(mechanism.id)) || 0;
+            const progress = implementationProgress(tasks);
+            return (
+              <article key={mechanism.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link to={`/governance/mechanisms/${mechanism.id}`} className="text-base font-bold text-slate-950 hover:text-indigo-700">
+                      {mechanismTitle(mechanism)}
+                    </Link>
+                    <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
+                      {mechanism.description || "Sem descricao."}
+                    </p>
+                  </div>
+                  <GovernanceBadge className={mechanismTypeTone(mechanism.mechanism_type)}>
+                    {mechanismTypeLabel(mechanism.mechanism_type)}
+                  </GovernanceBadge>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Controlos</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{controls.length}</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Evidencias</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{evidence.length}</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tarefas</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{tasks.total}</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Frameworks</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{frameworks}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Implementacao</span>
+                    <span className="text-sm font-black text-slate-950">{tasks.total > 0 ? `${progress}%` : "-"}</span>
+                  </div>
+                  <div className="mt-2">
+                    <GovernanceProgressBar value={tasks.total > 0 ? progress : 0} tone={progressTone(progress, tasks)} />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-slate-500">
+                    <span>{tasks.done}/{tasks.total} tarefas concluidas</span>
+                    <span className={tasks.overdue > 0 ? "text-red-700" : "text-slate-500"}>{completionLabel(tasks)}</span>
+                  </div>
+                </div>
+
+                <Link
+                  to={`/governance/mechanisms/${mechanism.id}`}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold uppercase tracking-wide text-slate-700 hover:border-indigo-200 hover:text-indigo-700"
+                >
+                  Abrir mecanismo
+                </Link>
+              </article>
+            );
+          })}
+        </div>
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[1280px] text-left text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
@@ -564,13 +616,13 @@ export default function MechanismsList() {
                       {Array.isArray(mechanism.tags) && mechanism.tags.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {mechanism.tags.slice(0, 4).map((tag: string) => (
-                            <Badge key={tag} className="border-slate-200 bg-slate-50 text-slate-500">{tag}</Badge>
+                            <GovernanceBadge key={tag} className="border-slate-200 bg-slate-50 text-slate-500">{tag}</GovernanceBadge>
                           ))}
                         </div>
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <Badge className={mechanismTypeTone(mechanism.mechanism_type)}>{mechanismTypeLabel(mechanism.mechanism_type)}</Badge>
+                      <GovernanceBadge className={mechanismTypeTone(mechanism.mechanism_type)}>{mechanismTypeLabel(mechanism.mechanism_type)}</GovernanceBadge>
                     </td>
                     <td className="px-5 py-4 font-semibold text-slate-600">{mechanism.owner || mechanism.responsible || "-"}</td>
                     <td className="px-5 py-4 font-bold text-slate-900">{controls.length}</td>
@@ -599,11 +651,8 @@ export default function MechanismsList() {
                             {tasks.done}/{tasks.total}
                           </span>
                         </div>
-                        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className={`h-full rounded-full ${progressTone(progress, tasks)}`}
-                            style={{ width: `${tasks.total > 0 ? progress : 0}%` }}
-                          />
+                        <div className="mt-2">
+                          <GovernanceProgressBar value={tasks.total > 0 ? progress : 0} tone={progressTone(progress, tasks)} />
                         </div>
                         <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                           tarefas concluidas
@@ -645,10 +694,10 @@ export default function MechanismsList() {
       {activeTab === "associations" && (
         <>
           <section className="grid gap-4 md:grid-cols-4">
-            <InfoCard icon={Link2} label="Associacoes" value={associationMetrics.total} />
-            <InfoCard icon={CheckCircle2} label="Aprovadas" value={associationMetrics.approved} tone="text-emerald-600" />
-            <InfoCard icon={ShieldCheck} label="Obrigatorias" value={associationMetrics.mandatory} tone="text-cyan-600" />
-            <InfoCard icon={AlertTriangle} label="Draft" value={associationMetrics.draft} tone="text-amber-600" />
+            <GovernanceMetricCard icon={Link2} label="Associacoes" value={associationMetrics.total} />
+            <GovernanceMetricCard icon={CheckCircle2} label="Aprovadas" value={associationMetrics.approved} tone="text-emerald-600" />
+            <GovernanceMetricCard icon={ShieldCheck} label="Obrigatorias" value={associationMetrics.mandatory} tone="text-cyan-600" />
+            <GovernanceMetricCard icon={AlertTriangle} label="Draft" value={associationMetrics.draft} tone="text-amber-600" />
           </section>
 
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.8fr)]">
@@ -798,7 +847,7 @@ export default function MechanismsList() {
                           <span className="block text-sm font-bold text-slate-950">{control.label}</span>
                           <span className="mt-1 line-clamp-2 block text-xs font-semibold text-slate-500">{control.description || control.meta || "Sem descricao."}</span>
                           {alreadyLinked && (
-                            <Badge className="mt-2 border-amber-200 bg-amber-50 text-amber-700">Ja associado a este mecanismo</Badge>
+                            <GovernanceBadge className="mt-2 border-amber-200 bg-amber-50 text-amber-700">Ja associado a este mecanismo</GovernanceBadge>
                           )}
                         </span>
                       </button>
@@ -913,19 +962,19 @@ export default function MechanismsList() {
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-900">{mapping.targetLabel}</td>
                       <td className="px-5 py-4">
-                        <Badge className="border-slate-200 bg-slate-50 text-slate-600">{mapping.relationship_type || "-"}</Badge>
+                        <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-600">{mapping.relationship_type || "-"}</GovernanceBadge>
                       </td>
                       <td className="px-5 py-4 font-bold text-slate-900">{mapping.contribution_weight ?? "-"}%</td>
                       <td className="px-5 py-4">
-                        <Badge className={mapping.mandatory ? "border-indigo-100 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-500"}>
+                        <GovernanceBadge className={mapping.mandatory ? "border-indigo-100 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-500"}>
                           {mapping.mandatory ? "Sim" : "Nao"}
-                        </Badge>
+                        </GovernanceBadge>
                       </td>
                       <td className="px-5 py-4">
-                        <Badge className={statusTone(mapping.implementation_status)}>{mapping.implementation_status || "-"}</Badge>
+                        <GovernanceBadge className={statusTone(mapping.implementation_status)}>{mapping.implementation_status || "-"}</GovernanceBadge>
                       </td>
                       <td className="px-5 py-4">
-                        <Badge className={statusTone(mapping.validation_status)}>{mapping.validation_status}</Badge>
+                        <GovernanceBadge className={statusTone(mapping.validation_status)}>{mapping.validation_status}</GovernanceBadge>
                       </td>
                       <td className="px-5 py-4">
                         <Link

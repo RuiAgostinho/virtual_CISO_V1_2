@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Activity, CheckCircle2, Network, Plus, RefreshCw, Search, ToggleLeft, ToggleRight } from "lucide-react";
 import { riskApi, type NetworkRange } from "@/lib/riskApi";
@@ -9,6 +9,10 @@ const emptyForm = {
   description: "",
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function NetworkRanges() {
   const [ranges, setRanges] = useState<NetworkRange[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -17,23 +21,23 @@ export default function NetworkRanges() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listNetworkRanges({ search });
       setRanges(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar as redes.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar as redes."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const metrics = useMemo(() => ({
     total: ranges.length,
@@ -55,9 +59,9 @@ export default function NetworkRanges() {
       });
       setForm(emptyForm);
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel criar a rede.");
+      setError(getErrorMessage(err, "Nao foi possivel criar a rede."));
     } finally {
       setSaving(false);
     }
@@ -68,9 +72,9 @@ export default function NetworkRanges() {
     try {
       await riskApi.updateNetworkRange(range.id, { is_active: range.is_active === false });
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel atualizar a rede.");
+      setError(getErrorMessage(err, "Nao foi possivel atualizar a rede."));
     }
   };
 
@@ -86,7 +90,7 @@ export default function NetworkRanges() {
             </p>
           </div>
           <button
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-emerald-200 hover:text-emerald-700"
           >
             <RefreshCw className="h-4 w-4" />
@@ -173,14 +177,14 @@ export default function NetworkRanges() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") load();
+                  if (event.key === "Enter") void load();
                 }}
                 className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50"
                 placeholder="Pesquisar rede ou CIDR"
               />
             </div>
             <button
-              onClick={load}
+              onClick={() => void load()}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-emerald-700"
             >
               <Search className="h-4 w-4" />
@@ -204,7 +208,7 @@ export default function NetworkRanges() {
                   </div>
                   <div className="font-mono text-sm font-bold text-slate-700">{range.cidr}</div>
                   <button
-                    onClick={() => toggleRange(range)}
+                    onClick={() => void toggleRange(range)}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold uppercase tracking-wide ${
                       range.is_active === false
                         ? "border-slate-200 bg-slate-50 text-slate-500 hover:text-emerald-700"

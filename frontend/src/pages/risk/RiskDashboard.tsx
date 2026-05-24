@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { riskApi } from '@/lib/riskApi';
-import type { Risk } from '@/lib/riskApi';
+import { useEffect, useState, type ReactNode } from 'react';
+import { riskApi, type RiskDashboardPayload } from '@/lib/riskApi';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line 
+  Cell,
 } from 'recharts';
 import { 
   AlertTriangle, Shield, Activity, TrendingUp, 
-  CheckCircle2, ArrowRight, BrainCircuit, Info
+  ArrowRight, BrainCircuit,
 } from 'lucide-react';
 
 const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#10b981'];
@@ -20,7 +19,7 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 export default function RiskDashboard() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<RiskDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,7 +52,7 @@ export default function RiskDashboard() {
     );
   }
 
-  const chartData = data.distribution.map((d: any) => ({
+  const chartData = data.distribution.map((d) => ({
     name: LEVEL_LABELS[d.risk_level] || d.risk_level,
     value: d.count
   }));
@@ -126,7 +125,7 @@ export default function RiskDashboard() {
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 800 }}
                 />
                 <Bar dataKey="value" radius={[10, 10, 10, 10]} barSize={60}>
-                  {chartData.map((entry: any, index: number) => (
+                  {chartData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -139,7 +138,7 @@ export default function RiskDashboard() {
         <div className="lg:col-span-4 bg-slate-900 text-white border border-slate-800 rounded-[2.5rem] p-8 shadow-xl flex flex-col">
           <h3 className="text-xl font-bold mb-6 uppercase tracking-tight">Top Ativos Críticos</h3>
           <div className="space-y-4 flex-1">
-            {data.top_assets.map((asset: any, idx: number) => (
+            {data.top_assets.map((asset, idx) => (
               <div key={idx} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all group">
                 <div className="space-y-1">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Ativo</span>
@@ -180,7 +179,19 @@ export default function RiskDashboard() {
   );
 }
 
-function StatCard({ title, value, icon, color, textColor = 'text-slate-900' }: any) {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  textColor = 'text-slate-900',
+}: {
+  title: string;
+  value: number | string;
+  icon: ReactNode;
+  color: string;
+  textColor?: string;
+}) {
   return (
     <div className={`${color} p-8 rounded-[2.5rem] border border-white shadow-sm hover:shadow-md transition-all space-y-4`}>
       <div className="flex justify-between items-start">
@@ -194,4 +205,3 @@ function StatCard({ title, value, icon, color, textColor = 'text-slate-900' }: a
     </div>
   );
 }
-

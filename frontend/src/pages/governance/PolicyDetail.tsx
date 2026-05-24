@@ -1262,6 +1262,8 @@ export default function PolicyDetail() {
 
   useEffect(() => {
     load();
+    // Recarregar a política apenas quando muda o id; o load agrega vários catálogos mutáveis desta página.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -1881,7 +1883,7 @@ export default function PolicyDetail() {
       }
       return next;
     });
-  }, [impactCandidateKey, selectedPolicyControl]);
+  }, [impactCandidates, impactCandidateKey, selectedPolicyControl]);
 
   const createSuggestedImplementationPack = async (policyControlId: string) => {
     const mechanismNames = generatedMechanisms.length

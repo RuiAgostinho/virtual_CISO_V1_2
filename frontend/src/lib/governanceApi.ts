@@ -7,6 +7,103 @@ export interface PaginatedResponse<T> {
     results: T[];
 }
 
+export type ApiRecord = Record<string, unknown>;
+export type QueryValue = string | number | boolean | null | undefined;
+export type QueryParams = Record<string, QueryValue>;
+
+export type LegacyApiRecord = ApiRecord & {
+    id: string;
+    code?: string;
+    title?: string;
+    name?: string;
+    description?: string;
+    status?: string;
+    owner?: string;
+    framework?: string;
+    framework_name?: string;
+    control_details?: LegacyApiRecord;
+    mechanisms?: LegacyApiRecord[];
+    results?: LegacyApiRecord[];
+};
+
+export type RelatedFrameworkReference = string | number | { id?: string | number };
+
+export type OrganizationContextRecord = ApiRecord & {
+    id?: string;
+    name?: string;
+    description?: string;
+};
+
+export type PolicyRecord = LegacyApiRecord & {
+    version?: string;
+    scope?: string;
+    purpose?: string;
+    objective?: string;
+    description?: string;
+    owner?: string;
+    owner_person?: string;
+    owner_org_unit?: string;
+    accountable_person?: string;
+    approval_date?: string | null;
+    review_date?: string | null;
+    next_review_date?: string | null;
+    next_review_at?: string | null;
+    related_frameworks?: RelatedFrameworkReference[];
+};
+
+export type FrameworkRecord = LegacyApiRecord & {
+    version?: string;
+    framework_type?: string;
+};
+
+export type FrameworkControlRecord = LegacyApiRecord & {
+    framework?: string;
+    section?: string;
+};
+
+export type MechanismRecord = LegacyApiRecord & {
+    mechanism_type?: string;
+};
+
+export type PolicyControlRecord = LegacyApiRecord & {
+    policy?: string;
+    control?: string;
+    rationale?: string;
+    applicability?: string;
+    priority?: string;
+};
+
+export type DecisionScoreSnapshot = ApiRecord & {
+    global_score?: string | number | null;
+    score?: string | number | null;
+    recommended_action?: string | null;
+    recommendedAction?: string | null;
+};
+
+export type ResidualRiskUsedLink = {
+    id: string | number;
+    source_type: string;
+    source_id: string;
+    source?: { label?: string | null } | null;
+    relationship_type: string;
+    validation_status: string;
+    effective_reduction_percentage?: string | number | null;
+    implementation_factor?: string | number | null;
+    effectiveness_percentage?: string | number | null;
+    residual_impact_percentage?: string | number | null;
+    rationale?: string | null;
+};
+
+function toSearchParams(params: QueryParams): URLSearchParams {
+    return new URLSearchParams(
+        Object.entries(params).reduce<Record<string, string>>((acc, [key, value]) => {
+            if (value === undefined || value === null || value === "") return acc;
+            acc[key] = String(value);
+            return acc;
+        }, {})
+    );
+}
+
 export type ComplianceSummary = {
     framework: string;
     total: number;
@@ -257,8 +354,8 @@ export type DecisionRecord = {
     title: string;
     recommendation: string;
     rationale: string;
-    source_snapshot: any[];
-    score_snapshot: Record<string, any>;
+    source_snapshot: ApiRecord[];
+    score_snapshot: DecisionScoreSnapshot;
     decision: DecisionValue;
     decision_display?: string;
     decision_type_display?: string;
@@ -391,8 +488,8 @@ export type ResidualRiskImpact = {
     governance_reduction_percentage: number;
     adjusted_residual_score: number;
     adjusted_level: string;
-    links_used: Array<Record<string, any>>;
-    inactive_links: Array<Record<string, any>>;
+    links_used: ResidualRiskUsedLink[];
+    inactive_links: ResidualRiskUsedLink[];
     generated_at: string;
 };
 
@@ -588,22 +685,22 @@ export type GovernanceHealthPayload = {
 
 export type GovernanceEvaluationOverview = {
     generated_at: string;
-    assistant: Record<string, any>;
-    rag: Record<string, any>;
+    assistant: ApiRecord;
+    rag: ApiRecord;
     frameworks: {
         total_frameworks: number;
         average_score: number;
         average_coverage: number;
-        items: Array<Record<string, any>>;
+        items: ApiRecord[];
     };
     policies: {
         total_policies: number;
         average_score: number;
-        items: Array<Record<string, any>>;
+        items: ApiRecord[];
     };
-    traceability: Record<string, any>;
+    traceability: ApiRecord;
     mappings: Record<string, number>;
-    gaps: Record<string, any>;
+    gaps: ApiRecord;
 };
 
 export interface RegulatoryContextRecord {
@@ -669,8 +766,8 @@ export interface Stakeholder {
 
 export const governanceApi = {
     // Organization Context
-    getOrganizationContext: () => request<any>("/api/governance/organization-context/current/"),
-    updateOrganizationContext: (id: string, payload: any) => request<any>(`/api/governance/organization-context/${id}/`, {
+    getOrganizationContext: () => request<LegacyApiRecord>("/api/governance/organization-context/current/"),
+    updateOrganizationContext: (id: string, payload: ApiRecord) => request<LegacyApiRecord>(`/api/governance/organization-context/${id}/`, {
         method: "PATCH",
         body: JSON.stringify(payload)
     }),
@@ -683,143 +780,143 @@ export const governanceApi = {
     }),
 
     // Policies
-    listPolicies: (params?: Record<string, any>) => {
+    listPolicies: (params?: QueryParams) => {
         let url = "/api/governance/policies/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<PolicyRecord>>(url);
     },
-    getPolicy: (id: string) => request<any>(`/api/governance/policies/${id}/`),
-    createPolicy: (data: any) => request<any>("/api/governance/policies/", {
+    getPolicy: (id: string) => request<PolicyRecord>(`/api/governance/policies/${id}/`),
+    createPolicy: (data: ApiRecord) => request<PolicyRecord>("/api/governance/policies/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    updatePolicy: (id: string, data: any) => request<any>(`/api/governance/policies/${id}/`, {
+    updatePolicy: (id: string, data: ApiRecord) => request<PolicyRecord>(`/api/governance/policies/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }),
-    deletePolicy: (id: string) => request<any>(`/api/governance/policies/${id}/`, {
+    deletePolicy: (id: string) => request<LegacyApiRecord>(`/api/governance/policies/${id}/`, {
         method: 'DELETE'
     }),
 
     // Policy Controls
-    listPolicyControls: (params?: Record<string, any>) => {
+    listPolicyControls: (params?: QueryParams) => {
         let url = "/api/governance/policy-controls/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<LegacyApiRecord>>(url);
     },
-    createPolicyControl: (data: any) => request<any>("/api/governance/policy-controls/", {
+    createPolicyControl: (data: ApiRecord) => request<PolicyControlRecord>("/api/governance/policy-controls/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    updatePolicyControl: (id: string, data: any) => request<any>(`/api/governance/policy-controls/${id}/`, {
+    updatePolicyControl: (id: string, data: ApiRecord) => request<PolicyControlRecord>(`/api/governance/policy-controls/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }),
-    deletePolicyControl: (id: string) => request<any>(`/api/governance/policy-controls/${id}/`, {
+    deletePolicyControl: (id: string) => request<LegacyApiRecord>(`/api/governance/policy-controls/${id}/`, {
         method: 'DELETE'
     }),
-    getAIRecommendations: (policyId: string) => request<any>(`/api/governance/policies/${policyId}/recommend_controls/`),
+    getAIRecommendations: (policyId: string) => request<LegacyApiRecord>(`/api/governance/policies/${policyId}/recommend_controls/`),
 
     // Implementation Mechanisms
-    listPolicyMechanisms: (params?: Record<string, any>) => {
+    listPolicyMechanisms: (params?: QueryParams) => {
         let url = "/api/governance/policy-mechanisms/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<LegacyApiRecord>>(url);
     },
-    createPolicyMechanism: (data: any) => request<any>("/api/governance/policy-mechanisms/", {
+    createPolicyMechanism: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/policy-mechanisms/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    updatePolicyMechanism: (id: string, data: any) => request<any>(`/api/governance/policy-mechanisms/${id}/`, {
+    updatePolicyMechanism: (id: string, data: ApiRecord) => request<LegacyApiRecord>(`/api/governance/policy-mechanisms/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }),
-    deletePolicyMechanism: (id: string) => request<any>(`/api/governance/policy-mechanisms/${id}/`, {
+    deletePolicyMechanism: (id: string) => request<LegacyApiRecord>(`/api/governance/policy-mechanisms/${id}/`, {
         method: 'DELETE'
     }),
 
     // Policy Evidences
-    listPolicyEvidences: (params?: Record<string, any>) => {
+    listPolicyEvidences: (params?: QueryParams) => {
         let url = "/api/governance/policy-evidences/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<LegacyApiRecord>>(url);
     },
-    createPolicyEvidence: (data: any) => request<any>("/api/governance/policy-evidences/", {
+    createPolicyEvidence: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/policy-evidences/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    updatePolicyEvidence: (id: string, data: any) => request<any>(`/api/governance/policy-evidences/${id}/`, {
+    updatePolicyEvidence: (id: string, data: ApiRecord) => request<LegacyApiRecord>(`/api/governance/policy-evidences/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }),
-    deletePolicyEvidence: (id: string) => request<any>(`/api/governance/policy-evidences/${id}/`, {
+    deletePolicyEvidence: (id: string) => request<LegacyApiRecord>(`/api/governance/policy-evidences/${id}/`, {
         method: 'DELETE'
     }),
 
     // Policy Assessments
-    listPolicyAssessments: (params?: Record<string, any>) => {
+    listPolicyAssessments: (params?: QueryParams) => {
         let url = "/api/governance/policy-assessments/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<LegacyApiRecord>>(url);
     },
-    createPolicyAssessment: (data: any) => request<any>("/api/governance/policy-assessments/", {
+    createPolicyAssessment: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/policy-assessments/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
 
-    deletePolicyAssessment: (id: string) => request<any>(`/api/governance/policy-assessments/${id}/`, {
+    deletePolicyAssessment: (id: string) => request<LegacyApiRecord>(`/api/governance/policy-assessments/${id}/`, {
         method: 'DELETE'
     }),
 
     // Policy Sections
-    listPolicySections: (params?: Record<string, any>) => {
+    listPolicySections: (params?: QueryParams) => {
         let url = "/api/governance/policy-sections/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<any>(url);
+        return request<LegacyApiRecord>(url);
     },
-    createPolicySection: (data: any) => request<any>("/api/governance/policy-sections/", {
+    createPolicySection: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/policy-sections/", {
         method: 'POST',
         body: JSON.stringify(data)
     }),
-    updatePolicySection: (id: string, data: any) => request<any>(`/api/governance/policy-sections/${id}/`, {
+    updatePolicySection: (id: string, data: ApiRecord) => request<LegacyApiRecord>(`/api/governance/policy-sections/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify(data)
     }),
-    deletePolicySection: (id: string) => request<any>(`/api/governance/policy-sections/${id}/`, {
+    deletePolicySection: (id: string) => request<LegacyApiRecord>(`/api/governance/policy-sections/${id}/`, {
         method: 'DELETE'
     }),
 
     // Compliance Gaps
-    getComplianceSummary: (params?: Record<string, any>) => {
+    getComplianceSummary: (params?: QueryParams) => {
         let url = "/api/governance/gaps/summary/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<ComplianceSummary>(url);
     },
-    listComplianceGaps: (params?: Record<string, any>) => {
+    listComplianceGaps: (params?: QueryParams) => {
         let url = "/api/governance/gaps/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<ComplianceGapRecord> | ComplianceGapRecord[]>(url);
@@ -830,18 +927,18 @@ export const governanceApi = {
     }),
 
     // Control assessments / human validation
-    listControlAssessments: (params?: Record<string, any>) => {
+    listControlAssessments: (params?: QueryParams) => {
         let url = "/api/governance/control-assessments/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<ControlAssessmentRecord> | ControlAssessmentRecord[]>(url);
     },
-    getControlAssessmentSummary: (params?: Record<string, any>) => {
+    getControlAssessmentSummary: (params?: QueryParams) => {
         let url = "/api/governance/control-assessments/summary/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<AssessmentSummary>(url);
@@ -876,10 +973,10 @@ export const governanceApi = {
 
     // Control mappings / framework scoring
     getControlMappingOverview: () => request<ControlMappingOverview>("/api/governance/control-mappings/overview/"),
-    listControlMappings: (params?: Record<string, any>) => {
+    listControlMappings: (params?: QueryParams) => {
         let url = "/api/governance/control-mappings/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<ControlMappingRecord> | ControlMappingRecord[]>(url);
@@ -890,40 +987,40 @@ export const governanceApi = {
     }),
 
     // Reusable mechanisms / cross-framework implementation layer
-    listMechanisms: (params?: Record<string, any>) => {
+    listMechanisms: (params?: QueryParams) => {
         let url = "/api/governance/mechanisms/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any> | any[]>(url);
+        return request<PaginatedResponse<MechanismRecord> | MechanismRecord[]>(url);
     },
-    createMechanism: (data: any) => request<any>("/api/governance/mechanisms/", {
+    createMechanism: (data: ApiRecord) => request<MechanismRecord>("/api/governance/mechanisms/", {
         method: "POST",
         body: JSON.stringify(data)
     }),
-    listControlMechanisms: (params?: Record<string, any>) => {
+    listControlMechanisms: (params?: QueryParams) => {
         let url = "/api/governance/control-mechanisms/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any> | any[]>(url);
+        return request<PaginatedResponse<LegacyApiRecord> | LegacyApiRecord[]>(url);
     },
-    createControlMechanism: (data: any) => request<any>("/api/governance/control-mechanisms/", {
+    createControlMechanism: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/control-mechanisms/", {
         method: "POST",
         body: JSON.stringify(data)
     }),
-    createMechanismEvidence: (data: any) => request<any>("/api/governance/mechanism-evidences/", {
+    createMechanismEvidence: (data: ApiRecord) => request<LegacyApiRecord>("/api/governance/mechanism-evidences/", {
         method: "POST",
         body: JSON.stringify(data)
     }),
 
     // Decision Records / Human validation
-    listDecisionRecords: (params?: Record<string, any>) => {
+    listDecisionRecords: (params?: QueryParams) => {
         let url = "/api/governance/decision-records/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<DecisionRecord>>(url);
@@ -934,10 +1031,10 @@ export const governanceApi = {
     }),
 
     // Governance exceptions / temporary risk acceptance
-    listGovernanceExceptions: (params?: Record<string, any>) => {
+    listGovernanceExceptions: (params?: QueryParams) => {
         let url = "/api/governance/governance-exceptions/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<GovernanceException>>(url);
@@ -1009,23 +1106,23 @@ export const governanceApi = {
             body: JSON.stringify({})
         }),
     getResidualRiskOverview: (mode: GovernanceRiskCalculationMode = "official") =>
-        request<Record<string, any>>(`/api/governance/residual-risk/overview/?mode=${mode}`),
+        request<ApiRecord>(`/api/governance/residual-risk/overview/?mode=${mode}`),
     getResidualRiskForRisk: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
         request<ResidualRiskImpact>(`/api/governance/residual-risk/risk/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
     getResidualRiskForAsset: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
-        request<Record<string, any>>(`/api/governance/residual-risk/asset/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+        request<ResidualRiskImpact>(`/api/governance/residual-risk/asset/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
     getResidualRiskForVulnerability: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
-        request<Record<string, any>>(`/api/governance/residual-risk/vulnerability/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+        request<ResidualRiskImpact>(`/api/governance/residual-risk/vulnerability/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
     getResidualRiskForInternalControl: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
-        request<Record<string, any>>(`/api/governance/residual-risk/internal-control/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+        request<ResidualRiskImpact>(`/api/governance/residual-risk/internal-control/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
     getResidualRiskForMechanism: (id: string, mode: GovernanceRiskCalculationMode = "official", includeInactive = false) =>
-        request<Record<string, any>>(`/api/governance/residual-risk/mechanism/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
+        request<ResidualRiskImpact>(`/api/governance/residual-risk/mechanism/${id}/?mode=${mode}&include_inactive=${includeInactive}`),
 
     // Governance action plan
-    listGovernanceActions: (params?: Record<string, any>) => {
+    listGovernanceActions: (params?: QueryParams) => {
         let url = "/api/governance/governance-actions/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<GovernanceAction>>(url);
@@ -1111,28 +1208,28 @@ export const governanceApi = {
     getGovernanceEvaluationOverview: () =>
         request<GovernanceEvaluationOverview>("/api/governance/evaluation/overview/"),
 
-    getFrameworks: () => request<PaginatedResponse<any>>("/api/governance/frameworks/"),
-    listControls: (params?: Record<string, any>) => {
+    getFrameworks: () => request<PaginatedResponse<FrameworkRecord>>("/api/governance/frameworks/"),
+    listControls: (params?: QueryParams) => {
         let url = "/api/governance/controls/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<FrameworkControlRecord>>(url);
     },
     getControls: (frameworkId?: string) => {
         let url = "/api/governance/controls/";
         if (frameworkId) {
             url += `?framework=${frameworkId}`;
         }
-        return request<PaginatedResponse<any>>(url);
+        return request<PaginatedResponse<FrameworkControlRecord>>(url);
     },
 
     // Stakeholders
-    listStakeholders: (params?: Record<string, any>) => {
+    listStakeholders: (params?: QueryParams) => {
         let url = "/api/governance/stakeholders/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<Stakeholder>>(url);
@@ -1150,24 +1247,25 @@ export const governanceApi = {
     }),
 
     // Technical Regulations
-    listTechnicalRegulations: (params?: Record<string, any>) => {
+    listTechnicalRegulations: (params?: QueryParams) => {
         let url = "/api/governance/technical-regulations/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<TechnicalRegulation>>(url);
     },
 
     // Procedures
-    listProcedures: (params?: Record<string, any>) => {
+    listProcedures: (params?: QueryParams) => {
         let url = "/api/governance/procedures/";
         if (params) {
-            const query = new URLSearchParams(params).toString();
+            const query = toSearchParams(params).toString();
             url += `?${query}`;
         }
         return request<PaginatedResponse<Procedure>>(url);
     },
 };
+
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -24,15 +24,21 @@ import {
   type ComplianceGapRecord,
   type ComplianceSummary,
   type FrameworkScore,
+  type PaginatedResponse,
+  type QueryParams,
 } from "@/lib/governanceApi";
 
-function asArray<T>(data: any): T[] {
+function asArray<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
-function getPaginatedCount(data: any) {
+function getPaginatedCount<T>(data: T[] | PaginatedResponse<T> | null | undefined) {
   if (Array.isArray(data)) return data.length;
   return Number(data?.count || data?.results?.length || 0);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function progressWidth(count: number, total: number) {
@@ -140,12 +146,12 @@ export default function ComplianceGaps() {
     [frameworkScores, selectedFramework]
   );
 
-  const loadData = async (showLoading = true) => {
+  const loadData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError(null);
 
-      const gapParams: Record<string, any> = {
+      const gapParams: QueryParams = {
         page,
         page_size: pageSize,
         ordering: "status_rank,evidence_count",
@@ -154,7 +160,7 @@ export default function ComplianceGaps() {
       if (statusFilter) gapParams.status = statusFilter;
       if (searchTerm.trim()) gapParams.search = searchTerm.trim();
 
-      const summaryParams = selectedFramework ? { framework: selectedFramework } : undefined;
+      const summaryParams: QueryParams | undefined = selectedFramework ? { framework: selectedFramework } : undefined;
       const [summaryRes, gapsRes, mappingRes] = await Promise.all([
         governanceApi.getComplianceSummary(summaryParams),
         governanceApi.listComplianceGaps(gapParams),
@@ -170,17 +176,17 @@ export default function ComplianceGaps() {
         if (current && nextGaps.some((gap) => gap.id === current.id)) return current;
         return nextGaps[0] || null;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao carregar dados de conformidade.");
+      setError(getErrorMessage(err, "Falha ao carregar dados de conformidade."));
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [page, pageSize, searchTerm, selectedFramework, statusFilter]);
 
   useEffect(() => {
-    loadData();
-  }, [selectedFramework, statusFilter, searchTerm, page, pageSize]);
+    void loadData();
+  }, [loadData]);
 
   const runAnalysis = async () => {
     try {
@@ -193,9 +199,9 @@ export default function ComplianceGaps() {
         `Analise concluida: ${result.results.total_controls} controlos avaliados em ${result.results.total_frameworks} framework(s).`
       );
       await loadData(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao recalcular o motor de conformidade.");
+      setError(getErrorMessage(err, "Falha ao recalcular o motor de conformidade."));
     } finally {
       setAnalyzing(false);
     }
@@ -225,7 +231,7 @@ export default function ComplianceGaps() {
           <h2 className="mb-2 text-xl font-bold">Erro de comunicacao</h2>
           <p className="text-sm font-medium">{error}</p>
           <button
-            onClick={() => loadData()}
+            onClick={() => void loadData()}
             className="mt-6 rounded-xl bg-red-600 px-6 py-2 font-bold text-white shadow-lg transition-all hover:bg-red-700"
           >
             Tentar novamente

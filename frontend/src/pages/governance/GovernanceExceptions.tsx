@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   XCircle,
 } from "lucide-react";
+import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import {
   governanceApi,
   type GovernanceException,
@@ -114,14 +115,6 @@ function formatDate(value?: string | null) {
 function apiErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error || "Erro desconhecido");
-}
-
-function Badge({ children, className = "" }: { children: string; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black uppercase ${className}`}>
-      {children}
-    </span>
-  );
 }
 
 function SummaryCard({
@@ -557,9 +550,9 @@ export default function GovernanceExceptions() {
               <article key={record.id} className="grid gap-4 p-5 xl:grid-cols-[1fr_auto]">
                 <div>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge className={statusTone[record.approval_status]}>{statusLabels[record.approval_status]}</Badge>
-                    <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">{exceptionTypeLabels[record.exception_type]}</Badge>
-                    {record.is_expired && <Badge className="border-orange-200 bg-orange-50 text-orange-700">Prazo expirado</Badge>}
+                    <GovernanceBadge className={statusTone[record.approval_status]}>{statusLabels[record.approval_status]}</GovernanceBadge>
+                    <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">{exceptionTypeLabels[record.exception_type]}</GovernanceBadge>
+                    {record.is_expired && <GovernanceBadge className="border-orange-200 bg-orange-50 text-orange-700">Prazo expirado</GovernanceBadge>}
                   </div>
                   <h3 className="text-lg font-black text-slate-950">{record.title}</h3>
                   <p className="mt-1 text-sm font-semibold text-slate-600">

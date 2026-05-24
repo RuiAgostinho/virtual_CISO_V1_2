@@ -426,6 +426,7 @@ class RagOverviewView(APIView):
     permission_classes = [IsAdminOrSuperUser]
 
     def get(self, request):
+        RagIngestionRunner._release_stale_runs()
         current = (
             RagIngestionRun.objects.filter(status=RagIngestionRun.Status.RUNNING)
             .order_by("-started_at")
@@ -490,3 +491,28 @@ class RagReindexView(APIView):
         except RagIngestionAlreadyRunning as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(_serialize_run(run), status=status.HTTP_202_ACCEPTED)
+
+
+class RagTerminateRunView(APIView):
+    permission_classes = [IsAdminOrSuperUser]
+
+    def post(self, request):
+        run = (
+            RagIngestionRun.objects.filter(status=RagIngestionRun.Status.RUNNING)
+            .order_by("-started_at")
+            .first()
+        )
+        if run is None:
+            return Response(
+                {"detail": "Nao existe nenhuma reindexacao RAG em execucao."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        run.status = RagIngestionRun.Status.FAILED
+        run.finished_at = timezone.now()
+        run.duration_seconds = round((run.finished_at - run.started_at).total_seconds(), 2)
+        run.error_message = (
+            "Execucao terminada manualmente pelo administrador a partir da interface RAG."
+        )
+        run.save(update_fields=["status", "finished_at", "duration_seconds", "error_message"])
+        return Response(_serialize_run(run), status=status.HTTP_200_OK)

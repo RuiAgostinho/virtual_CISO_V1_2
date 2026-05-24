@@ -39,6 +39,7 @@ type OnboardingForm = {
 };
 
 type StepKey = "organization" | "priorities" | "scope" | "frameworks" | "plan";
+type InternetExposure = OnboardingForm["internet_exposure"];
 
 const steps: { key: StepKey; title: string; icon: React.ElementType }[] = [
   { key: "organization", title: "Organização", icon: Building2 },
@@ -107,6 +108,22 @@ const emptyForm: OnboardingForm = {
 
 function toggleValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+}
+
+function stringArrayOrFallback(value: unknown, fallback: string[]) {
+  return Array.isArray(value) ? value.map(String) : fallback;
+}
+
+function isInternetExposure(value: unknown): value is InternetExposure {
+  return value === "none" || value === "limited" || value === "significant";
+}
+
+function stringOrEmpty(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function buildRecommendedActions(form: OnboardingForm): OnboardingAction[] {
@@ -183,13 +200,13 @@ function getProfileForm(profile: CompanyProfile): OnboardingForm {
     city: profile.city || "",
     country: profile.country || "Portugal",
     goals: profile.primary_security_goals?.length ? profile.primary_security_goals : emptyForm.goals,
-    technical_scope: Array.isArray(answers.technical_scope) ? answers.technical_scope : emptyForm.technical_scope,
-    internet_exposure: answers.internet_exposure || emptyForm.internet_exposure,
+    technical_scope: stringArrayOrFallback(answers.technical_scope, emptyForm.technical_scope),
+    internet_exposure: isInternetExposure(answers.internet_exposure) ? answers.internet_exposure : emptyForm.internet_exposure,
     critical_services: profile.critical_services || "",
-    sensitive_data: Array.isArray(answers.sensitive_data) ? answers.sensitive_data : emptyForm.sensitive_data,
+    sensitive_data: stringArrayOrFallback(answers.sensitive_data, emptyForm.sensitive_data),
     frameworks: profile.preferred_frameworks?.length ? profile.preferred_frameworks : emptyForm.frameworks,
     risk_appetite: profile.risk_appetite || "balanced",
-    scan_scope: answers.scan_scope || "",
+    scan_scope: stringOrEmpty(answers.scan_scope),
   };
 }
 
@@ -354,9 +371,9 @@ export default function Onboarding() {
       setForm(getProfileForm(updated));
 
       if (complete) navigate("/mission-control?mode=operational");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível guardar a configuração inicial.");
+      setError(getErrorMessage(err, "Não foi possível guardar a configuração inicial."));
     } finally {
       setSaving(false);
     }

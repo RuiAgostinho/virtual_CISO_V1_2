@@ -1,33 +1,37 @@
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, RefreshCw, AlertTriangle, Shield, Zap, ExternalLink, Filter, Target } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { riskApi, type PaginatedResponse, type Vulnerability } from "@/lib/riskApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function Vulnerabilities() {
-  const [vulns, setVulns] = useState<any[]>([]);
+  const [vulns, setVulns] = useState<Vulnerability[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const loadVulns = async () => {
+  const loadVulns = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listVulnerabilities();
-      setVulns(unwrap(data));
-    } catch (err: any) {
-      setError(err?.message || "Erro ao carregar vulnerabilidades.");
+      setVulns(unwrap<Vulnerability>(data));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Erro ao carregar vulnerabilidades."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadVulns();
-  }, []);
+    void loadVulns();
+  }, [loadVulns]);
 
   const filteredVulns = useMemo(() => {
     if (!search) return vulns;
@@ -65,7 +69,7 @@ export default function Vulnerabilities() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={loadVulns} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void loadVulns()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar Intel
             </button>
@@ -158,8 +162,8 @@ export default function Vulnerabilities() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span className={`text-[10px] font-bold ${v.epss_score > 0.5 ? 'text-red-600' : 'text-slate-500'}`}>
-                          EPSS: {(v.epss_score * 100).toFixed(1)}%
+                        <span className={`text-[10px] font-bold ${Number(v.epss_score || 0) > 0.5 ? 'text-red-600' : 'text-slate-500'}`}>
+                          EPSS: {(Number(v.epss_score || 0) * 100).toFixed(1)}%
                         </span>
                         {v.is_in_kev && (
                           <span className="bg-red-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">KEV</span>

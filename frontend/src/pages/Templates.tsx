@@ -9,6 +9,10 @@ function classNames(...xs: Array<string | false | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 function Badge({
   children,
   tone,
@@ -139,8 +143,8 @@ function ControlForm({
         });
       }
       onSaved();
-    } catch (err: any) {
-      setError(err?.message || "Erro ao guardar.");
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Erro ao guardar."));
     } finally {
       setSaving(false);
     }
@@ -278,8 +282,8 @@ export default function Templates() {
 
       setFrameworks(fw);
       setControls(list);
-    } catch (e: any) {
-      setErr(e?.message || "Erro ao carregar.");
+    } catch (e: unknown) {
+      setErr(errorMessage(e, "Erro ao carregar."));
     } finally {
       setLoading(false);
     }
@@ -326,8 +330,8 @@ export default function Templates() {
         await controlsApi.updateControl(c.id, { status: "deprecated" });
       }
       await reload();
-    } catch (e: any) {
-      alert(e?.message || "Falha ao arquivar.");
+    } catch (e: unknown) {
+      alert(errorMessage(e, "Falha ao arquivar."));
     }
   };
 
@@ -340,8 +344,8 @@ export default function Templates() {
         await controlsApi.updateControl(c.id, { status: "active" });
       }
       await reload();
-    } catch (e: any) {
-      alert(e?.message || "Falha ao restaurar.");
+    } catch (e: unknown) {
+      alert(errorMessage(e, "Falha ao restaurar."));
     }
   };
 

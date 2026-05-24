@@ -32,6 +32,15 @@ import {
   type TraceabilityPayload,
   type ValidationStatus,
 } from "@/lib/mappingReviewApi";
+import {
+  GovernanceEmptyState,
+  MappingSourceBadge as SourceBadge,
+  MappingStatusBadge as StatusBadge,
+} from "@/components/governance/GovernancePrimitives";
+import {
+  mappingSourceLabel as sourceLabel,
+  mappingStatusLabel as statusLabel,
+} from "@/components/governance/governanceMappingLabels";
 
 type MatrixKind = MappingKind | "framework_internal_control";
 
@@ -123,63 +132,6 @@ const emptyFilters: Filters = {
   search: "",
   includeInactive: false,
 };
-
-function statusLabel(status?: string) {
-  const labels: Record<string, string> = {
-    draft: "Draft",
-    pending_review: "Pending review",
-    approved: "Approved",
-    rejected: "Rejected",
-    deprecated: "Deprecated",
-  };
-  return labels[status || ""] || status || "Sem estado";
-}
-
-function sourceLabel(source?: string) {
-  const labels: Record<string, string> = {
-    manual: "Manual",
-    migrated: "Migrated",
-    imported: "Imported",
-    ai_suggested: "AI suggested",
-    rule_based: "Rule based",
-    template: "Template",
-  };
-  return labels[source || ""] || source || "Sem origem";
-}
-
-function statusClass(status?: string) {
-  if (status === "approved") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "pending_review") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (status === "draft") return "border-slate-200 bg-slate-50 text-slate-600";
-  if (status === "rejected") return "border-red-200 bg-red-50 text-red-700";
-  if (status === "deprecated") return "border-zinc-300 bg-zinc-100 text-zinc-600";
-  return "border-slate-200 bg-white text-slate-600";
-}
-
-function sourceClass(source?: string) {
-  if (source === "manual") return "border-indigo-100 bg-indigo-50 text-indigo-700";
-  if (source === "migrated") return "border-blue-100 bg-blue-50 text-blue-700";
-  if (source === "ai_suggested") return "border-violet-100 bg-violet-50 text-violet-700";
-  if (source === "rule_based") return "border-cyan-100 bg-cyan-50 text-cyan-700";
-  if (source === "template") return "border-emerald-100 bg-emerald-50 text-emerald-700";
-  return "border-slate-200 bg-slate-50 text-slate-600";
-}
-
-function StatusBadge({ status }: { status?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-bold ${statusClass(status)}`}>
-      {statusLabel(status)}
-    </span>
-  );
-}
-
-function SourceBadge({ source }: { source?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-bold ${sourceClass(source)}`}>
-      {sourceLabel(source)}
-    </span>
-  );
-}
 
 function entityTypeLabel(type: AutocompleteEntityType) {
   const labels: Record<AutocompleteEntityType, string> = {
@@ -488,7 +440,7 @@ function MappingMatrixView({
           </div>
         </div>
         {mappings.length === 0 ? (
-          <EmptyState
+          <MappingEmptyNotice
             title="Sem mapeamentos"
             detail={contextActive ? "Nao foram encontrados mapeamentos para o contexto selecionado. Podes trocar a matriz ou limpar filtros." : "Ajusta os filtros ou cria um novo mapeamento."}
           />
@@ -1404,10 +1356,10 @@ function TraceabilityPanel({
     return () => { active = false; };
   }, [targetType, targetId, compact]);
 
-  if (!targetType || !targetId) return <EmptyState title="Sem entidade" detail="Seleciona uma origem ou destino com ID." />;
+  if (!targetType || !targetId) return <MappingEmptyNotice title="Sem entidade" detail="Seleciona uma origem ou destino com ID." />;
   if (loading) return <LoadingState label="A carregar traceability" />;
   if (error) return <ErrorState message={error} />;
-  if (!payload) return <EmptyState title="Sem traceability" detail="Nao existem dados para mostrar." />;
+  if (!payload) return <MappingEmptyNotice title="Sem traceability" detail="Nao existem dados para mostrar." />;
 
   const relationships = payload.relationships || {};
   const scoreText = payload.scores?.official ? `${payload.scores.official.score}%` : "-";
@@ -1443,13 +1395,13 @@ function MiniFact({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-function EmptyState({ title, detail }: { title: string; detail: string }) {
+function MappingEmptyNotice({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center p-8 text-center">
+    <GovernanceEmptyState>
       <FileSearch className="mb-3 h-8 w-8 text-slate-300" />
       <div className="text-sm font-bold text-slate-700">{title}</div>
       <div className="mt-1 max-w-sm text-xs font-semibold text-slate-400">{detail}</div>
-    </div>
+    </GovernanceEmptyState>
   );
 }
 

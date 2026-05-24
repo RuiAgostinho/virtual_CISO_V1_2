@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import {
   AlertTriangle,
@@ -51,6 +51,10 @@ function typeClass(type?: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function KpiCard({
   label,
   value,
@@ -100,7 +104,7 @@ export default function Mechanisms() {
   const [suggestingEvidenceFor, setSuggestingEvidenceFor] = useState<ControlMechanism | null>(null);
   const [editingMechanism, setEditingMechanism] = useState<ControlMechanism | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -110,17 +114,17 @@ export default function Mechanisms() {
       ]);
       setMechanisms(mechanismsRes);
       setControlMechanisms(controlMechanismsRes);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar os mecanismos.");
+      setError(getErrorMessage(err, "Não foi possível carregar os mecanismos."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+  }, [loadData]);
 
   const mechanismGroups = useMemo<MechanismGroup[]>(() => {
     const mechanismById = new Map(mechanisms.map((mechanism) => [mechanism.id, mechanism]));
@@ -241,7 +245,7 @@ export default function Mechanisms() {
             Erro ao carregar mecanismos
           </div>
           <p className="mt-2 text-sm font-medium">{error}</p>
-          <button onClick={loadData} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
+          <button onClick={() => void loadData()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
             Tentar novamente
           </button>
         </div>
@@ -266,7 +270,7 @@ export default function Mechanisms() {
             </div>
           </div>
           <button
-            onClick={loadData}
+            onClick={() => void loadData()}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
           >
             <RefreshCw className="h-4 w-4" />
@@ -668,7 +672,7 @@ export default function Mechanisms() {
         onClose={() => setAddingEvidenceTo(null)}
         onAdded={() => {
           setAddingEvidenceTo(null);
-          loadData();
+          void loadData();
         }}
       />
 
@@ -678,7 +682,7 @@ export default function Mechanisms() {
         onClose={() => setEditingMechanism(null)}
         onUpdated={() => {
           setEditingMechanism(null);
-          loadData();
+          void loadData();
         }}
       />
 
@@ -686,7 +690,7 @@ export default function Mechanisms() {
         open={!!suggestingEvidenceFor}
         controlMechanism={suggestingEvidenceFor}
         onClose={() => setSuggestingEvidenceFor(null)}
-        onApplied={loadData}
+        onApplied={() => void loadData()}
       />
     </div>
   );

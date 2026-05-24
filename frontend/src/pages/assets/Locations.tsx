@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MapPin, RefreshCw, Plus, Target } from "lucide-react";
-import { riskApi, type AssetLookup } from "@/lib/riskApi";
+import { riskApi, type AssetLookup, type PaginatedResponse } from "@/lib/riskApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function Locations() {
@@ -11,23 +15,23 @@ export default function Locations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listAssetLocations();
       setLocations(unwrap<AssetLookup>(data));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar as localizações.");
+      setError(getErrorMessage(err, "Não foi possível carregar as localizações."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
@@ -41,7 +45,7 @@ export default function Locations() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>

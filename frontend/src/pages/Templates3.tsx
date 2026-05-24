@@ -1,12 +1,15 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from "react";
-//import { controlsApi, Control, Framework } from "@/lib/controlsApi";
+import { controlsApi, type Control, type ControlStatus, type Framework } from "@/lib/controlsApi";
 
-type StatusFilter = "active" | "archived";
+type StatusFilter = ControlStatus;
 type Mode = "create" | "edit";
 
 function classNames(...xs: Array<string | false | undefined>) {
   return xs.filter(Boolean).join(" ");
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: "system" | "custom" | "archived" }) {
@@ -60,10 +63,10 @@ function ControlForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [frameworkId, setFrameworkId] = useState<number>(initial?.framework ?? frameworks[0]?.id ?? 0);
-  const [controlId, setControlId] = useState<string>(initial?.control_id ?? "");
+  const [frameworkId, setFrameworkId] = useState<string>(initial?.framework ?? frameworks[0]?.id ?? "");
+  const [controlId, setControlId] = useState<string>(initial?.code ?? "");
   const [title, setTitle] = useState<string>(initial?.title ?? "");
-  const [desc, setDesc] = useState<string>(initial?.description_short ?? "");
+  const [desc, setDesc] = useState<string>(initial?.description ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,13 +76,13 @@ function ControlForm({
   useEffect(() => {
     if (mode === "edit" && initial) {
       setFrameworkId(initial.framework);
-      setControlId(initial.control_id);
+      setControlId(initial.code);
       setTitle(initial.title);
-      setDesc(initial.description_short ?? "");
+      setDesc(initial.description ?? "");
     }
   }, [mode, initial]);
 
-  const canSave = frameworkId > 0 && controlId.trim() && title.trim();
+  const canSave = Boolean(frameworkId && controlId.trim() && title.trim());
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,21 +94,21 @@ function ControlForm({
       if (mode === "create") {
         await controlsApi.createControl({
           framework: frameworkId,
-          control_id: controlId.trim(),
+          code: controlId.trim(),
           title: title.trim(),
-          description_short: desc.trim() || undefined,
+          description: desc.trim() || undefined,
         });
       } else if (mode === "edit" && initial) {
         await controlsApi.updateControl(initial.id, {
           // se SYSTEM, backend deve limitar o que permite editar; aqui já bloqueamos parte na UI
-          control_id: controlId.trim(),
+          code: controlId.trim(),
           title: title.trim(),
-          description_short: desc.trim() || undefined,
+          description: desc.trim() || undefined,
         });
       }
       onSaved();
-    } catch (err: any) {
-      setError(err?.message || "Erro ao guardar.");
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Erro ao guardar."));
     } finally {
       setSaving(false);
     }
@@ -120,7 +123,7 @@ function ControlForm({
         <select
           className="w-full rounded-xl border px-3 py-2 text-sm"
           value={frameworkId}
-          onChange={(e) => setFrameworkId(Number(e.target.value))}
+          onChange={(e) => setFrameworkId(e.target.value)}
           disabled={mode === "edit"} // normalmente não mudas framework no edit
         >
           {frameworks.map((f) => (
@@ -213,8 +216,8 @@ export default function Templates() {
       ]);
       setFrameworks(fw);
       setControls(list);
-    } catch (e: any) {
-      setErr(e?.message || "Erro ao carregar.");
+    } catch (e: unknown) {
+      setErr(errorMessage(e, "Erro ao carregar."));
     } finally {
       setLoading(false);
     }
@@ -235,7 +238,7 @@ export default function Templates() {
   }, [frameworkFilter, statusFilter, search]);
 
   const frameworkById = useMemo(() => {
-    const m = new Map<number, Framework>();
+    const m = new Map<string, Framework>();
     frameworks.forEach((f) => m.set(f.id, f));
     return m;
   }, [frameworks]);
@@ -257,8 +260,8 @@ export default function Templates() {
     try {
       await controlsApi.archiveControl(c.id);
       await reload();
-    } catch (e: any) {
-      alert(e?.message || "Falha ao arquivar.");
+    } catch (e: unknown) {
+      alert(errorMessage(e, "Falha ao arquivar."));
     }
   };
 
@@ -267,8 +270,8 @@ export default function Templates() {
     try {
       await controlsApi.restoreControl(c.id);
       await reload();
-    } catch (e: any) {
-      alert(e?.message || "Falha ao restaurar.");
+    } catch (e: unknown) {
+      alert(errorMessage(e, "Falha ao restaurar."));
     }
   };
 
@@ -297,7 +300,7 @@ export default function Templates() {
             >
               <option value="">Todas</option>
               {frameworks.map((f) => (
-                <option key={f.id} value={f.slug}>
+                <option key={f.id} value={f.slug || f.id}>
                   {f.name} {f.version ? `(${f.version})` : ""}
                 </option>
               ))}
@@ -312,7 +315,7 @@ export default function Templates() {
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
             >
               <option value="active">Ativos</option>
-              <option value="archived">Arquivados</option>
+              <option value="deprecated">Arquivados</option>
             </select>
           </div>
 
@@ -369,13 +372,13 @@ export default function Templates() {
                 return (
                   <tr key={c.id} className="border-b last:border-b-0">
                     <td className="px-4 py-3">{fw?.name ?? c.framework_name ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono">{c.control_id}</td>
+                    <td className="px-4 py-3 font-mono">{c.code}</td>
                     <td className="px-4 py-3">{c.title}</td>
                     <td className="px-4 py-3">
                       <Badge tone={c.source === "SYSTEM" ? "system" : "custom"}>{c.source}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={c.status === "ARCHIVED" ? "archived" : "system"}>{c.status}</Badge>
+                      <Badge tone={c.status === "deprecated" ? "archived" : "system"}>{c.status}</Badge>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
@@ -386,7 +389,7 @@ export default function Templates() {
                           Editar
                         </button>
 
-                        {c.status === "ARCHIVED" ? (
+                        {c.status === "deprecated" ? (
                           <button
                             className="rounded-lg border px-3 py-1.5 text-xs hover:bg-slate-50"
                             onClick={() => restore(c)}
@@ -421,23 +424,23 @@ export default function Templates() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-xs text-slate-500">{fw?.name ?? "—"}</div>
-                    <div className="mt-1 font-mono text-sm">{c.control_id}</div>
+                    <div className="mt-1 font-mono text-sm">{c.code}</div>
                     <div className="mt-1 font-medium">{c.title}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Badge tone={c.source === "SYSTEM" ? "system" : "custom"}>{c.source}</Badge>
-                    <Badge tone={c.status === "ARCHIVED" ? "archived" : "system"}>{c.status}</Badge>
+                    <Badge tone={c.status === "deprecated" ? "archived" : "system"}>{c.status}</Badge>
                   </div>
                 </div>
 
-                {c.description_short && <div className="mt-2 text-sm text-slate-600">{c.description_short}</div>}
+                {c.description && <div className="mt-2 text-sm text-slate-600">{c.description}</div>}
 
                 <div className="mt-3 flex gap-2">
                   <button className="flex-1 rounded-xl border px-3 py-2 text-sm hover:bg-slate-50" onClick={() => openEdit(c)}>
                     Editar
                   </button>
 
-                  {c.status === "ARCHIVED" ? (
+                  {c.status === "deprecated" ? (
                     <button className="flex-1 rounded-xl border px-3 py-2 text-sm hover:bg-slate-50" onClick={() => restore(c)}>
                       Restaurar
                     </button>

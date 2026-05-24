@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
-  Boxes,
   Bug,
   Cpu,
   Database,
@@ -12,19 +11,71 @@ import {
   Save,
   Server,
   ShieldAlert,
+  type LucideIcon,
 } from "lucide-react";
 import { riskApi, type Software } from "@/lib/riskApi";
 
-type SoftwareDetailRecord = Software & Record<string, any>;
+type DisplayValue = string | number | boolean | null | undefined | Array<string | number | boolean>;
+
+type NamedEntity = {
+  name?: string;
+};
+
+type RelatedAsset = {
+  id: string | number;
+  name?: string;
+  wazuh_ip?: string;
+  criticality?: string;
+};
+
+type RelatedVulnerability = {
+  id?: string | number;
+  cve_id?: string;
+  title?: string;
+  description?: string;
+  severity?: string;
+  cvss_score?: number | string;
+};
+
+type SoftwareHistoryEntry = {
+  id: string | number;
+  action?: string;
+  details?: string;
+  timestamp?: string | null;
+};
+
+type SoftwareDetailRecord = Omit<Software, "assets_detail" | "vulnerabilities_detail"> & {
+  description?: string;
+  status?: string;
+  criticality?: string;
+  unique_identifier?: string;
+  category_details?: NamedEntity;
+  type_details?: NamedEntity;
+  org_unit_details?: NamedEntity;
+  technical_owner_details?: NamedEntity;
+  business_owner_details?: NamedEntity;
+  end_of_life?: string | null;
+  confidentiality?: number | string;
+  integrity?: number | string;
+  availability?: number | string;
+  exposure?: number | string;
+  assets_detail?: RelatedAsset[];
+  vulnerabilities_detail?: RelatedVulnerability[];
+  history?: SoftwareHistoryEntry[];
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 function formatDate(value?: string | null) {
   if (!value) return "Sem data";
   return new Date(value).toLocaleString("pt-PT");
 }
 
-function valueOrDash(value: any) {
+function valueOrDash(value: DisplayValue) {
   if (value === null || value === undefined || value === "") return "-";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "-";
+  if (Array.isArray(value)) return value.length ? value.map(String).join(", ") : "-";
   return String(value);
 }
 
@@ -36,7 +87,7 @@ function severityTone(severity?: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
-function Field({ label, value }: { label: string; value: any }) {
+function Field({ label, value }: { label: string; value: DisplayValue }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
@@ -45,7 +96,7 @@ function Field({ label, value }: { label: string; value: any }) {
   );
 }
 
-function Metric({ icon: Icon, label, value, tone }: { icon: any; label: string; value: any; tone: string }) {
+function Metric({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: DisplayValue; tone: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <Icon className={`h-5 w-5 ${tone}`} />
@@ -66,7 +117,7 @@ export default function SoftwareDetail() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
@@ -75,17 +126,17 @@ export default function SoftwareDetail() {
       setSoftware(data);
       setStatus(data.status || "Active");
       setCriticality(data.criticality || "Medium");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o software.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o software."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    load();
-  }, [id]);
+    void load();
+  }, [load]);
 
   const updateClassification = async () => {
     if (!id) return;
@@ -93,12 +144,12 @@ export default function SoftwareDetail() {
     setError(null);
     setMessage(null);
     try {
-      const updated = await riskApi.updateSoftware(id, { status, criticality } as Partial<SoftwareDetailRecord>) as SoftwareDetailRecord;
+      const updated = await riskApi.updateSoftware(id, { status, criticality } as Partial<Software>) as SoftwareDetailRecord;
       setSoftware(updated);
       setMessage("Classificacao do software atualizada.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel atualizar o software.");
+      setError(getErrorMessage(err, "Nao foi possivel atualizar o software."));
     } finally {
       setSaving(false);
     }
@@ -154,7 +205,7 @@ export default function SoftwareDetail() {
               {[software.vendor, software.version, software.architecture].filter(Boolean).join(" / ") || "Software sem fabricante ou versao registada."}
             </p>
           </div>
-          <button onClick={load} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-cyan-700">
+          <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-cyan-700">
             <RefreshCw className="h-4 w-4" />
             Atualizar
           </button>
@@ -241,7 +292,7 @@ export default function SoftwareDetail() {
           <div className="divide-y divide-slate-100">
             {assets.length === 0 ? (
               <div className="p-8 text-center text-sm font-bold text-slate-400">Sem ativos associados.</div>
-            ) : assets.map((asset: any) => (
+            ) : assets.map((asset) => (
               <Link key={asset.id} to={`/assets/inventory/${asset.id}`} className="block p-5 hover:bg-slate-50">
                 <p className="font-bold text-slate-950">{asset.name}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-500">{asset.wazuh_ip || asset.criticality || "Ativo registado"}</p>
@@ -257,7 +308,7 @@ export default function SoftwareDetail() {
           <div className="divide-y divide-slate-100">
             {vulnerabilities.length === 0 ? (
               <div className="p-8 text-center text-sm font-bold text-slate-400">Sem vulnerabilidades associadas.</div>
-            ) : vulnerabilities.map((item: any) => (
+            ) : vulnerabilities.map((item) => (
               <div key={item.id || item.cve_id} className="p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -288,7 +339,7 @@ export default function SoftwareDetail() {
         <div className="divide-y divide-slate-100">
           {history.length === 0 ? (
             <div className="p-8 text-center text-sm font-bold text-slate-400">Sem historico registado.</div>
-          ) : history.slice(0, 10).map((item: any) => (
+          ) : history.slice(0, 10).map((item) => (
             <div key={item.id} className="p-5">
               <p className="text-sm font-bold text-slate-900">{item.action}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{item.details || "Sem detalhe"} / {formatDate(item.timestamp)}</p>

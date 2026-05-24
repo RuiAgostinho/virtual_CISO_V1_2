@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -12,11 +12,12 @@ import {
   ShieldCheck,
   UserRound,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { companyApi, type OrgUnit, type Person } from "@/lib/companyApi";
-import { governanceApi } from "@/lib/governanceApi";
+import { governanceApi, type PolicyRecord } from "@/lib/governanceApi";
 
-type PolicyRecord = Record<string, any>;
+type ListLike<T> = T[] | { results?: T[] } | null | undefined;
 
 type UnitForm = Partial<OrgUnit> & {
   name: string;
@@ -74,12 +75,16 @@ const governanceRoleLabel: Record<string, string> = {
   other: "Outro",
 };
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: ListLike<T>): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
 function normalizeId(value?: string | null) {
   return value || null;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function Kpi({
@@ -89,7 +94,7 @@ function Kpi({
   detail,
   tone,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   detail: string;
@@ -119,7 +124,7 @@ export default function OrgResponsibilities() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -131,17 +136,17 @@ export default function OrgResponsibilities() {
       setUnits(unwrap<OrgUnit>(unitsData));
       setPeople(unwrap<Person>(peopleData));
       setPolicies(unwrap<PolicyRecord>(policiesData));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o organograma.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o organograma."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const peopleByUnit = useMemo(() => {
     const map = new Map<string, Person[]>();
@@ -236,9 +241,9 @@ export default function OrgResponsibilities() {
       setUnitForm({ ...emptyUnitForm, ...saved, parent: saved.parent || "", manager: saved.manager || "" });
       setMessage(selectedUnitId ? "Unidade atualizada." : "Unidade criada.");
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel guardar a unidade.");
+      setError(getErrorMessage(err, "Nao foi possivel guardar a unidade."));
     } finally {
       setSavingUnit(false);
     }
@@ -264,9 +269,9 @@ export default function OrgResponsibilities() {
       setPersonForm({ ...emptyPersonForm, ...saved, org_unit: saved.org_unit || "", backup_for: saved.backup_for || "" });
       setMessage(selectedPersonId ? "Pessoa atualizada." : "Pessoa criada.");
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel guardar a pessoa.");
+      setError(getErrorMessage(err, "Nao foi possivel guardar a pessoa."));
     } finally {
       setSavingPerson(false);
     }
@@ -341,7 +346,7 @@ export default function OrgResponsibilities() {
             </p>
           </div>
           <button
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700"
           >
             <RefreshCw className="h-4 w-4" />

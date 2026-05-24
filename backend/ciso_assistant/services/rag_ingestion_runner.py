@@ -54,6 +54,10 @@ class RagIngestionAlreadyRunning(Exception):
     """Raised when a re-ingestion is requested while another is in progress."""
 
 
+class RagIngestionTerminated(Exception):
+    """Raised when an administrator manually terminates a running ingestion."""
+
+
 class RagIngestionRunner:
     """Starts and executes bulk RAG re-ingestion runs."""
 
@@ -160,6 +164,8 @@ class RagIngestionRunner:
                 processed = 0
                 failed = 0
                 for obj in queryset:
+                    if cls._termination_requested(run.id):
+                        raise RagIngestionTerminated("Execucao terminada manualmente pelo administrador.")
                     ok = False
                     try:
                         ok = bool(upsert(obj))
@@ -178,6 +184,9 @@ class RagIngestionRunner:
                 cls._refresh_counts(run, counts_by_type, errors)
 
             run.status = RagIngestionRun.Status.SUCCESS
+        except RagIngestionTerminated as exc:
+            run.status = RagIngestionRun.Status.FAILED
+            run.error_message = str(exc)[:2000]
         except Exception as exc:
             run.status = RagIngestionRun.Status.FAILED
             run.error_message = str(exc)[:2000]
@@ -207,6 +216,14 @@ class RagIngestionRunner:
         update_or_create already records those timestamps, so a single COUNT
         query is both simpler and correct even if the runner is interrupted.
         """
+        stored_status = (
+            RagIngestionRun.objects.filter(id=run.id)
+            .values_list("status", flat=True)
+            .first()
+        )
+        if run.status == RagIngestionRun.Status.RUNNING and stored_status != RagIngestionRun.Status.RUNNING:
+            raise RagIngestionTerminated("Execucao terminada manualmente pelo administrador.")
+
         touched = KnowledgeChunk.objects.filter(updated_at__gte=run.started_at)
         created = touched.filter(created_at__gte=run.started_at).count()
         run.chunks_created = created
@@ -214,6 +231,13 @@ class RagIngestionRunner:
         run.counts_by_type = counts_by_type
         run.error_detail = "\n".join(errors)
         run.save()
+
+    @staticmethod
+    def _termination_requested(run_id):
+        return not RagIngestionRun.objects.filter(
+            id=run_id,
+            status=RagIngestionRun.Status.RUNNING,
+        ).exists()
 
     @staticmethod
     def _plan(source_types=None, missing_only=False, per_type_limit=None):

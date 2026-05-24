@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ElementType } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -21,6 +20,10 @@ import {
   type GovernanceActionStatus,
   type GovernanceActionType,
 } from "@/lib/governanceApi";
+import {
+  GovernanceBadge as Badge,
+  GovernanceInfoCard as MetricCard,
+} from "@/components/governance/GovernancePrimitives";
 
 type ActionDraft = {
   owner: string;
@@ -110,34 +113,6 @@ function formatDate(value?: string | null) {
 
 function isClosed(action: GovernanceAction) {
   return action.status === "done" || action.status === "cancelled";
-}
-
-function Badge({ children, className = "" }: { children: string; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black uppercase ${className}`}>
-      {children}
-    </span>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string | number;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <Icon className={`mb-5 h-5 w-5 ${tone}`} />
-      <div className="text-3xl font-black text-slate-950">{value}</div>
-      <div className="mt-1 text-xs font-black uppercase text-slate-400">{label}</div>
-    </div>
-  );
 }
 
 export default function GovernanceActionPlan() {

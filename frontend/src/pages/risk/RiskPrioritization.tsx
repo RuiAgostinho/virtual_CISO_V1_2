@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { riskApi, type PrioritizedVulnerability } from '@/lib/riskApi';
 import {
@@ -56,28 +56,32 @@ function ReasonList({ title, reasons, icon }: { title: string; reasons: string[]
   );
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function RiskPrioritization() {
   const [items, setItems] = useState<PrioritizedVulnerability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadPrioritization();
-  }, []);
-
-  const loadPrioritization = async () => {
+  const loadPrioritization = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await riskApi.listPrioritizedVulnerabilities({ limit: 10 });
       setItems(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Nao foi possivel carregar a priorizacao.');
+      setError(getErrorMessage(err, 'Nao foi possivel carregar a priorizacao.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadPrioritization();
+  }, [loadPrioritization]);
 
   if (loading) {
     return (
@@ -99,7 +103,7 @@ export default function RiskPrioritization() {
             Erro ao carregar priorizacao
           </div>
           <p className="mt-2 text-sm font-medium">{error}</p>
-          <button onClick={loadPrioritization} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
+          <button onClick={() => void loadPrioritization()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
             Tentar novamente
           </button>
         </div>

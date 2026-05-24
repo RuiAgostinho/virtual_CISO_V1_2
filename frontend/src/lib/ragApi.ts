@@ -64,6 +64,11 @@ export const ragApi = {
       body: JSON.stringify({ mode }),
     }),
 
+  terminateRunningRun: () =>
+    request<RagRun>("/api/assistant/rag/terminate/", {
+      method: "POST",
+    }),
+
   completeGovernanceMissing: (batchSize = 50) =>
     request<RagRun>("/api/assistant/rag/reindex/", {
       method: "POST",

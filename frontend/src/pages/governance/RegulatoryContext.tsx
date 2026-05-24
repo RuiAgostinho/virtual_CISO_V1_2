@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, RefreshCw, Save, ShieldAlert, BookOpen, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, RefreshCw, Save, ShieldAlert, BookOpen, AlertTriangle, type LucideIcon } from "lucide-react";
 import { governanceApi, type RegulatoryContextRecord } from "@/lib/governanceApi";
+
+type DisplayValue = string | number | boolean | null | undefined;
 
 function nis2Label(value?: string) {
   const labels: Record<string, string> = {
@@ -12,7 +14,11 @@ function nis2Label(value?: string) {
   return labels[value || ""] || value || "Pendente";
 }
 
-function Metric({ icon: Icon, label, value, tone }: { icon: any; label: string; value: any; tone: string }) {
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function Metric({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: DisplayValue; tone: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <Icon className={`h-5 w-5 ${tone}`} />
@@ -30,24 +36,24 @@ export default function RegulatoryContext() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await governanceApi.getRegulatoryContext();
       setRecord(data);
       setForm(data || {});
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar o contexto regulatório.");
+      setError(getErrorMessage(err, "Não foi possível carregar o contexto regulatório."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const completion = useMemo(() => {
     const fields = [
@@ -60,7 +66,7 @@ export default function RegulatoryContext() {
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   }, [form]);
 
-  const updateField = (field: keyof RegulatoryContextRecord, value: any) => {
+  const updateField = (field: keyof RegulatoryContextRecord, value: string | null | undefined) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -76,9 +82,9 @@ export default function RegulatoryContext() {
       setForm(updated);
       setMessage("Contexto regulatório guardado com sucesso.");
       setTimeout(() => setMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Erro ao guardar contexto regulatório.");
+      setError(getErrorMessage(err, "Erro ao guardar contexto regulatório."));
     } finally {
       setSaving(false);
     }
@@ -100,7 +106,7 @@ export default function RegulatoryContext() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Recarregar
             </button>

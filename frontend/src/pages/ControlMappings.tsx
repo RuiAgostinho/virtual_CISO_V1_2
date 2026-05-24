@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Activity,
@@ -18,15 +18,21 @@ import {
   type ControlMappingOverview,
   type ControlMappingRecord,
   type FrameworkScore,
+  type PaginatedResponse,
+  type QueryParams,
 } from "@/lib/governanceApi";
 
-function asArray<T>(data: any): T[] {
+function asArray<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
-function getPaginatedCount(data: any) {
+function getPaginatedCount<T>(data: T[] | PaginatedResponse<T> | null | undefined) {
   if (Array.isArray(data)) return data.length;
   return Number(data?.count || data?.results?.length || 0);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function formatPercent(value: number | string | null | undefined) {
@@ -238,12 +244,12 @@ export default function ControlMappings() {
     [frameworks]
   );
 
-  const loadData = async (showLoading = true) => {
+  const loadData = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       setError(null);
 
-      const params: Record<string, any> = {
+      const params: QueryParams = {
         page,
         page_size: pageSize,
         ordering: "-confidence",
@@ -261,17 +267,17 @@ export default function ControlMappings() {
       setOverview(overviewRes);
       setMappings(asArray<ControlMappingRecord>(mappingsRes));
       setTotalMappings(getPaginatedCount(mappingsRes));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao carregar o mapeamento de controlos.");
+      setError(getErrorMessage(err, "Falha ao carregar o mapeamento de controlos."));
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [mappingType, page, pageSize, searchTerm, sourceFramework, targetFramework]);
 
   useEffect(() => {
-    loadData();
-  }, [sourceFramework, targetFramework, mappingType, searchTerm, page, pageSize]);
+    void loadData();
+  }, [loadData]);
 
   const rebuildMappings = async () => {
     try {
@@ -282,9 +288,9 @@ export default function ControlMappings() {
         `Mapeamento atualizado: ${result.results.created_mappings} mapeamentos automáticos criados e ${result.results.skipped_existing_mappings} preservados.`
       );
       await loadData(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao atualizar o mapeamento.");
+      setError(getErrorMessage(err, "Falha ao atualizar o mapeamento."));
     } finally {
       setWorking(false);
     }
@@ -299,9 +305,9 @@ export default function ControlMappings() {
         `Scores recalculados: ${result.results.total_controls} controlos avaliados em ${result.results.total_frameworks} framework(s).`
       );
       await loadData(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Falha ao recalcular scores por framework.");
+      setError(getErrorMessage(err, "Falha ao recalcular scores por framework."));
     } finally {
       setWorking(false);
     }
@@ -325,7 +331,7 @@ export default function ControlMappings() {
             Erro ao carregar mapeamento
           </div>
           <p className="mt-2 text-sm font-medium">{error}</p>
-          <button onClick={() => loadData()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
+          <button onClick={() => void loadData()} className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
             Tentar novamente
           </button>
         </div>

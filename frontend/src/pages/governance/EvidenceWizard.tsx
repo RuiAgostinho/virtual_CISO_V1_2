@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
+import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import { mappingReviewApi, type SearchOption, type TraceabilityPayload } from "@/lib/mappingReviewApi";
 
 type EvidenceType =
@@ -154,14 +155,6 @@ function isExpired(form: EvidenceForm) {
 function targetTraceabilityType(targetType: TargetType) {
   if (targetType === "framework_control") return "framework_control";
   return targetType;
-}
-
-function Badge({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {children}
-    </span>
-  );
 }
 
 function WizardStepper({ steps, currentStep }: { steps: string[]; currentStep: number }) {
@@ -739,9 +732,9 @@ export default function EvidenceWizard() {
             <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">{linkForm.rationale || "-"}</p>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <Badge className={statusTone(form.status)}>{form.status}</Badge>
-            <Badge className={statusTone(isExpired(form) ? "expired" : "valid")}>{isExpired(form) ? "expirada" : "validade ok"}</Badge>
-            <Badge className="border-indigo-100 bg-indigo-50 text-indigo-700">{linkForm.link_type}</Badge>
+            <GovernanceBadge className={statusTone(form.status)}>{form.status}</GovernanceBadge>
+            <GovernanceBadge className={statusTone(isExpired(form) ? "expired" : "valid")}>{isExpired(form) ? "expirada" : "validade ok"}</GovernanceBadge>
+            <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">{linkForm.link_type}</GovernanceBadge>
           </div>
         </section>
       )}
@@ -782,7 +775,7 @@ function ImpactList({ title, items }: { title: string; items: any[] }) {
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">{title}</h3>
-        <Badge className="border-slate-200 bg-white text-slate-500">{items.length}</Badge>
+        <GovernanceBadge className="border-slate-200 bg-white text-slate-500">{items.length}</GovernanceBadge>
       </div>
       {items.length > 0 ? (
         <div className="mt-3 space-y-2">

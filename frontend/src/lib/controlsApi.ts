@@ -98,17 +98,22 @@ export interface EvidenceSuggestionResponse {
   suggestions: EvidenceSuggestion[];
 }
 
+type PaginatedResponse<T> = {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results?: T[];
+};
+
 // Suporta DRF com ou sem paginação
-function unwrap<T>(data: any): T {
-  if (Array.isArray(data)) return data as T;
-  if (data?.results) return data.results as T;
-  return data as T;
+function unwrapList<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
+  return Array.isArray(data) ? data : data?.results || [];
 }
 
 export const controlsApi = {
   async listFrameworks(): Promise<Framework[]> {
-    const data = await request<any>(`/api/governance/frameworks/`);
-    return unwrap<Framework[]>(data);
+    const data = await request<Framework[] | PaginatedResponse<Framework>>(`/api/governance/frameworks/`);
+    return unwrapList<Framework>(data);
   },
 
   async listControls(params?: {
@@ -122,8 +127,8 @@ export const controlsApi = {
     if (params?.search) qs.set("search", params.search);
 
     const url = `/api/governance/controls/${qs.toString() ? `?${qs.toString()}` : ""}`;
-    const data = await request<any>(url);
-    return unwrap<Control[]>(data);
+    const data = await request<Control[] | PaginatedResponse<Control>>(url);
+    return unwrapList<Control>(data);
   },
 
   async createControl(payload: {
@@ -177,8 +182,8 @@ export const controlsApi = {
     if (params?.page_size) qs.set("page_size", String(params.page_size));
 
     const url = `/api/governance/mechanisms/${qs.toString() ? `?${qs.toString()}` : ""}`;
-    const data = await request<any>(url);
-    return unwrap<Mechanism[]>(data);
+    const data = await request<Mechanism[] | PaginatedResponse<Mechanism>>(url);
+    return unwrapList<Mechanism>(data);
   },
 
   async listControlMechanisms(params?: {
@@ -194,8 +199,8 @@ export const controlsApi = {
     if (params?.page_size) qs.set("page_size", String(params.page_size));
 
     const url = `/api/governance/control-mechanisms/${qs.toString() ? `?${qs.toString()}` : ""}`;
-    const data = await request<any>(url);
-    return unwrap<ControlMechanism[]>(data);
+    const data = await request<ControlMechanism[] | PaginatedResponse<ControlMechanism>>(url);
+    return unwrapList<ControlMechanism>(data);
   },
 
   async updateControlMechanism(

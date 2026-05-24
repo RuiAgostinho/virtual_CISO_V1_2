@@ -1,38 +1,88 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ShieldCheck, RefreshCw, Search, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { governanceApi } from "@/lib/governanceApi";
+import {
+  governanceApi,
+  type PaginatedResponse,
+} from "@/lib/governanceApi";
 
-function unwrap<T>(data: any): T[] {
+type ControlListRecord = {
+  id: string | number;
+  code?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  framework?: string | { name?: string };
+  is_mandatory?: boolean;
+  mechanisms_count?: number;
+};
+
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getFrameworkName(framework: ControlListRecord["framework"]) {
+  if (framework && typeof framework === "object") return framework.name || "Desconhecida";
+  return "Desconhecida";
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function getNumber(value: unknown) {
+  return typeof value === "number" ? value : undefined;
+}
+
+function normalizeControlRecord(record: Record<string, unknown>): ControlListRecord {
+  const framework = record.framework;
+  return {
+    id: typeof record.id === "string" || typeof record.id === "number" ? record.id : String(record.id ?? ""),
+    code: getString(record.code),
+    title: getString(record.title),
+    description: getString(record.description),
+    status: getString(record.status),
+    framework:
+      typeof framework === "string" || (framework && typeof framework === "object")
+        ? (framework as ControlListRecord["framework"])
+        : undefined,
+    is_mandatory: typeof record.is_mandatory === "boolean" ? record.is_mandatory : false,
+    mechanisms_count: getNumber(record.mechanisms_count),
+  };
+}
+
 export default function Controls() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const frameworkId = searchParams.get("framework") || undefined;
   
-  const [controls, setControls] = useState<any[]>([]);
+  const [controls, setControls] = useState<ControlListRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await governanceApi.getControls(frameworkId);
-      setControls(unwrap(data));
-    } catch (err: any) {
+      setControls(
+        unwrap<Record<string, unknown>>(data as PaginatedResponse<Record<string, unknown>>).map(normalizeControlRecord)
+      );
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar os controlos.");
+      setError(getErrorMessage(err, "Não foi possível carregar os controlos."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [frameworkId]);
 
   useEffect(() => {
-    load();
-  }, [frameworkId]);
+    void load();
+  }, [load]);
 
   const filteredControls = useMemo(() => {
     if (!search) return controls;
@@ -64,7 +114,7 @@ export default function Controls() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>
@@ -133,7 +183,7 @@ export default function Controls() {
                 {filteredControls.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="text-xs font-bold text-slate-400 mb-1">{c.framework?.name || "Desconhecida"}</div>
+                      <div className="text-xs font-bold text-slate-400 mb-1">{getFrameworkName(c.framework)}</div>
                       <div className="font-bold text-slate-950 bg-slate-100 px-2 py-1 rounded-lg inline-block">{c.code}</div>
                     </td>
                     <td className="px-6 py-4">

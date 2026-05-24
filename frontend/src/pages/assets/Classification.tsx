@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -10,17 +10,21 @@ import {
   Search,
   Target,
 } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { riskApi, type Asset, type PaginatedResponse } from "@/lib/riskApi";
 
 type Reason = "discovered" | "unclassified";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 // An asset lands in the triage queue when it needs the CISO's attention:
 // discovered assets await validation; default-CIA assets were never reviewed.
-function triageReason(asset: any): Reason | null {
+function triageReason(asset: Asset): Reason | null {
   if (asset.status === "New") return "discovered";
   const c = Number(asset.confidentiality);
   const i = Number(asset.integrity);
@@ -51,35 +55,35 @@ function criticalityTone(value?: string) {
 
 export default function Classification() {
   const navigate = useNavigate();
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | Reason>("all");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.listAssets({ page_size: 500 });
-      setAssets(unwrap(data));
-    } catch (err: any) {
+      setAssets(unwrap<Asset>(data));
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar os ativos.");
+      setError(getErrorMessage(err, "Não foi possível carregar os ativos."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const queue = useMemo(
     () =>
       assets
         .map((asset) => ({ asset, reason: triageReason(asset) }))
-        .filter((entry): entry is { asset: any; reason: Reason } => entry.reason !== null),
+        .filter((entry): entry is { asset: Asset; reason: Reason } => entry.reason !== null),
     [assets],
   );
 
@@ -125,7 +129,7 @@ export default function Classification() {
             </p>
           </div>
           <button
-            onClick={load}
+            onClick={() => void load()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:text-indigo-700"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />

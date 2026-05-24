@@ -9,6 +9,10 @@ interface EditControlMechanismModalProps {
   onUpdated: () => void;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function EditControlMechanismModal({
   open,
   controlMechanism,
@@ -44,9 +48,9 @@ export function EditControlMechanismModal({
         acceptance_criteria: acceptanceCriteria.trim() || null,
       });
       onUpdated();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel atualizar o mecanismo.");
+      setError(getErrorMessage(err, "Nao foi possivel atualizar o mecanismo."));
     } finally {
       setSaving(false);
     }

@@ -2,6 +2,14 @@ import { request } from "./api";
 
 export type OrganizationType = "Public" | "Private" | "ThirdSector";
 export type RiskAppetite = "conservative" | "balanced" | "tolerant";
+export type QueryValue = string | number | boolean | null | undefined;
+export type QueryParams = Record<string, QueryValue>;
+export type ListResponse<T> = T[] | {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results?: T[];
+};
 
 export interface OnboardingAction {
   id: string;
@@ -24,7 +32,7 @@ export interface CompanyProfile {
   primary_security_goals?: string[];
   preferred_frameworks?: string[];
   risk_appetite?: RiskAppetite | null;
-  onboarding_answers?: Record<string, any>;
+  onboarding_answers?: Record<string, unknown>;
   onboarding_recommended_actions?: OnboardingAction[];
   onboarding_completed_at?: string | null;
 }
@@ -61,7 +69,7 @@ export interface Person {
   backup_for_name?: string | null;
 }
 
-function withQuery(path: string, params?: Record<string, any>) {
+function withQuery(path: string, params?: QueryParams) {
   if (!params) return path;
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -83,7 +91,7 @@ export const companyApi = {
     });
   },
 
-  listPeople: (params?: Record<string, any>) => request<any>(withQuery("/api/company/people/", params)),
+  listPeople: (params?: QueryParams) => request<ListResponse<Person>>(withQuery("/api/company/people/", params)),
 
   createPerson: (payload: Partial<Person>) =>
     request<Person>("/api/company/people/", {
@@ -97,7 +105,7 @@ export const companyApi = {
       body: JSON.stringify(payload),
     }),
 
-  listOrgUnits: (params?: Record<string, any>) => request<any>(withQuery("/api/company/org-units/", params)),
+  listOrgUnits: (params?: QueryParams) => request<ListResponse<OrgUnit>>(withQuery("/api/company/org-units/", params)),
 
   createOrgUnit: (payload: Partial<OrgUnit>) =>
     request<OrgUnit>("/api/company/org-units/", {

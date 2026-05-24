@@ -1,18 +1,29 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Shield, Save, RefreshCw, AlertCircle, CheckCircle2, Lock, Globe, User } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { riskApi, type IntegrationConfig } from "@/lib/riskApi";
+
+type EditableIntegrationConfig = IntegrationConfig & {
+  api_url?: string;
+  username?: string;
+  password?: string;
+  indexer_url?: string;
+  indexer_username?: string;
+  indexer_password?: string;
+  is_active?: boolean;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function Wazuh() {
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<EditableIntegrationConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setLoading(true);
     try {
       const data = await riskApi.getIntegrationConfig('wazuh');
@@ -22,17 +33,22 @@ export default function Wazuh() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
+
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
+    if (!config?.id) return;
     setSaving(true);
     setMessage(null);
     try {
       await riskApi.updateIntegrationConfig(config.id, config);
       setMessage({ type: 'success', text: "Configuração guardada com sucesso!" });
-    } catch (err) {
-      setMessage({ type: 'error', text: "Erro ao guardar configuração." });
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: getErrorMessage(err, "Erro ao guardar configuração.") });
     } finally {
       setSaving(false);
     }
@@ -47,8 +63,8 @@ export default function Wazuh() {
     try {
       const res = await riskApi.testIntegration(config.id);
       setMessage({ type: res.status === 'success' ? 'success' : 'error', text: res.message });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || "Erro ao testar ligação." });
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: getErrorMessage(err, "Erro ao testar ligação.") });
     } finally {
       setTesting(false);
     }
@@ -95,7 +111,7 @@ export default function Wazuh() {
                   <input 
                     type="text" 
                     value={config?.api_url || ""} 
-                    onChange={e => setConfig({...config, api_url: e.target.value})}
+                    onChange={(e) => setConfig((current) => current ? { ...current, api_url: e.target.value } : current)}
                     placeholder="https://wazuh-manager:55000"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                   />
@@ -108,7 +124,7 @@ export default function Wazuh() {
                   <input 
                     type="text" 
                     value={config?.username || ""} 
-                    onChange={e => setConfig({...config, username: e.target.value})}
+                    onChange={(e) => setConfig((current) => current ? { ...current, username: e.target.value } : current)}
                     placeholder="wazuh-api-user"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                   />
@@ -121,7 +137,7 @@ export default function Wazuh() {
                   <input 
                     type="password" 
                     value={config?.password || ""} 
-                    onChange={e => setConfig({...config, password: e.target.value})}
+                    onChange={(e) => setConfig((current) => current ? { ...current, password: e.target.value } : current)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                   />
                 </div>
@@ -143,7 +159,7 @@ export default function Wazuh() {
                 <input 
                   type="text" 
                   value={config?.indexer_url || ""} 
-                  onChange={e => setConfig({...config, indexer_url: e.target.value})}
+                  onChange={(e) => setConfig((current) => current ? { ...current, indexer_url: e.target.value } : current)}
                   placeholder="https://wazuh-indexer:9200"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 px-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                 />
@@ -153,7 +169,7 @@ export default function Wazuh() {
                 <input 
                   type="text" 
                   value={config?.indexer_username || ""} 
-                  onChange={e => setConfig({...config, indexer_username: e.target.value})}
+                  onChange={(e) => setConfig((current) => current ? { ...current, indexer_username: e.target.value } : current)}
                   placeholder="admin"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 px-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                 />
@@ -163,7 +179,7 @@ export default function Wazuh() {
                 <input 
                   type="password" 
                   value={config?.indexer_password || ""} 
-                  onChange={e => setConfig({...config, indexer_password: e.target.value})}
+                  onChange={(e) => setConfig((current) => current ? { ...current, indexer_password: e.target.value } : current)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 px-4 text-sm font-medium focus:border-indigo-500 outline-none transition-all" 
                 />
               </div>

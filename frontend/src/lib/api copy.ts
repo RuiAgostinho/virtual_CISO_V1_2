@@ -42,7 +42,9 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
                 credentials: "include",
                 headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
             });
-        } catch { }
+        } catch {
+            // Ignore logout cleanup failures; the client will still return to login.
+        }
         if (window.location.pathname !== "/login") {
             window.location.href = "/login";
         }

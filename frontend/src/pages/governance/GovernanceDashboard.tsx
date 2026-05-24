@@ -1,10 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { governanceApi } from '@/lib/governanceApi';
 import { 
-  Scale, Building2, ShieldAlert, BookOpen, FileText, FileCheck, AlertTriangle, 
-  Settings, Target, Users, CheckCircle2
+  Scale, ShieldAlert, BookOpen, FileCheck, AlertTriangle,
+  Settings, Target, CheckCircle2
 } from 'lucide-react';
+
+type StatusRecord = {
+  status?: string;
+};
+
+function normaliseStatus(status?: string) {
+  return (status || "").toLowerCase().replace(/[_-]/g, " ").trim();
+}
+
+function countByStatus<T extends StatusRecord>(items: T[] | undefined, expected: string) {
+  const expectedStatus = normaliseStatus(expected);
+  return items?.filter((item) => normaliseStatus(item.status) === expectedStatus).length || 0;
+}
 
 export default function GovernanceDashboard() {
   const navigate = useNavigate();
@@ -27,10 +40,10 @@ export default function GovernanceDashboard() {
           governanceApi.listProcedures()
         ]);
 
-        const activePolicies = policies.results?.filter((p: any) => p.status === 'Active').length || 0;
-        const reviewPolicies = policies.results?.filter((p: any) => p.status === 'Under Review').length || 0;
-        const activeRegulations = regs.results?.filter((r: any) => r.status === 'Active').length || 0;
-        const activeProcedures = procs.results?.filter((p: any) => p.status === 'Active').length || 0;
+        const activePolicies = countByStatus(policies.results, 'Active');
+        const reviewPolicies = countByStatus(policies.results, 'Under Review');
+        const activeRegulations = countByStatus(regs.results, 'active');
+        const activeProcedures = countByStatus(procs.results, 'active');
 
         setStats({
           nis2: regCtx?.nis2_classification || 'Pendente',
@@ -198,5 +211,4 @@ export default function GovernanceDashboard() {
 }
 
 // CheckCircle2 needs to be imported, wait let's just use AlertTriangle or import CheckCircle2.
-
 

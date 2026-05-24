@@ -1,33 +1,40 @@
-import { useState, useEffect } from "react";
-import { Grid3X3, RefreshCw, AlertTriangle, ShieldCheck, Zap, Info } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Grid3X3, RefreshCw, Info } from "lucide-react";
+import { riskApi, type PaginatedResponse, type Risk } from "@/lib/riskApi";
+
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
+  return Array.isArray(data) ? data : data?.results || [];
+}
 
 export default function RiskMatrix() {
-  const [risks, setRisks] = useState<any[]>([]);
+  const [risks, setRisks] = useState<Risk[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRisks = async () => {
+  const loadRisks = useCallback(async () => {
     setLoading(true);
     try {
       const data = await riskApi.listRisks();
-      setRisks(Array.isArray(data) ? data : data.results || []);
+      setRisks(unwrap<Risk>(data));
     } catch (err) {
       console.error("Failed to load risks for matrix", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadRisks();
   }, []);
 
-  const matrixData = Array(5).fill(0).map(() => Array(5).fill(0));
-  risks.forEach(r => {
-    const l = Math.min(Math.max(Math.round(r.likelihood || 1), 1), 5) - 1;
-    const i = Math.min(Math.max(Math.round(r.impact || 1), 1), 5) - 1;
-    matrixData[4-l][i]++;
-  });
+  useEffect(() => {
+    void loadRisks();
+  }, [loadRisks]);
+
+  const matrixData = useMemo(() => {
+    const rows: number[][] = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => 0));
+    risks.forEach((risk) => {
+      const likelihood = Math.min(Math.max(Math.round(Number(risk.likelihood || 1)), 1), 5) - 1;
+      const impact = Math.min(Math.max(Math.round(Number(risk.impact || 1)), 1), 5) - 1;
+      rows[4 - likelihood][impact] += 1;
+    });
+    return rows;
+  }, [risks]);
 
   const getCellColor = (row: number, col: number) => {
     const l = 5 - row;
@@ -50,8 +57,8 @@ export default function RiskMatrix() {
               Visualização da probabilidade vs impacto de todos os riscos identificados no parque informático.
             </p>
           </div>
-          <button onClick={loadRisks} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
-            <RefreshCw className="h-4 w-4" />
+          <button onClick={() => void loadRisks()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </button>
         </div>
@@ -136,7 +143,7 @@ export default function RiskMatrix() {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Risco Médio</p>
                 <p className="text-xl font-bold text-slate-900">
-                  {(risks.reduce((acc, r) => acc + (r.risk_score || 0), 0) / (risks.length || 1)).toFixed(1)}
+                  {(risks.reduce((acc, risk) => acc + Number(risk.risk_score || 0), 0) / (risks.length || 1)).toFixed(1)}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ElementType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -13,6 +13,10 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import {
+  GovernanceBadge,
+  GovernanceFramedMetricCard,
+} from "@/components/governance/GovernancePrimitives";
 import { request } from "@/lib/api";
 import {
   governanceApi,
@@ -207,36 +211,6 @@ async function searchTargetOptions(type: GovernanceRiskLinkTargetType, search: s
   if (type === "asset") return mappingReviewApi.searchAssets(search);
   if (type === "vulnerability") return mappingReviewApi.searchVulnerabilities(search);
   return searchAssetVulnerabilities(search);
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  tone = "slate",
-}: {
-  icon: ElementType;
-  label: string;
-  value: ReactNode;
-  tone?: "slate" | "emerald" | "amber" | "red" | "indigo";
-}) {
-  const toneClass = {
-    slate: "text-slate-700 bg-slate-50 border-slate-100",
-    emerald: "text-emerald-700 bg-emerald-50 border-emerald-100",
-    amber: "text-amber-700 bg-amber-50 border-amber-100",
-    red: "text-red-700 bg-red-50 border-red-100",
-    indigo: "text-indigo-700 bg-indigo-50 border-indigo-100",
-  }[tone];
-
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${toneClass}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="mt-4 text-3xl font-bold text-slate-950">{value}</p>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-    </div>
-  );
 }
 
 function EntityPicker({
@@ -729,12 +703,12 @@ export default function ResidualRiskMappings() {
       {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">{error}</div>}
 
       <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <MetricCard icon={GitBranch} label="Total" value={stats.total} tone="indigo" />
-        <MetricCard icon={CheckCircle2} label="Aprovados" value={stats.approved} tone="emerald" />
-        <MetricCard icon={AlertTriangle} label="Por validar" value={stats.pending_review} tone="amber" />
-        <MetricCard icon={Edit3} label="Draft" value={stats.draft} tone="indigo" />
-        <MetricCard icon={XCircle} label="Rejeitados" value={stats.rejected} tone="red" />
-        <MetricCard icon={AlertTriangle} label="Sem rationale" value={stats.withoutRationale} tone={stats.withoutRationale ? "amber" : "slate"} />
+        <GovernanceFramedMetricCard icon={GitBranch} label="Total" value={stats.total} tone="indigo" />
+        <GovernanceFramedMetricCard icon={CheckCircle2} label="Aprovados" value={stats.approved} tone="emerald" />
+        <GovernanceFramedMetricCard icon={AlertTriangle} label="Por validar" value={stats.pending_review} tone="amber" />
+        <GovernanceFramedMetricCard icon={Edit3} label="Draft" value={stats.draft} tone="indigo" />
+        <GovernanceFramedMetricCard icon={XCircle} label="Rejeitados" value={stats.rejected} tone="red" />
+        <GovernanceFramedMetricCard icon={AlertTriangle} label="Sem rationale" value={stats.withoutRationale} tone={stats.withoutRationale ? "amber" : "slate"} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1fr_.8fr]">
@@ -978,9 +952,9 @@ export default function ResidualRiskMappings() {
                 <div className="grid gap-4 xl:grid-cols-[1fr_auto]">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(link.validation_status)}`}>
+                      <GovernanceBadge className={statusTone(link.validation_status)}>
                         {statusLabel[link.validation_status] || link.validation_status}
-                      </span>
+                      </GovernanceBadge>
                       <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                         {relationshipLabel[link.relationship_type] || link.relationship_type}
                       </span>

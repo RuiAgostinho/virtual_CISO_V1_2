@@ -1,9 +1,13 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Server, Target, RefreshCw, Plus, LayoutGrid, Search, AlertCircle } from "lucide-react";
-import { riskApi, type AssetCategory, type AssetType } from "@/lib/riskApi";
+import { riskApi, type AssetCategory, type AssetType, type PaginatedResponse } from "@/lib/riskApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function AssetTypes() {
@@ -13,7 +17,7 @@ export default function AssetTypes() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -23,17 +27,17 @@ export default function AssetTypes() {
       ]);
       setCategories(unwrap(catsData));
       setTypes(unwrap(typesData));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar as categorias e tipos de ativos.");
+      setError(getErrorMessage(err, "Não foi possível carregar as categorias e tipos de ativos."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const filteredTypes = useMemo(() => {
     if (!search) return types;
@@ -58,7 +62,7 @@ export default function AssetTypes() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>

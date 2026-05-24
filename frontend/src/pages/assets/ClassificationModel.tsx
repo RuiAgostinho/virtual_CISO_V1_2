@@ -1,6 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, Save, Scale } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Database,
+  Globe2,
+  Loader2,
+  Network,
+  RotateCcw,
+  Save,
+  Scale,
+  Shield,
+} from "lucide-react";
+import { riskApi, type RiskConfig } from "@/lib/riskApi";
 
 const DEFAULT_WEIGHTS = {
   weight_cia: 0.3,
@@ -25,11 +39,90 @@ const BANDS = [
   { label: "Crítico", range: "≥ 4.5", tone: "bg-red-100 text-red-700" },
 ];
 
+const CLASSIFICATION_GLOSSARY = [
+  {
+    title: "Confidencialidade",
+    icon: Shield,
+    tone: "bg-indigo-600",
+    levels: [
+      { value: 5, label: "Ultra", detail: "Exposição causa dano legal, reputacional ou financeiro catastrófico." },
+      { value: 4, label: "Alto", detail: "Informação estratégica, dano financeiro ou imagem elevada." },
+      { value: 3, label: "Médio", detail: "Documentos internos com acesso restrito a equipas." },
+      { value: 2, label: "Baixo", detail: "Dados internos sem sensibilidade; uso corporativo." },
+      { value: 1, label: "Público", detail: "Livre acesso, sem restrição de confidencialidade." },
+    ],
+  },
+  {
+    title: "Integridade",
+    icon: Database,
+    tone: "bg-orange-600",
+    levels: [
+      { value: 5, label: "Crítico", detail: "Corrupção de dados causa falha total irreversível." },
+      { value: 4, label: "Grave", detail: "Erros graves em decisões ou prejuízo em faturação." },
+      { value: 3, label: "Operacional", detail: "Erros remediáveis, mas com custo e atrasos." },
+      { value: 2, label: "Residual", detail: "Transtorno cosmético, com validação e correção simples." },
+      { value: 1, label: "Mínimo", detail: "Integridade irrelevante para a função do ativo." },
+    ],
+  },
+  {
+    title: "Disponibilidade",
+    icon: Activity,
+    tone: "bg-emerald-600",
+    levels: [
+      { value: 5, label: "24/7 vital", detail: "Indispensável; segundos de paragem causam prejuízo total." },
+      { value: 4, label: "Core", detail: "Paragem afeta faturação, operação ou canais principais." },
+      { value: 3, label: "Laboral", detail: "Indispensável em horário útil, com tolerância de horas." },
+      { value: 2, label: "Suporte", detail: "Pode ficar offline 24h sem impacto relevante no negócio." },
+      { value: 1, label: "Opcional", detail: "Reposição por conveniência quando existirem recursos." },
+    ],
+  },
+  {
+    title: "Exposição",
+    icon: Globe2,
+    tone: "bg-rose-600",
+    levels: [
+      { value: 5, label: "Público", detail: "Exposto na Internet sem firewall, DMZ ou controlo equivalente." },
+      { value: 4, label: "Filtrado", detail: "Acesso via VPN, gateway autenticado ou regras restritivas." },
+      { value: 3, label: "Interno", detail: "Acessível apenas via redes corporativas locais." },
+      { value: 2, label: "Isolado", detail: "Sem acesso externo; apenas interfaces locais." },
+      { value: 1, label: "Air-gapped", detail: "Isolamento físico total, sem conectividade." },
+    ],
+  },
+  {
+    title: "Valor de negócio",
+    icon: BriefcaseBusiness,
+    tone: "bg-amber-500",
+    levels: [
+      { value: 5, label: "Faturação", detail: "Ativo gera a maior parte do lucro ou receita direta." },
+      { value: 4, label: "Estratégico", detail: "Fundamental para competitividade, operação ou decisão." },
+      { value: 3, label: "Produtivo", detail: "Necessário para a produtividade diária interna." },
+      { value: 2, label: "Apoio", detail: "Suporta processos secundários ou administrativos." },
+      { value: 1, label: "Legado", detail: "Ativo de teste ou sem valor direto atual." },
+    ],
+  },
+  {
+    title: "Dependência",
+    icon: Network,
+    tone: "bg-slate-600",
+    levels: [
+      { value: 5, label: "Pilar", detail: "Toda a infraestrutura ou serviço crítico falha se este ativo falhar." },
+      { value: 4, label: "Core", detail: "Vários serviços fundamentais dependem dele." },
+      { value: 3, label: "Local", detail: "Impacto em fluxos de trabalho ou equipas locais." },
+      { value: 2, label: "Terminal", detail: "Ativo final; ninguém depende dele funcionalmente." },
+      { value: 1, label: "Isolado", detail: "Ativo único; falha não afeta outros sistemas." },
+    ],
+  },
+];
+
 function bandLabel(score: number) {
   if (score >= 4.5) return "Crítico";
   if (score >= 3.5) return "Alto";
   if (score >= 2.5) return "Médio";
   return "Baixo";
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function ClassificationModel() {
@@ -40,11 +133,11 @@ export default function ClassificationModel() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const cfg: any = await riskApi.getRiskConfig();
+      const cfg: RiskConfig = await riskApi.getRiskConfig();
       setConfigId(cfg.id);
       setWeights({
         weight_cia: Number(cfg.weight_cia),
@@ -52,17 +145,17 @@ export default function ClassificationModel() {
         weight_value: Number(cfg.weight_value),
         weight_dependency: Number(cfg.weight_dependency),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar o modelo de classificação.");
+      setError(getErrorMessage(err, "Não foi possível carregar o modelo de classificação."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const sum = useMemo(() => Object.values(weights).reduce((acc, w) => acc + Number(w), 0), [weights]);
   const sumOk = Math.abs(sum - 1) < 0.001;
@@ -106,16 +199,16 @@ export default function ClassificationModel() {
     try {
       await riskApi.updateRiskConfig(configId, weights);
       setMessage("Modelo de classificação guardado. Aplica-se a partir dos próximos cálculos de criticidade.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível guardar o modelo.");
+      setError(getErrorMessage(err, "Não foi possível guardar o modelo."));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6 pb-16">
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
@@ -125,6 +218,16 @@ export default function ClassificationModel() {
               Define como a criticidade de cada ativo é calculada — o peso de cada dimensão no modelo ponderado.
               Parametrizável à tolerância ao risco da organização.
             </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+              <Scale className="h-4 w-4" />
+              Fórmula
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-indigo-700">
+              <BookOpen className="h-4 w-4" />
+              Glossário
+            </span>
           </div>
         </div>
       </header>
@@ -154,8 +257,9 @@ export default function ClassificationModel() {
               <h2 className="text-lg font-bold text-slate-950">Como funciona</h2>
             </div>
             <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-              Cada ativo tem quatro dimensões avaliadas de 1 a 5. O <strong>score ponderado</strong> resulta da soma
-              de cada dimensão multiplicada pelo seu peso:
+              Cada ativo é classificado de 1 a 5 nas seis dimensões operacionais abaixo. No cálculo da criticidade,
+              Confidencialidade, Integridade e Disponibilidade formam a média CIA; depois essa média é combinada com
+              Exposição, Valor de negócio e Dependência.
             </p>
             <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-sm font-bold text-slate-700">
               Score = CIA × {weights.weight_cia.toFixed(2)} + Exposição × {weights.weight_exposure.toFixed(2)} + Valor
@@ -169,6 +273,38 @@ export default function ClassificationModel() {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+            {CLASSIFICATION_GLOSSARY.map((dimension) => {
+              const Icon = dimension.icon;
+              return (
+                <article key={dimension.title} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                  <div className={`flex items-center justify-between px-5 py-4 text-white ${dimension.tone}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <h2 className="text-sm font-bold uppercase tracking-wide">{dimension.title}</h2>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-80">1 a 5</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 px-5 py-2">
+                    {dimension.levels.map((level) => (
+                      <div key={`${dimension.title}-${level.value}`} className="grid grid-cols-[2.25rem_1fr] gap-3 py-3">
+                        <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-xs font-bold text-white">
+                          {level.value}
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-800">{level.label}</p>
+                          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-slate-500">{level.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
           </section>
 
           <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">

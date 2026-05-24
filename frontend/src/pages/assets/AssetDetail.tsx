@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -16,20 +16,111 @@ import {
   UserRound,
   Pencil,
   Wifi,
+  type LucideIcon,
 } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { riskApi, type Asset, type AssetVulnerability, type Vulnerability } from "@/lib/riskApi";
 import { AssetFormModal } from "@/components/ui/AssetFormModal";
 
-type AssetDetailRecord = Record<string, any>;
+type DisplayValue = string | number | boolean | null | undefined | Array<string | number | boolean>;
+
+type NamedEntity = {
+  id?: string | number;
+  name?: string;
+  title?: string;
+  label?: string;
+};
+
+type CriticalityComponent = {
+  label: string;
+  value: string | number;
+  weight: string | number;
+  contribution: string | number;
+};
+
+type CriticalityBreakdown = {
+  score: string | number;
+  components?: CriticalityComponent[];
+};
+
+type InstalledSoftware = {
+  id: string | number;
+  name?: string;
+  vendor?: string;
+  version?: string;
+  architecture?: string;
+};
+
+type AssetHistoryEntry = {
+  id: string | number;
+  action?: string;
+  details?: string;
+  timestamp?: string | null;
+};
+
+type AssetVulnerabilityDetail = Omit<AssetVulnerability, "software_details"> & {
+  software_details?: { name?: string };
+  vulnerability_details?: Vulnerability;
+};
+
+type AssetDetailRecord = Omit<
+  Asset,
+  | "vulnerability_occurrences"
+  | "parent_details"
+  | "children_details"
+  | "dependent_assets_details"
+  | "external_service_assets_details"
+  | "integration_assets_details"
+  | "depends_on_software_details"
+  | "category_details"
+  | "type_details"
+  | "org_unit_details"
+  | "business_owner_details"
+  | "technical_owner_details"
+  | "location_details"
+  | "environment_details"
+  | "deployment_type_details"
+  | "criticality_breakdown"
+> & {
+  installed_software?: InstalledSoftware[];
+  history?: AssetHistoryEntry[];
+  parent_details?: NamedEntity | null;
+  children_details?: NamedEntity[];
+  dependent_assets_details?: NamedEntity[];
+  external_service_assets_details?: NamedEntity[];
+  integration_assets_details?: NamedEntity[];
+  depends_on_software_details?: NamedEntity[];
+  category_details?: NamedEntity;
+  type_details?: NamedEntity;
+  org_unit_details?: NamedEntity;
+  org_unit_name?: string;
+  business_owner_details?: NamedEntity;
+  technical_owner_details?: NamedEntity;
+  technical_owner_name?: string;
+  location_details?: NamedEntity;
+  location_name?: string;
+  environment_details?: NamedEntity;
+  environment_name?: string;
+  deployment_type_details?: NamedEntity;
+  business_value?: string | number;
+  dependency_score?: string | number;
+  criticality_breakdown?: CriticalityBreakdown;
+  unique_identifier?: string;
+  created_at?: string;
+  vulnerability_occurrences?: AssetVulnerabilityDetail[];
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 function formatDate(value?: string | null) {
   if (!value) return "Sem data";
   return new Date(value).toLocaleString("pt-PT");
 }
 
-function valueOrDash(value: any) {
+function valueOrDash(value: DisplayValue) {
   if (value === null || value === undefined || value === "") return "-";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "-";
+  if (Array.isArray(value)) return value.length ? value.map(String).join(", ") : "-";
   return String(value);
 }
 
@@ -55,7 +146,7 @@ function severityTone(value?: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
-function MetricCard({ icon: Icon, label, value, tone }: { icon: any; label: string; value: any; tone: string }) {
+function MetricCard({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: DisplayValue; tone: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <Icon className={`h-5 w-5 ${tone}`} />
@@ -65,7 +156,7 @@ function MetricCard({ icon: Icon, label, value, tone }: { icon: any; label: stri
   );
 }
 
-function Field({ label, value }: { label: string; value: any }) {
+function Field({ label, value }: { label: string; value: DisplayValue }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
@@ -84,24 +175,24 @@ export default function AssetDetail() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
       const data = await riskApi.getAsset(id);
       setAsset(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar o ativo.");
+      setError(getErrorMessage(err, "Nao foi possivel carregar o ativo."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    load();
-  }, [id]);
+    void load();
+  }, [load]);
 
   const vulnerabilities = asset?.vulnerability_occurrences || [];
   const software = asset?.installed_software || [];
@@ -127,9 +218,9 @@ export default function AssetDetail() {
       const result = await riskApi.enrichAsset(asset.id);
       setMessage(result?.detail || "Enriquecimento Nmap executado.");
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel enriquecer o ativo.");
+      setError(getErrorMessage(err, "Nao foi possivel enriquecer o ativo."));
     } finally {
       setSaving(false);
     }
@@ -254,7 +345,7 @@ export default function AssetDetail() {
                 Como se chega à criticidade
               </p>
               <div className="mt-3 space-y-1.5">
-                {(asset.criticality_breakdown.components || []).map((c: any) => (
+                {(asset.criticality_breakdown.components || []).map((c) => (
                   <div key={c.label} className="flex items-center justify-between gap-3 text-xs">
                     <span className="min-w-0 truncate font-semibold text-slate-600">{c.label}</span>
                     <span className="shrink-0 font-mono text-slate-500">
@@ -305,7 +396,7 @@ export default function AssetDetail() {
           <div className="divide-y divide-slate-100">
             {vulnerabilities.length === 0 ? (
               <div className="p-8 text-center text-sm font-bold text-slate-400">Sem vulnerabilidades associadas.</div>
-            ) : vulnerabilities.map((item: any) => (
+            ) : vulnerabilities.map((item) => (
               <div key={item.id} className="p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -337,7 +428,7 @@ export default function AssetDetail() {
           <div className="divide-y divide-slate-100">
             {software.length === 0 ? (
               <div className="p-8 text-center text-sm font-bold text-slate-400">Sem software associado.</div>
-            ) : software.map((item: any) => (
+            ) : software.map((item) => (
               <Link key={item.id} to={`/assets/software/${item.id}`} className="block p-5 hover:bg-slate-50">
                 <p className="font-bold text-slate-950">{item.name}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -362,7 +453,7 @@ export default function AssetDetail() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {group.items.length === 0 ? (
                     <span className="text-sm font-semibold text-slate-400">Sem registos</span>
-                  ) : group.items.map((item: any) => (
+                  ) : group.items.map((item) => (
                     <span key={`${group.label}-${item.id || item.name}`} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
                       {item.name || item.title}
                     </span>
@@ -383,7 +474,7 @@ export default function AssetDetail() {
           <div className="divide-y divide-slate-100">
             {history.length === 0 ? (
               <div className="p-8 text-center text-sm font-bold text-slate-400">Sem historico registado.</div>
-            ) : history.slice(0, 8).map((item: any) => (
+            ) : history.slice(0, 8).map((item) => (
               <div key={item.id} className="p-5">
                 <div className="flex items-start gap-3">
                   <UserRound className="mt-0.5 h-4 w-4 text-slate-400" />

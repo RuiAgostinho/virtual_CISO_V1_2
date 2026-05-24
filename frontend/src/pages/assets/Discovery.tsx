@@ -1,37 +1,49 @@
-import { useState, useEffect } from "react";
-import { Radar, RefreshCw, Zap, Shield, Search, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import { riskApi } from "@/lib/riskApi";
+import { useCallback, useEffect, useState } from "react";
+import { Radar, Zap, Shield } from "lucide-react";
+import { riskApi, type SyncStatusItem } from "@/lib/riskApi";
+
+type DiscoverySyncStatus = SyncStatusItem & {
+  id?: string | number;
+  provider?: string;
+  status?: string;
+  last_sync?: string | null;
+  last_sync_at?: string | null;
+};
+
+function unwrapStatus(data: DiscoverySyncStatus[] | { results?: DiscoverySyncStatus[] }) {
+  return Array.isArray(data) ? data : data.results || [];
+}
 
 export default function Discovery() {
-  const [syncStatus, setSyncStatus] = useState<any[]>([]);
+  const [syncStatus, setSyncStatus] = useState<DiscoverySyncStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanMessage, setLastScanMessage] = useState<string | null>(null);
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     try {
       const data = await riskApi.getSyncStatus();
-      setSyncStatus(Array.isArray(data) ? data : data.results || []);
-    } catch (err) {
-      console.error("Failed to load sync status", err);
+      setSyncStatus(unwrapStatus(data));
+    } catch {
+      console.error("Failed to load sync status");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadStatus();
+    void loadStatus();
     const interval = setInterval(loadStatus, 30000); // Refresh status every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [loadStatus]);
 
   const handleNmapScan = async () => {
     setIsScanning(true);
     try {
       const res = await riskApi.runNmapScan();
       setLastScanMessage(res.detail || "Scan Nmap iniciado.");
-      loadStatus();
-    } catch (err) {
+      void loadStatus();
+    } catch {
       setLastScanMessage("Erro ao iniciar scan Nmap.");
     } finally {
       setIsScanning(false);
@@ -43,8 +55,8 @@ export default function Discovery() {
     try {
       const res = await riskApi.syncWazuh();
       setLastScanMessage(res.detail || "Sincronização Wazuh iniciada.");
-      loadStatus();
-    } catch (err) {
+      void loadStatus();
+    } catch {
       setLastScanMessage("Erro ao iniciar sincronização Wazuh.");
     } finally {
       setIsScanning(false);
@@ -103,15 +115,15 @@ export default function Discovery() {
             <p className="text-sm text-slate-400 italic">Sem histórico de sincronização.</p>
           ) : (
             <div className="space-y-3">
-              {syncStatus.map((s: any) => (
-                <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+              {syncStatus.map((s) => (
+                <div key={s.id ?? `${s.provider}-${s.last_sync ?? s.last_sync_at ?? s.status}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${s.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : s.status === 'RUNNING' ? 'bg-indigo-100 text-indigo-700 animate-pulse' : 'bg-red-100 text-red-700'}`}>
                       {s.provider === 'wazuh' ? <Shield className="h-4 w-4" /> : <Radar className="h-4 w-4" />}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-900 uppercase">{s.provider}</p>
-                      <p className="text-[10px] text-slate-500">{new Date(s.last_sync || Date.now()).toLocaleTimeString()}</p>
+                      <p className="text-[10px] text-slate-500">{new Date(s.last_sync || s.last_sync_at || Date.now()).toLocaleTimeString()}</p>
                     </div>
                   </div>
                   <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${s.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-700' : 'bg-indigo-500/10 text-indigo-700'}`}>

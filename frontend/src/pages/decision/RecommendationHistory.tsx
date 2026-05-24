@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Bot,
@@ -197,7 +197,7 @@ export default function RecommendationHistory() {
   const [convertError, setConvertError] = useState<string | null>(null);
   const [convertSuccess, setConvertSuccess] = useState<string | null>(null);
 
-  const load = async (showLoading = true) => {
+  const load = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     setError(null);
     try {
@@ -227,11 +227,11 @@ export default function RecommendationHistory() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [adviceModeFilter, contextFilter, convertedFilter, policyIdFilter, ragOnly, search, searchParams]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     const desiredId = searchParams.get("id");
@@ -275,7 +275,7 @@ export default function RecommendationHistory() {
     }));
     setConvertError(null);
     setConvertSuccess(null);
-  }, [selectedId]);
+  }, [selected?.question, selectedId]);
 
   const removeSelected = async () => {
     if (!selected) return;

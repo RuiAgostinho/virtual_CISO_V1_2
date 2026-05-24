@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -35,6 +35,10 @@ function confidenceLabel(confidence: number) {
   return "Baixa";
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function EvidenceSuggestionsModal({
   open,
   controlMechanism,
@@ -47,7 +51,7 @@ export function EvidenceSuggestionsModal({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const loadSuggestions = async () => {
+  const loadSuggestions = useCallback(async () => {
     if (!controlMechanism) return;
 
     setLoading(true);
@@ -56,24 +60,24 @@ export function EvidenceSuggestionsModal({
     try {
       const response = await controlsApi.getEvidenceSuggestions(controlMechanism.id);
       setData(response);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel obter sugestoes de evidencia.");
+      setError(getErrorMessage(err, "Nao foi possivel obter sugestoes de evidencia."));
     } finally {
       setLoading(false);
     }
-  };
+  }, [controlMechanism]);
 
   useEffect(() => {
     if (open && controlMechanism) {
-      loadSuggestions();
+      void loadSuggestions();
     } else {
       setData(null);
       setError(null);
       setSuccessMessage(null);
       setApplyingId(null);
     }
-  }, [open, controlMechanism?.id]);
+  }, [controlMechanism, loadSuggestions, open]);
 
   if (!open || !controlMechanism) return null;
 
@@ -89,9 +93,9 @@ export function EvidenceSuggestionsModal({
       setSuccessMessage("Evidencia associada ao mecanismo com validacao do CISO.");
       onApplied();
       await loadSuggestions();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel associar esta evidencia.");
+      setError(getErrorMessage(err, "Nao foi possivel associar esta evidencia."));
     } finally {
       setApplyingId(null);
     }
@@ -220,7 +224,7 @@ export function EvidenceSuggestionsModal({
           </p>
           <button
             type="button"
-            onClick={loadSuggestions}
+            onClick={() => void loadSuggestions()}
             disabled={loading}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950 disabled:opacity-50"
           >

@@ -10,6 +10,38 @@ export interface PaginatedResponse<T> {
     results: T[];
 }
 
+export type ApiRecord = Record<string, unknown>;
+export type QueryValue = string | number | boolean | null | undefined;
+export type QueryParams = Record<string, QueryValue>;
+export type EntityId = string | number;
+
+export type NetworkMapNode = ApiRecord & {
+    id: EntityId;
+    label?: string;
+    name?: string;
+    type?: string;
+};
+
+export type NetworkMapEdge = ApiRecord & {
+    id?: EntityId;
+    source: EntityId;
+    target: EntityId;
+    label?: string;
+};
+
+export type IntegrationConfig = ApiRecord & {
+    id: number;
+    provider: string;
+    enabled?: boolean;
+    name?: string;
+};
+
+export type OperationResult = ApiRecord & {
+    detail: string;
+    status: string;
+    message: string;
+};
+
 export interface Software {
     id: number;
     name: string;
@@ -21,8 +53,8 @@ export interface Software {
     vulnerabilities_count?: number;
     max_severity?: "Critical" | "High" | "Medium" | "Low" | "None";
     risk_score?: number;
-    assets_detail?: any[];
-    vulnerabilities_detail?: any[];
+    assets_detail?: ApiRecord[];
+    vulnerabilities_detail?: ApiRecord[];
     created_at: string;
     updated_at: string;
 }
@@ -45,21 +77,21 @@ export interface AssetLocation {
     id: number;
     name: string;
     description?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface AssetEnvironment {
     id: number;
     name: string;
     description?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface AssetInfrastructure {
     id: number;
     name: string;
     description?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface NetworkRange {
@@ -68,7 +100,7 @@ export interface NetworkRange {
     cidr: string;
     description?: string;
     is_active?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface Vulnerability {
@@ -85,11 +117,11 @@ export interface Vulnerability {
     is_in_kev?: boolean;
     source: string;
     published_at?: string;
-    controls?: any[];
+    controls?: ApiRecord[];
     assets_count?: number;
-    assets_detail?: any[];
+    assets_detail?: ApiRecord[];
     software_count?: number;
-    software_detail?: any[];
+    software_detail?: ApiRecord[];
     remediation_status?: string;
     detected_at?: string;
     affected_assets_count?: number;
@@ -121,9 +153,9 @@ export interface Asset {
     environment?: string | number;
     deployment_type?: string | number;
     parent?: string | null;
-    parent_details?: any;
-    children_details?: any[];
-    controls?: any[];
+    parent_details?: ApiRecord | null;
+    children_details?: ApiRecord[];
+    controls?: ApiRecord[];
     vulnerability_occurrences?: AssetVulnerability[];
     secondary_ips?: string[];
     last_sync_at?: string;
@@ -156,9 +188,9 @@ export interface AssetVulnerability {
     source: string;
     epss_score?: number | string;
     vulnerability_details?: Vulnerability;
-    asset_details?: any;
-    software_details?: any;
-    history?: any[];
+    asset_details?: ApiRecord;
+    software_details?: ApiRecord;
+    history?: ApiRecord[];
 }
 
 export interface RiskFactor {
@@ -258,7 +290,24 @@ export interface RiskConfig {
     weight_dependency: number;
 }
 
-function cleanParams(params: any): string {
+export type RiskDashboardPayload = {
+    metrics: { total: number; critical: number; high: number; open: number };
+    distribution: { risk_level: string; count: number }[];
+    top_assets: { asset__name: string; score: number }[];
+};
+
+export type SoftwareStats = ApiRecord & {
+    total?: number;
+    vulnerable?: number;
+    critical?: number;
+};
+
+export type SyncStatusItem = ApiRecord & {
+    status?: string;
+    last_sync_at?: string | null;
+};
+
+function cleanParams(params?: QueryParams): string {
     if (!params) return "";
     const p = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -279,52 +328,52 @@ export const riskApi = {
     request,
 
     // --- Asset Management ---
-    async listAssets(params?: any): Promise<PaginatedResponse<any>> {
+    async listAssets(params?: QueryParams): Promise<PaginatedResponse<Asset>> {
         const query = cleanParams(params);
-        return await request<PaginatedResponse<any>>(`/api/risk/assets/${query ? '?' + query : ''}`);
+        return await request<PaginatedResponse<Asset>>(`/api/risk/assets/${query ? '?' + query : ''}`);
     },
 
-    async getAsset(id: string): Promise<any> {
-        return await request<any>(`/api/risk/assets/${id}/`);
+    async getAsset(id: string): Promise<Asset> {
+        return await request<Asset>(`/api/risk/assets/${id}/`);
     },
 
-    async createAsset(payload: any): Promise<any> {
-        return await request<any>('/api/risk/assets/', {
+    async createAsset(payload: Partial<Asset> | ApiRecord): Promise<Asset> {
+        return await request<Asset>('/api/risk/assets/', {
             method: "POST",
             body: JSON.stringify(payload)
         });
     },
 
-    async updateAsset(id: string | number, payload: any): Promise<any> {
-        return await request<any>(`/api/risk/assets/${id}/`, {
+    async updateAsset(id: EntityId, payload: Partial<Asset> | ApiRecord): Promise<Asset> {
+        return await request<Asset>(`/api/risk/assets/${id}/`, {
             method: "PATCH",
             body: JSON.stringify(payload)
         });
     },
 
-    async enrichAsset(id: string | number): Promise<any> {
-        return await request<any>(`/api/risk/assets/${id}/enrich_nmap/`, {
+    async enrichAsset(id: EntityId): Promise<OperationResult> {
+        return await request<OperationResult>(`/api/risk/assets/${id}/enrich_nmap/`, {
             method: "POST",
             body: JSON.stringify({})
         });
     },
 
-    async mergeAsset(id: string | number, sourceAssetIds: Array<string | number>): Promise<any> {
-        return await request<any>(`/api/risk/assets/${id}/merge/`, {
+    async mergeAsset(id: EntityId, sourceAssetIds: EntityId[]): Promise<OperationResult> {
+        return await request<OperationResult>(`/api/risk/assets/${id}/merge/`, {
             method: "POST",
             body: JSON.stringify({ source_asset_ids: sourceAssetIds })
         });
     },
 
-    async scanNmap(payload: any = {}): Promise<any> {
-        return await request<any>('/api/risk/assets/scan_nmap/', {
+    async scanNmap(payload: ApiRecord = {}): Promise<OperationResult> {
+        return await request<OperationResult>('/api/risk/assets/scan_nmap/', {
             method: "POST",
             body: JSON.stringify(payload)
         });
     },
 
-    async syncWazuhAssets(): Promise<any> {
-        return await request<any>('/api/risk/assets/sync_wazuh/', {
+    async syncWazuhAssets(): Promise<OperationResult> {
+        return await request<OperationResult>('/api/risk/assets/sync_wazuh/', {
             method: "POST",
             body: JSON.stringify({})
         });
@@ -351,9 +400,9 @@ export const riskApi = {
         });
     },
 
-    async listNetworkRanges(params?: any): Promise<NetworkRange[]> {
+    async listNetworkRanges(params?: QueryParams): Promise<NetworkRange[]> {
         const query = cleanParams(params);
-        const data = await request<any>(`/api/risk/network-ranges/${query ? '?' + query : ''}`);
+        const data = await request<PaginatedResponse<NetworkRange> | NetworkRange[]>(`/api/risk/network-ranges/${query ? '?' + query : ''}`);
         return Array.isArray(data) ? data : data.results || [];
     },
 
@@ -364,42 +413,42 @@ export const riskApi = {
         });
     },
 
-    async updateNetworkRange(id: string | number, payload: Partial<NetworkRange>): Promise<NetworkRange> {
+    async updateNetworkRange(id: EntityId, payload: Partial<NetworkRange>): Promise<NetworkRange> {
         return await request<NetworkRange>(`/api/risk/network-ranges/${id}/`, {
             method: "PATCH",
             body: JSON.stringify(payload)
         });
     },
 
-    async deleteNetworkRange(id: string | number): Promise<void> {
+    async deleteNetworkRange(id: EntityId): Promise<void> {
         return await request<void>(`/api/risk/network-ranges/${id}/`, {
             method: "DELETE"
         });
     },
 
     // --- Software Management ---
-    async listSoftware(params?: any): Promise<PaginatedResponse<Software>> {
+    async listSoftware(params?: QueryParams): Promise<PaginatedResponse<Software>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<Software>>(`/api/risk/software/${query ? '?' + query : ''}`);
     },
 
-    async getSoftware(id: string | number): Promise<Software> {
+    async getSoftware(id: EntityId): Promise<Software> {
         return await request<Software>(`/api/risk/software/${id}/`);
     },
 
-    async updateSoftware(id: string | number, payload: Partial<Software>): Promise<Software> {
+    async updateSoftware(id: EntityId, payload: Partial<Software>): Promise<Software> {
         return await request<Software>(`/api/risk/software/${id}/`, {
             method: "PATCH",
             body: JSON.stringify(payload)
         });
     },
 
-    async getSoftwareStats(): Promise<any> {
-        return await request<any>('/api/risk/software/stats/');
+    async getSoftwareStats(): Promise<SoftwareStats> {
+        return await request<SoftwareStats>('/api/risk/software/stats/');
     },
 
     // --- Vulnerabilities ---
-    async listVulnerabilities(params?: any): Promise<PaginatedResponse<Vulnerability>> {
+    async listVulnerabilities(params?: QueryParams): Promise<PaginatedResponse<Vulnerability>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<Vulnerability>>(`/api/risk/vulnerabilities/${query ? '?' + query : ''}`);
     },
@@ -415,21 +464,21 @@ export const riskApi = {
         });
     },
 
-    async refreshVulnerabilityIntel(): Promise<any> {
-        return await request<any>('/api/risk/vulnerabilities/refresh_intel/', {
+    async refreshVulnerabilityIntel(): Promise<OperationResult> {
+        return await request<OperationResult>('/api/risk/vulnerabilities/refresh_intel/', {
             method: "POST",
             body: JSON.stringify({})
         });
     },
 
-    async refreshNvdIntel(): Promise<any> {
-        return await request<any>('/api/risk/vulnerabilities/refresh_nvd/', {
+    async refreshNvdIntel(): Promise<OperationResult> {
+        return await request<OperationResult>('/api/risk/vulnerabilities/refresh_nvd/', {
             method: "POST",
             body: JSON.stringify({})
         });
     },
 
-    async listVulnerabilityOccurrences(params?: any): Promise<PaginatedResponse<AssetVulnerability>> {
+    async listVulnerabilityOccurrences(params?: QueryParams): Promise<PaginatedResponse<AssetVulnerability>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<AssetVulnerability>>(`/api/risk/vulnerability-occurrences/${query ? '?' + query : ''}`);
     },
@@ -446,7 +495,7 @@ export const riskApi = {
     },
 
     // --- Risks ---
-    async listRisks(params?: any): Promise<PaginatedResponse<Risk>> {
+    async listRisks(params?: QueryParams): Promise<PaginatedResponse<Risk>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<Risk>>(`/api/risk/risks/${query ? '?' + query : ''}`);
     },
@@ -461,16 +510,12 @@ export const riskApi = {
         });
     },
 
-    async getRiskDashboard(): Promise<{
-        metrics: { total: number, critical: number, high: number, open: number },
-        distribution: { risk_level: string, count: number }[],
-        top_assets: { asset__name: string, score: number }[]
-    }> {
-        return await request<any>('/api/risk/risks/dashboard/');
+    async getRiskDashboard(): Promise<RiskDashboardPayload> {
+        return await request<RiskDashboardPayload>('/api/risk/risks/dashboard/');
     },
 
     // --- Risk Treatments & Assessments ---
-    async listTreatments(params?: any): Promise<PaginatedResponse<RiskTreatment>> {
+    async listTreatments(params?: QueryParams): Promise<PaginatedResponse<RiskTreatment>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<RiskTreatment>>(`/api/risk/risk-treatments/${query ? '?' + query : ''}`);
     },
@@ -482,7 +527,7 @@ export const riskApi = {
         });
     },
 
-    async listAssessments(params?: any): Promise<PaginatedResponse<RiskAssessment>> {
+    async listAssessments(params?: QueryParams): Promise<PaginatedResponse<RiskAssessment>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<RiskAssessment>>(`/api/risk/risk-assessments/${query ? '?' + query : ''}`);
     },
@@ -505,35 +550,35 @@ export const riskApi = {
   listAssetInfrastructures: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-infrastructures/"),
 
   // Categories and Types
-  listAssetCategories: (params?: any) => {
+  listAssetCategories: (params?: QueryParams) => {
     const query = cleanParams(params);
     return request<PaginatedResponse<AssetCategory>>(`/api/risk/asset-categories/${query ? '?' + query : ''}`);
   },
-  listAssetTypes: (params?: any) => {
+  listAssetTypes: (params?: QueryParams) => {
     const query = cleanParams(params);
     return request<PaginatedResponse<AssetType>>(`/api/risk/asset-types/${query ? '?' + query : ''}`);
   },
 
   // UC3: Discovery
-  syncWazuh: () => request<any>("/api/risk/assets/sync_wazuh/", { method: "POST" }),
-  runNmapScan: () => request<any>("/api/risk/assets/scan_nmap/", { method: "POST" }),
-  getSyncStatus: () => request<any>("/api/integrations/sync-status/"),
-  getNetworkMap: () => request<{ nodes: any[], edges: any[] }>("/api/risk/assets/network_map/"),
+  syncWazuh: () => request<OperationResult>("/api/risk/assets/sync_wazuh/", { method: "POST" }),
+  runNmapScan: () => request<OperationResult>("/api/risk/assets/scan_nmap/", { method: "POST" }),
+  getSyncStatus: () => request<PaginatedResponse<SyncStatusItem> | SyncStatusItem[]>("/api/integrations/sync-status/"),
+  getNetworkMap: () => request<{ nodes: NetworkMapNode[]; edges: NetworkMapEdge[] }>("/api/risk/assets/network_map/"),
 
   // UC4: Prioritization
-  listPrioritizedVulnerabilities: (params?: any) => {
+  listPrioritizedVulnerabilities: (params?: QueryParams) => {
     const query = cleanParams(params);
     return request<PrioritizedVulnerability[]>(`/api/risk/vulnerability-occurrences/prioritized/${query ? '?' + query : ''}`);
   },
 
   // Integration Configs
-  listIntegrationConfigs: () => request<any[]>("/api/integrations/configs/"),
-  getIntegrationConfig: (provider: string) => request<any>(`/api/integrations/configs/${provider}/provider/`),
-  updateIntegrationConfig: (id: number, payload: any) => request<any>(`/api/integrations/configs/${id}/`, {
+  listIntegrationConfigs: () => request<IntegrationConfig[]>("/api/integrations/configs/"),
+  getIntegrationConfig: (provider: string) => request<IntegrationConfig>(`/api/integrations/configs/${provider}/provider/`),
+  updateIntegrationConfig: (id: number, payload: Partial<IntegrationConfig> | ApiRecord) => request<IntegrationConfig>(`/api/integrations/configs/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(payload)
   }),
-  testIntegration: (id: number) => request<any>(`/api/integrations/configs/${id}/test_connection/`, {
+  testIntegration: (id: number) => request<OperationResult>(`/api/integrations/configs/${id}/test_connection/`, {
     method: "POST"
   }),
 };

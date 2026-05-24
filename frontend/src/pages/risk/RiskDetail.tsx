@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ElementType, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ElementType, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
@@ -292,7 +292,7 @@ export default function RiskDetail() {
   const [error, setError] = useState<string | null>(null);
   const [residualError, setResidualError] = useState<string | null>(null);
 
-  const loadResidualRisk = async (riskId: string) => {
+  const loadResidualRisk = useCallback(async (riskId: string) => {
     setResidualLoading(true);
     setResidualError(null);
     try {
@@ -311,9 +311,9 @@ export default function RiskDetail() {
     } finally {
       setResidualLoading(false);
     }
-  };
+  }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
@@ -326,14 +326,14 @@ export default function RiskDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, loadResidualRisk]);
 
   useEffect(() => {
     load();
-  }, [id]);
+  }, [load]);
 
   const score = Number(risk?.risk_score || risk?.score || 0);
-  const factors = risk?.factors || [];
+  const factors = useMemo(() => risk?.factors || [], [risk?.factors]);
   const treatments = risk?.treatments || [];
   const factorTotal = useMemo(
     () => factors.reduce((sum, item) => sum + Number(item.contribution || 0), 0),

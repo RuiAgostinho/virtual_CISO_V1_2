@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ElementType, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -7,7 +6,6 @@ import {
   BarChart3,
   Bot,
   Brain,
-  CheckCircle2,
   Clock,
   Database,
   FileText,
@@ -18,6 +16,14 @@ import {
   SearchCheck,
   ShieldCheck,
 } from "lucide-react";
+import {
+  GovernanceEmptyState,
+  GovernanceKeyValue,
+  GovernanceMetricCard,
+  GovernancePanel,
+  GovernanceProgressBar,
+  GovernanceStatusPill,
+} from "@/components/governance/GovernancePrimitives";
 import { governanceApi, type GovernanceEvaluationOverview } from "@/lib/governanceApi";
 
 type RecordValue = Record<string, unknown>;
@@ -69,91 +75,6 @@ function formatDateTime(value: unknown) {
 function apiErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error || "Erro desconhecido");
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  helper,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: ReactNode;
-  helper?: ReactNode;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <Icon className={`mb-7 h-5 w-5 ${tone}`} />
-      <div className="text-3xl font-black text-slate-950">{value}</div>
-      <div className="mt-1 text-xs font-black uppercase tracking-wide text-slate-400">{label}</div>
-      {helper ? <div className="mt-3 text-xs font-bold leading-5 text-slate-500">{helper}</div> : null}
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  subtitle,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  icon: ElementType;
-  children: ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <Icon className="h-5 w-5 text-indigo-600" />
-            <h2 className="text-xl font-black text-slate-950">{title}</h2>
-          </div>
-          {subtitle ? <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{subtitle}</p> : null}
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function EmptyState({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-28 items-center justify-center gap-3 px-6 py-8 text-sm font-semibold text-slate-500">
-      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-      {children}
-    </div>
-  );
-}
-
-function ProgressBar({ value, tone = "bg-indigo-600" }: { value: unknown; tone?: string }) {
-  const percentage = Math.max(0, Math.min(100, asNumber(value)));
-  return (
-    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-      <div className={`h-full rounded-full ${tone}`} style={{ width: `${percentage}%` }} />
-    </div>
-  );
-}
-
-function StatusPill({ children, tone = "bg-slate-100 text-slate-600" }: { children: ReactNode; tone?: string }) {
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${tone}`}>
-      {children}
-    </span>
-  );
-}
-
-function KeyValue({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="rounded-xl bg-slate-50 p-4">
-      <div className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="mt-2 text-xl font-black text-slate-950">{value}</div>
-    </div>
-  );
 }
 
 export default function GovernanceEvaluation() {
@@ -256,61 +177,61 @@ export default function GovernanceEvaluation() {
       ) : data ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <MetricCard
+            <GovernanceMetricCard
               icon={Clock}
               label="Tempo medio IA"
               value={formatSeconds(timing.average_seconds)}
-              helper={`${formatNumber(timing.samples)} amostras com duracao registada`}
+              detail={`${formatNumber(timing.samples)} amostras com duracao registada`}
               tone="text-indigo-600"
             />
-            <MetricCard
+            <GovernanceMetricCard
               icon={Bot}
               label="Interacoes IA"
               value={formatNumber(assistant.total_interactions)}
-              helper={`${formatPercent(assistant.rag_rate)} com RAG`}
+              detail={`${formatPercent(assistant.rag_rate)} com RAG`}
               tone="text-violet-600"
             />
-            <MetricCard
+            <GovernanceMetricCard
               icon={SearchCheck}
               label="Fontes por resposta RAG"
               value={formatNumber(assistantSources.average_sources_per_rag_interaction)}
-              helper={`${formatNumber(assistantSources.total_sources_used)} fontes citadas`}
+              detail={`${formatNumber(assistantSources.total_sources_used)} fontes citadas`}
               tone="text-emerald-600"
             />
-            <MetricCard
+            <GovernanceMetricCard
               icon={Database}
               label="Coverage embeddings"
               value={formatPercent(rag.embedding_coverage)}
-              helper={`${formatNumber(rag.embedded_chunks)} / ${formatNumber(rag.total_chunks)} chunks`}
+              detail={`${formatNumber(rag.embedded_chunks)} / ${formatNumber(rag.total_chunks)} chunks`}
               tone="text-slate-600"
             />
-            <MetricCard
+            <GovernanceMetricCard
               icon={ShieldCheck}
               label="Coverage frameworks"
               value={formatPercent(data.frameworks.average_coverage)}
-              helper={`${formatNumber(data.frameworks.total_frameworks)} frameworks`}
+              detail={`${formatNumber(data.frameworks.total_frameworks)} frameworks`}
               tone="text-emerald-600"
             />
-            <MetricCard
+            <GovernanceMetricCard
               icon={AlertTriangle}
               label="Gaps atuais"
               value={formatNumber(gaps.current_total)}
-              helper={`${formatNumber(gaps.completed_gap_related_actions)} acoes de gap concluidas`}
+              detail={`${formatNumber(gaps.completed_gap_related_actions)} acoes de gap concluidas`}
               tone="text-orange-600"
             />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1.15fr]">
-            <Panel
+            <GovernancePanel
               title="Desempenho do LLM local"
               subtitle="Mede o tempo total observado no endpoint IA: recuperacao de contexto, prompt e chamada ao LLM local."
               icon={Clock}
             >
               <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
-                <KeyValue label="Amostras" value={formatNumber(timing.samples)} />
-                <KeyValue label="Media" value={formatSeconds(timing.average_seconds)} />
-                <KeyValue label="Minimo" value={formatSeconds(timing.min_seconds)} />
-                <KeyValue label="Maximo" value={formatSeconds(timing.max_seconds)} />
+                <GovernanceKeyValue label="Amostras" value={formatNumber(timing.samples)} />
+                <GovernanceKeyValue label="Media" value={formatSeconds(timing.average_seconds)} />
+                <GovernanceKeyValue label="Minimo" value={formatSeconds(timing.min_seconds)} />
+                <GovernanceKeyValue label="Maximo" value={formatSeconds(timing.max_seconds)} />
               </div>
 
               <div className="border-t border-slate-100 px-6 py-5">
@@ -333,21 +254,21 @@ export default function GovernanceEvaluation() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState>Ainda nao existem interacoes IA registadas.</EmptyState>
+                  <GovernanceEmptyState>Ainda nao existem interacoes IA registadas.</GovernanceEmptyState>
                 )}
               </div>
-            </Panel>
+            </GovernancePanel>
 
-            <Panel
+            <GovernancePanel
               title="RAG e fontes usadas"
               subtitle="Mostra quantas fontes foram usadas pelo assistente e o estado atual dos chunks/embeddings."
               icon={Database}
             >
               <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
-                <KeyValue label="Chunks" value={formatNumber(rag.total_chunks)} />
-                <KeyValue label="Com embedding" value={formatNumber(rag.embedded_chunks)} />
-                <KeyValue label="Sem embedding" value={formatNumber(rag.missing_embeddings)} />
-                <KeyValue label="Coverage" value={formatPercent(rag.embedding_coverage)} />
+                <GovernanceKeyValue label="Chunks" value={formatNumber(rag.total_chunks)} />
+                <GovernanceKeyValue label="Com embedding" value={formatNumber(rag.embedded_chunks)} />
+                <GovernanceKeyValue label="Sem embedding" value={formatNumber(rag.missing_embeddings)} />
+                <GovernanceKeyValue label="Coverage" value={formatPercent(rag.embedding_coverage)} />
               </div>
 
               <div className="grid gap-6 border-t border-slate-100 p-6 lg:grid-cols-2">
@@ -363,7 +284,7 @@ export default function GovernanceEvaluation() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState>Ainda nao ha fontes RAG citadas em respostas.</EmptyState>
+                    <GovernanceEmptyState>Ainda nao ha fontes RAG citadas em respostas.</GovernanceEmptyState>
                   )}
                 </div>
                 <div>
@@ -378,14 +299,14 @@ export default function GovernanceEvaluation() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState>Ainda nao ha chunks RAG indexados.</EmptyState>
+                    <GovernanceEmptyState>Ainda nao ha chunks RAG indexados.</GovernanceEmptyState>
                   )}
                 </div>
               </div>
-            </Panel>
+            </GovernancePanel>
           </div>
 
-          <Panel
+          <GovernancePanel
             title="Coverage e score por framework"
             subtitle="Score oficial calculado por propagacao; coverage indica controlos externos avaliados ou cobertos."
             icon={BarChart3}
@@ -411,19 +332,19 @@ export default function GovernanceEvaluation() {
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="font-black text-slate-950">{formatPercent(row.score)}</div>
-                          <div className="mt-2"><ProgressBar value={row.score} tone="bg-emerald-600" /></div>
+                          <div className="mt-2"><GovernanceProgressBar value={row.score} tone="bg-emerald-600" /></div>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="font-black text-slate-950">{formatPercent(row.coverage)}</div>
-                          <div className="mt-2"><ProgressBar value={row.coverage} /></div>
+                          <div className="mt-2"><GovernanceProgressBar value={row.coverage} /></div>
                         </td>
                         <td className="px-5 py-4 text-right font-bold text-slate-600">
                           {formatNumber(row.assessed_controls)} / {formatNumber(row.total_controls)}
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <StatusPill tone={asNumber(row.gaps_count) ? "bg-orange-50 text-orange-700" : "bg-emerald-50 text-emerald-700"}>
+                          <GovernanceStatusPill tone={asNumber(row.gaps_count) ? "bg-orange-50 text-orange-700" : "bg-emerald-50 text-emerald-700"}>
                             {formatNumber(row.gaps_count)}
-                          </StatusPill>
+                          </GovernanceStatusPill>
                         </td>
                       </tr>
                     ))}
@@ -431,11 +352,11 @@ export default function GovernanceEvaluation() {
                 </table>
               </div>
             ) : (
-              <EmptyState>Ainda nao existem frameworks para avaliar.</EmptyState>
+              <GovernanceEmptyState>Ainda nao existem frameworks para avaliar.</GovernanceEmptyState>
             )}
-          </Panel>
+          </GovernancePanel>
 
-          <Panel
+          <GovernancePanel
             title="Score por politica"
             subtitle="Score oficial das politicas baseado nos controlos internos e mecanismos associados."
             icon={FileText}
@@ -450,13 +371,13 @@ export default function GovernanceEvaluation() {
                           {asText(row.code)} - {asText(row.title)}
                         </div>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          <StatusPill>{asText(row.status)}</StatusPill>
-                          <StatusPill tone="bg-indigo-50 text-indigo-700">{asText(row.compliance_status)}</StatusPill>
+                          <GovernanceStatusPill>{asText(row.status)}</GovernanceStatusPill>
+                          <GovernanceStatusPill tone="bg-indigo-50 text-indigo-700">{asText(row.compliance_status)}</GovernanceStatusPill>
                         </div>
                       </div>
                       <div>
                         <div className="mb-2 text-right text-sm font-black text-slate-950">{formatPercent(row.score)}</div>
-                        <ProgressBar value={row.score} tone="bg-emerald-600" />
+                        <GovernanceProgressBar value={row.score} tone="bg-emerald-600" />
                       </div>
                       <div className="text-right text-xs font-black uppercase tracking-wide text-slate-400">
                         {formatNumber(row.gaps_count)} gaps
@@ -467,23 +388,23 @@ export default function GovernanceEvaluation() {
                 ))}
               </div>
             ) : (
-              <EmptyState>Ainda nao existem politicas para avaliar.</EmptyState>
+              <GovernanceEmptyState>Ainda nao existem politicas para avaliar.</GovernanceEmptyState>
             )}
-          </Panel>
+          </GovernancePanel>
 
           <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <Panel
+            <GovernancePanel
               title="Rastreabilidade e mappings"
               subtitle="Totais de entidades e estado das relacoes transversais."
               icon={GitBranch}
             >
               <div className="grid gap-4 p-6 sm:grid-cols-2">
-                <KeyValue label="Politicas" value={formatNumber(traceabilityTotals.policies)} />
-                <KeyValue label="Documentos" value={formatNumber(traceabilityTotals.governance_documents)} />
-                <KeyValue label="Controlos internos" value={formatNumber(traceabilityTotals.internal_controls)} />
-                <KeyValue label="Mecanismos" value={formatNumber(traceabilityTotals.mechanisms)} />
-                <KeyValue label="Evidencias" value={formatNumber(traceabilityTotals.evidence_items)} />
-                <KeyValue label="Frameworks" value={formatNumber(traceabilityTotals.frameworks)} />
+                <GovernanceKeyValue label="Politicas" value={formatNumber(traceabilityTotals.policies)} />
+                <GovernanceKeyValue label="Documentos" value={formatNumber(traceabilityTotals.governance_documents)} />
+                <GovernanceKeyValue label="Controlos internos" value={formatNumber(traceabilityTotals.internal_controls)} />
+                <GovernanceKeyValue label="Mecanismos" value={formatNumber(traceabilityTotals.mechanisms)} />
+                <GovernanceKeyValue label="Evidencias" value={formatNumber(traceabilityTotals.evidence_items)} />
+                <GovernanceKeyValue label="Frameworks" value={formatNumber(traceabilityTotals.frameworks)} />
               </div>
               <div className="grid gap-3 border-t border-slate-100 p-6 sm:grid-cols-2 lg:grid-cols-5">
                 {["approved", "pending_review", "draft", "rejected", "deprecated"].map((status) => (
@@ -493,17 +414,17 @@ export default function GovernanceEvaluation() {
                   </div>
                 ))}
               </div>
-            </Panel>
+            </GovernancePanel>
 
-            <Panel
+            <GovernancePanel
               title="Gaps resolvidos e em aberto"
               subtitle="Indicadores para demonstrar melhoria: gaps atuais, acoes concluidas e lacunas por severidade."
               icon={Layers3}
             >
               <div className="grid gap-4 p-6 sm:grid-cols-3">
-                <KeyValue label="Gaps atuais" value={formatNumber(gaps.current_total)} />
-                <KeyValue label="Gaps legacy implementados" value={formatNumber(gaps.resolved_legacy_compliance_gaps)} />
-                <KeyValue label="Acoes concluidas" value={formatNumber(gaps.completed_governance_actions)} />
+                <GovernanceKeyValue label="Gaps atuais" value={formatNumber(gaps.current_total)} />
+                <GovernanceKeyValue label="Gaps legacy implementados" value={formatNumber(gaps.resolved_legacy_compliance_gaps)} />
+                <GovernanceKeyValue label="Acoes concluidas" value={formatNumber(gaps.completed_governance_actions)} />
               </div>
               <div className="grid gap-6 border-t border-slate-100 p-6 lg:grid-cols-2">
                 <div>
@@ -518,7 +439,7 @@ export default function GovernanceEvaluation() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState>Sem gaps oficiais atuais.</EmptyState>
+                    <GovernanceEmptyState>Sem gaps oficiais atuais.</GovernanceEmptyState>
                   )}
                 </div>
                 <div>
@@ -533,14 +454,14 @@ export default function GovernanceEvaluation() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState>Sem tipos de gap para apresentar.</EmptyState>
+                    <GovernanceEmptyState>Sem tipos de gap para apresentar.</GovernanceEmptyState>
                   )}
                 </div>
               </div>
-            </Panel>
+            </GovernancePanel>
           </div>
 
-          <Panel
+          <GovernancePanel
             title="Interacoes IA mais lentas"
             subtitle="Apoia a discussao da dissertacao sobre limitacoes de LLM local e recursos computacionais."
             icon={AlertTriangle}
@@ -562,11 +483,11 @@ export default function GovernanceEvaluation() {
                 ))}
               </div>
             ) : (
-              <EmptyState>Ainda nao ha tempos registados. As novas interacoes IA passam a guardar esta metrica.</EmptyState>
+              <GovernanceEmptyState>Ainda nao ha tempos registados. As novas interacoes IA passam a guardar esta metrica.</GovernanceEmptyState>
             )}
-          </Panel>
+          </GovernancePanel>
 
-          <Panel
+          <GovernancePanel
             title="Amostra de gaps atuais"
             subtitle="Lista curta devolvida pelo motor de conformidade por propagacao."
             icon={AlertTriangle}
@@ -576,8 +497,8 @@ export default function GovernanceEvaluation() {
                 {openGapRows.map((row, index) => (
                   <div key={`${asText(row.type)}-${index}`} className="rounded-2xl border border-orange-100 bg-orange-50 p-5">
                     <div className="flex flex-wrap gap-2">
-                      <StatusPill tone="bg-white text-orange-700">{asText(row.severity, "gap")}</StatusPill>
-                      <StatusPill tone="bg-white text-slate-700">{asText(row.type)}</StatusPill>
+                      <GovernanceStatusPill tone="bg-white text-orange-700">{asText(row.severity, "gap")}</GovernanceStatusPill>
+                      <GovernanceStatusPill tone="bg-white text-slate-700">{asText(row.type)}</GovernanceStatusPill>
                     </div>
                     <p className="mt-3 text-sm font-bold leading-6 text-orange-950">
                       {asText(row.description, asText(row.recommendation, "Gap sem descricao"))}
@@ -589,9 +510,9 @@ export default function GovernanceEvaluation() {
                 ))}
               </div>
             ) : (
-              <EmptyState>Sem gaps oficiais devolvidos pelo motor.</EmptyState>
+              <GovernanceEmptyState>Sem gaps oficiais devolvidos pelo motor.</GovernanceEmptyState>
             )}
-          </Panel>
+          </GovernancePanel>
         </>
       ) : null}
     </div>

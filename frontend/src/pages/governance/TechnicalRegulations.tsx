@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileCode2, RefreshCw, Plus, Target, ShieldCheck, FileWarning, Search } from "lucide-react";
-import { governanceApi, type TechnicalRegulation } from "@/lib/governanceApi";
+import { governanceApi, type PaginatedResponse, type TechnicalRegulation } from "@/lib/governanceApi";
 
-function unwrap<T>(data: any): T[] {
+function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function statusLabel(status?: string) {
@@ -28,23 +32,23 @@ export default function TechnicalRegulations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await governanceApi.listTechnicalRegulations();
       setRegulations(unwrap<TechnicalRegulation>(data));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || "Não foi possível carregar as normas técnicas.");
+      setError(getErrorMessage(err, "Não foi possível carregar as normas técnicas."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const metrics = useMemo(() => ({
     total: regulations.length,
@@ -64,7 +68,7 @@ export default function TechnicalRegulations() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
+            <button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700 transition-colors">
               <RefreshCw className="h-4 w-4" />
               Atualizar
             </button>

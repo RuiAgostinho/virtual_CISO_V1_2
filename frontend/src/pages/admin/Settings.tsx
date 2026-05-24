@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings as SettingsIcon, Shield, Bell, Globe, Database, Save, RefreshCw } from "lucide-react";
+import { Shield, Bell, Globe, Database, Save, RefreshCw } from "lucide-react";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("general");

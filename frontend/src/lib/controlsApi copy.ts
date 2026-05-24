@@ -18,7 +18,7 @@ export type Control = {
   description_short?: string;
   source: ControlSource;
   status: ControlStatus;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   updated_at?: string;
 };
 
@@ -58,7 +58,7 @@ export const controlsApi = {
     control_id: string;
     title: string;
     description_short?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }) =>
     http<Control>(`${BASE}/controls/`, {
       method: "POST",
