@@ -703,6 +703,63 @@ export type GovernanceEvaluationOverview = {
     gaps: ApiRecord;
 };
 
+export type ComplianceDriftEvent = {
+    type: string;
+    severity: "critical" | "high" | "medium" | "low" | string;
+    impact_score?: number;
+    recommendation?: string;
+    [key: string]: unknown;
+};
+
+export type ComplianceDriftOverview = {
+    generated_at: string;
+    baseline: {
+        captured_at: string | null;
+        snapshots: number;
+        source: string;
+    };
+    metrics: {
+        total_events: number;
+        critical: number;
+        high: number;
+        medium: number;
+        low: number;
+        control_regressions: number;
+        asset_exposure_regressions: number;
+        new_vulnerabilities: number;
+        framework_mapping_gaps: number;
+    };
+    summary: string;
+    control_regressions: ComplianceDriftEvent[];
+    asset_exposure_regressions: ComplianceDriftEvent[];
+    new_vulnerabilities: ComplianceDriftEvent[];
+    framework_mapping_gaps: ComplianceDriftEvent[];
+    recommendations: string[];
+};
+
+export type ComplianceDriftSnapshotResult = {
+    created: number;
+    captured_at: string;
+    snapshot_label: string;
+    snapshot_type: string;
+};
+
+export type ComplianceDriftDemoResult = {
+    created: boolean;
+    message: string;
+    assessment_id?: string;
+    control_id?: string;
+    control_code?: string;
+    control_title?: string;
+    framework?: {
+        id: string;
+        code: string;
+        name: string;
+        version?: string;
+    };
+    snapshot_id?: string;
+};
+
 export interface RegulatoryContextRecord {
     id?: string;
     organization?: string;
@@ -1207,6 +1264,18 @@ export const governanceApi = {
         request<GovernanceHealthPayload>("/api/governance/health/overview/"),
     getGovernanceEvaluationOverview: () =>
         request<GovernanceEvaluationOverview>("/api/governance/evaluation/overview/"),
+    getComplianceDriftOverview: () =>
+        request<ComplianceDriftOverview>("/api/governance/drift/overview/"),
+    createComplianceDriftSnapshot: (label?: string, snapshot_type = "audit") =>
+        request<ComplianceDriftSnapshotResult>("/api/governance/drift/snapshot-current/", {
+            method: "POST",
+            body: JSON.stringify({ label, snapshot_type })
+        }),
+    createComplianceDriftDemoRegression: () =>
+        request<ComplianceDriftDemoResult>("/api/governance/drift/demo-regression/", {
+            method: "POST",
+            body: JSON.stringify({})
+        }),
 
     getFrameworks: () => request<PaginatedResponse<FrameworkRecord>>("/api/governance/frameworks/"),
     listControls: (params?: QueryParams) => {

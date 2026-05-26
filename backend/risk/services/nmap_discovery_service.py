@@ -204,7 +204,7 @@ class NmapDiscoveryService:
         return hosts
 
     def match_and_create_assets(self, found_hosts):
-        stats = {"created": 0, "ignored": 0}
+        stats = {"created": 0, "ignored": 0, "updated": 0, "assets_by_ip": {}}
         
         for host in found_hosts:
             ip = host["ip"]
@@ -217,6 +217,7 @@ class NmapDiscoveryService:
             if existing_asset:
                 existing_asset.last_sync_at = timezone.now()
                 existing_asset.save()
+                stats["assets_by_ip"][ip] = existing_asset
                 stats["ignored"] += 1
                 continue
                 
@@ -234,17 +235,17 @@ class NmapDiscoveryService:
                 description += "Nenhum serviço comum aberto detetado."
 
             # Cria novo ativo na aba de descobertas
-            Asset.objects.create(
+            asset = Asset.objects.create(
                 name=asset_name,
-                asset_type="Infrastructure",
                 criticality="Medium",
                 source="discovery",
                 wazuh_ip=ip,
                 wazuh_os_name=os_name if os_name != "Unknown" else None,
                 last_sync_at=timezone.now(),
                 description=description,
-                status="Active"
+                status="New"
             )
+            stats["assets_by_ip"][ip] = asset
             stats["created"] += 1
             
         return stats
@@ -274,5 +275,4 @@ class NmapDiscoveryService:
                 asset.delete()
                 count += 1
         return count
-
 

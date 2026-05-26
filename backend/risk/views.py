@@ -12,7 +12,16 @@ from django.utils import timezone
 
 from django.db.models import Count, F, Q, Max, Case, When, Value, CharField
 
+from django.db import transaction
+
 from .models.asset import Asset, AssetCategory, AssetType, AssetHistory, RiskConfiguration
+
+from .models.discovery import (
+    AssetClassificationReview,
+    AssetDiscoveryFinding,
+    AssetDiscoveryRun,
+    AssetExposureSnapshot,
+)
 
 from .models.software import Software
 
@@ -50,7 +59,15 @@ from .serializers import (
 
     AssetInfrastructureSerializer,
 
-    RiskConfigurationSerializer
+    RiskConfigurationSerializer,
+
+    AssetClassificationReviewSerializer,
+
+    AssetDiscoveryFindingSerializer,
+
+    AssetDiscoveryRunSerializer,
+
+    AssetExposureSnapshotSerializer
 
 )
 
@@ -61,6 +78,7 @@ from .services.intel_service import IntelService
 from .services.risk_engine import RiskEngineService
 
 from .services.prioritization import VulnerabilityPrioritizationService
+from .services.ciso_risk_panel import CisoRiskPanelService
 
 
 
@@ -145,6 +163,23 @@ class RiskViewSet(viewsets.ModelViewSet):
         })
 
 
+    @action(detail=False, methods=['get'], url_path='ciso-panel')
+
+    def ciso_panel(self, request):
+
+        try:
+
+            priority_limit = int(request.query_params.get("priority_limit", 10))
+
+        except (TypeError, ValueError):
+
+            priority_limit = 10
+
+        priority_limit = max(1, min(priority_limit, 25))
+
+        return Response(CisoRiskPanelService.dashboard(priority_limit=priority_limit))
+
+
 
 class RiskTreatmentViewSet(viewsets.ModelViewSet):
 
@@ -191,6 +226,61 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
     ordering_fields = ['cvss_score', 'cve_id', 'published_at']
 
     ordering = ['-cvss_score']
+
+
+    def filter_queryset(self, queryset):
+
+        queryset = super().filter_queryset(queryset)
+
+        if self._truthy(self.request.query_params.get('missing_cvss')):
+            queryset = queryset.filter(cvss_score__isnull=True)
+
+        if self._truthy(self.request.query_params.get('missing_epss')):
+            queryset = queryset.filter(epss_score__isnull=True)
+
+        if self._truthy(self.request.query_params.get('missing_nvd')):
+            queryset = queryset.filter(nvd_data__isnull=True)
+
+        if self._truthy(self.request.query_params.get('missing_kev_check')):
+            queryset = queryset.filter(kev_last_updated__isnull=True)
+
+        if self._truthy(self.request.query_params.get('missing_mitigation')):
+            queryset = queryset.filter(Q(mitigation__isnull=True) | Q(mitigation=''))
+
+        if self._truthy(self.request.query_params.get('kev')):
+            queryset = queryset.filter(is_in_kev=True)
+
+        if self._truthy(self.request.query_params.get('missing_enrichment')):
+            queryset = queryset.filter(
+                Q(cvss_score__isnull=True)
+                | Q(epss_score__isnull=True)
+                | Q(nvd_data__isnull=True)
+                | Q(mitigation__isnull=True)
+                | Q(mitigation='')
+            )
+
+        if self._truthy(self.request.query_params.get('without_any_enrichment')):
+            queryset = queryset.filter(
+                cvss_score__isnull=True,
+                epss_score__isnull=True,
+                nvd_data__isnull=True,
+                kev_last_updated__isnull=True,
+            ).filter(Q(mitigation__isnull=True) | Q(mitigation=''))
+
+        return queryset
+
+
+    @staticmethod
+    def _truthy(value):
+
+        return str(value).lower() in {'1', 'true', 'yes', 'on'}
+
+
+    @action(detail=False, methods=['get'])
+
+    def intel_quality(self, request):
+
+        return Response(IntelService.intel_quality())
 
 
 
@@ -247,6 +337,19 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Processo de atualização com o NIST NVD iniciado em background. Verifique o estado nas definições de integração."})
 
 
+    @action(detail=False, methods=['post'])
+
+    def refresh_kev(self, request):
+
+        import subprocess
+
+        import sys
+
+        subprocess.Popen([sys.executable, 'manage.py', 'sync_kev'])
+
+        return Response({"detail": "Processo de atualização CISA KEV iniciado em background. Verifique o estado nas definições de integração."})
+
+
 
 class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
 
@@ -292,7 +395,16 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
 
         filters_payload = {}
 
-        for key in ['asset_id', 'asset_criticality', 'severity', 'status', 'source']:
+        for key in [
+            'asset_id',
+            'asset_criticality',
+            'severity',
+            'status',
+            'source',
+            'occurrence_id',
+            'detected_since_days',
+            'candidate_limit',
+        ]:
 
             value = request.query_params.get(key)
 
@@ -310,11 +422,17 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
 
             }
 
+        mode = request.query_params.get('mode') or 'explainable_weighted'
+        if mode not in {'explainable_weighted', 'xgboost_experimental'}:
+            return Response({"detail": "Modo de priorização inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
         items = VulnerabilityPrioritizationService.get_top_vulnerabilities(
 
             limit=limit,
 
             filters=filters_payload,
+
+            mode=mode,
 
         )
 
@@ -564,6 +682,236 @@ class SoftwareViewSet(viewsets.ModelViewSet):
 
 
 
+def _request_user_or_none(request):
+    return request.user if getattr(request.user, "is_authenticated", False) else None
+
+
+def _exposure_score_from_services(services):
+    service_text = " ".join(str(service).lower() for service in services or [])
+    internet_like = ("http", "https", "rdp", "ssh", "ftp", "smtp", "vpn")
+    if any(token in service_text for token in internet_like):
+        return 4
+    return 2 if not services else 3
+
+
+def _create_exposure_snapshot(asset, host_data, run=None, source="nmap"):
+    services = host_data.get("services") or []
+    vulnerabilities = host_data.get("vulnerabilities") or []
+    snapshot = AssetExposureSnapshot.objects.create(
+        asset=asset,
+        discovery_run=run,
+        source=source,
+        exposure_score=_exposure_score_from_services(services),
+        exposure_label="Detectado por scan",
+        open_ports=[
+            service.split(" ", 1)[0]
+            for service in services
+            if isinstance(service, str) and service
+        ],
+        services=services,
+        vulnerabilities_summary={
+            "count": len(vulnerabilities),
+            "cves": [item.get("cve_id") for item in vulnerabilities if item.get("cve_id")],
+        },
+        raw_data=host_data,
+    )
+    return snapshot
+
+
+CLASSIFICATION_FIELDS = (
+    "confidentiality",
+    "integrity",
+    "availability",
+    "exposure",
+    "business_value",
+    "dependency_score",
+)
+
+
+def _parse_classification_payload(data, current_asset=None):
+    values = {}
+    missing = []
+    for field in CLASSIFICATION_FIELDS:
+        raw = data.get(field)
+        if raw in (None, "") and current_asset is not None:
+            raw = getattr(current_asset, field)
+        if raw in (None, ""):
+            missing.append(field)
+            continue
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field} deve ser um número entre 1 e 5.")
+        if value < 1 or value > 5:
+            raise ValueError(f"{field} deve estar entre 1 e 5.")
+        values[field] = value
+    if missing:
+        raise ValueError(f"Campos obrigatórios em falta: {', '.join(missing)}.")
+    return values
+
+
+def _classification_status_from_payload(data):
+    requested = data.get("classification_status") or data.get("status") or AssetClassificationReview.Status.VALIDATED
+    allowed = {choice[0] for choice in AssetClassificationReview.Status.choices}
+    if requested not in allowed:
+        raise ValueError("Estado da classificação inválido.")
+    return requested
+
+
+def _apply_asset_classification(asset, data, user=None, bulk=False):
+    values = _parse_classification_payload(data, asset)
+    owner = (data.get("owner") or asset.owner or "").strip()
+    rationale = (data.get("rationale") or "").strip()
+    next_review_at = data.get("next_review_at") or None
+    status_value = _classification_status_from_payload(data)
+
+    if status_value == AssetClassificationReview.Status.VALIDATED:
+        if not owner:
+            raise ValueError("Owner é obrigatório para validar a classificação.")
+        if not rationale:
+            raise ValueError("Justificação é obrigatória para validar a classificação.")
+        if not next_review_at:
+            raise ValueError("Data de revisão é obrigatória para validar a classificação.")
+
+    for field, value in values.items():
+        setattr(asset, field, value)
+    asset.owner = owner
+    asset.save()
+
+    AssetClassificationReview.objects.filter(asset=asset, is_current=True).update(is_current=False)
+    review = AssetClassificationReview.from_asset(
+        asset,
+        status=status_value,
+        rationale=rationale,
+        next_review_at=next_review_at,
+        is_current=True,
+        created_by=user if user and getattr(user, "is_authenticated", False) else None,
+    )
+    if status_value == AssetClassificationReview.Status.VALIDATED:
+        review.validate_review(user)
+    review.save()
+    AssetHistory.objects.create(
+        asset=asset,
+        action="Classificação em massa" if bulk else "Classificação atualizada",
+        details=rationale or f"Estado da classificação: {status_value}.",
+        user=user.username if user and getattr(user, "is_authenticated", False) else "Sistema",
+    )
+    return review
+
+
+class AssetDiscoveryRunViewSet(viewsets.ModelViewSet):
+    queryset = AssetDiscoveryRun.objects.prefetch_related("findings").all()
+    serializer_class = AssetDiscoveryRunSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["source", "status"]
+    search_fields = ["target_scope", "notes", "error_message"]
+    ordering_fields = ["started_at", "completed_at", "processed_count", "created_count"]
+    ordering = ["-started_at"]
+
+    def perform_create(self, serializer):
+        serializer.save(started_by=_request_user_or_none(self.request))
+
+
+class AssetDiscoveryFindingViewSet(viewsets.ModelViewSet):
+    queryset = AssetDiscoveryFinding.objects.select_related("run", "asset", "reviewed_by").all()
+    serializer_class = AssetDiscoveryFindingSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["run", "asset", "status", "ip_address", "hostname"]
+    search_fields = ["ip_address", "hostname", "mac_address", "os_name", "match_reason"]
+    ordering_fields = ["created_at", "reviewed_at", "confidence_score"]
+    ordering = ["status", "-created_at"]
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        finding = self.get_object()
+        with transaction.atomic():
+            asset = finding.asset
+            if not asset:
+                asset_name = finding.hostname or f"Nmap-Host-{finding.ip_address.replace('.', '-')}"
+                asset = Asset.objects.create(
+                    name=asset_name,
+                    description=f"Ativo confirmado a partir da descoberta {finding.run.source}.",
+                    source="discovery",
+                    wazuh_ip=finding.ip_address or None,
+                    wazuh_os_name=finding.os_name or None,
+                    last_sync_at=timezone.now(),
+                    status="New",
+                )
+                finding.asset = asset
+                finding.match_reason = finding.match_reason or "Ativo criado a partir de finding validado pelo CISO."
+                finding.run.created_count += 1
+            finding.mark_reviewed(AssetDiscoveryFinding.Status.CONFIRMED, _request_user_or_none(request))
+            finding.save()
+            finding.run.confirmed_count += 1
+            finding.run.save(update_fields=["created_count", "confirmed_count", "updated_at"])
+            _create_exposure_snapshot(asset, finding.raw_data or {
+                "services": finding.services,
+                "vulnerabilities": finding.vulnerabilities,
+            }, finding.run, finding.run.source)
+        return Response(self.get_serializer(finding).data)
+
+    @action(detail=True, methods=["post"])
+    def ignore(self, request, pk=None):
+        finding = self.get_object()
+        finding.mark_reviewed(AssetDiscoveryFinding.Status.IGNORED, _request_user_or_none(request))
+        finding.match_reason = request.data.get("reason", finding.match_reason)
+        finding.save()
+        finding.run.ignored_count += 1
+        finding.run.save(update_fields=["ignored_count", "updated_at"])
+        return Response(self.get_serializer(finding).data)
+
+    @action(detail=True, methods=["post"])
+    def mark_duplicate(self, request, pk=None):
+        finding = self.get_object()
+        asset_id = request.data.get("asset")
+        if asset_id:
+            finding.asset_id = asset_id
+        finding.mark_reviewed(AssetDiscoveryFinding.Status.DUPLICATE, _request_user_or_none(request))
+        finding.match_reason = request.data.get("reason", finding.match_reason or "Marcado como duplicado.")
+        finding.save()
+        finding.run.duplicate_count += 1
+        finding.run.save(update_fields=["duplicate_count", "updated_at"])
+        return Response(self.get_serializer(finding).data)
+
+
+class AssetExposureSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AssetExposureSnapshot.objects.select_related("asset", "discovery_run").all()
+    serializer_class = AssetExposureSnapshotSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["asset", "source", "exposure_score", "discovery_run"]
+    search_fields = ["asset__name", "exposure_label"]
+    ordering_fields = ["captured_at", "exposure_score"]
+    ordering = ["-captured_at"]
+
+
+class AssetClassificationReviewViewSet(viewsets.ModelViewSet):
+    queryset = AssetClassificationReview.objects.select_related("asset", "created_by", "reviewed_by").all()
+    serializer_class = AssetClassificationReviewSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["asset", "status", "is_current", "criticality_at_review"]
+    search_fields = ["asset__name", "rationale", "criticality_at_review"]
+    ordering_fields = ["created_at", "reviewed_at", "next_review_at", "classification_score"]
+    ordering = ["-is_current", "-created_at"]
+
+    def perform_create(self, serializer):
+        asset = serializer.validated_data["asset"]
+        if serializer.validated_data.get("is_current", True):
+            AssetClassificationReview.objects.filter(asset=asset, is_current=True).update(is_current=False)
+        serializer.save(
+            created_by=_request_user_or_none(self.request),
+            snapshot=AssetClassificationReview.build_snapshot(asset),
+        )
+
+    @action(detail=True, methods=["post"])
+    def validate(self, request, pk=None):
+        review = self.get_object()
+        review.validate_review(_request_user_or_none(request))
+        review.is_current = True
+        AssetClassificationReview.objects.filter(asset=review.asset, is_current=True).exclude(pk=review.pk).update(is_current=False)
+        review.save()
+        return Response(self.get_serializer(review).data)
+
+
 class AssetViewSet(viewsets.ModelViewSet):
 
     queryset = Asset.objects.annotate(
@@ -809,6 +1157,93 @@ class AssetViewSet(viewsets.ModelViewSet):
         return qs.select_related('category', 'asset_type')
 
 
+    @action(detail=False, methods=['get'])
+    def classification_overview(self, request):
+        total = Asset.objects.count()
+        validated = AssetClassificationReview.objects.filter(
+            is_current=True,
+            status=AssetClassificationReview.Status.VALIDATED,
+        ).values("asset").distinct().count()
+        pending = AssetClassificationReview.objects.filter(
+            is_current=True,
+            status__in=[
+                AssetClassificationReview.Status.INCOMPLETE,
+                AssetClassificationReview.Status.DRAFT,
+                AssetClassificationReview.Status.PENDING_REVIEW,
+            ],
+        ).values("asset").distinct().count()
+        expired = AssetClassificationReview.objects.filter(
+            is_current=True,
+            status=AssetClassificationReview.Status.EXPIRED,
+        ).values("asset").distinct().count()
+        by_criticality = list(
+            Asset.objects.values("criticality").annotate(count=Count("id")).order_by("criticality")
+        )
+        return Response({
+            "total_assets": total,
+            "validated": validated,
+            "incomplete": pending,
+            "pending_review": pending,
+            "expired": expired,
+            "not_validated": max(total - validated - pending - expired, 0),
+            "by_criticality": by_criticality,
+        })
+
+
+    @action(detail=True, methods=['post'])
+    def validate_classification(self, request, pk=None):
+        asset = self.get_object()
+        payload = request.data.copy()
+        payload["status"] = AssetClassificationReview.Status.VALIDATED
+        try:
+            with transaction.atomic():
+                review = _apply_asset_classification(asset, payload, _request_user_or_none(request))
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(AssetClassificationReviewSerializer(review).data)
+
+
+    @action(detail=True, methods=['post'])
+    def classify(self, request, pk=None):
+        asset = self.get_object()
+        try:
+            with transaction.atomic():
+                review = _apply_asset_classification(asset, request.data, _request_user_or_none(request))
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(AssetClassificationReviewSerializer(review).data)
+
+
+    @action(detail=False, methods=['post'])
+    def bulk_classify(self, request):
+        asset_ids = request.data.get("asset_ids") or []
+        if not asset_ids:
+            return Response({"detail": "Seleciona pelo menos um ativo."}, status=status.HTTP_400_BAD_REQUEST)
+        assets = list(Asset.objects.filter(id__in=asset_ids))
+        if not assets:
+            return Response({"detail": "Nenhum ativo encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        created = []
+        errors = []
+        try:
+            _parse_classification_payload(request.data)
+            _classification_status_from_payload(request.data)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            for asset in assets:
+                try:
+                    review = _apply_asset_classification(asset, request.data, _request_user_or_none(request), bulk=True)
+                    created.append(review)
+                except ValueError as exc:
+                    errors.append({"asset": str(asset.id), "detail": str(exc)})
+        return Response({
+            "processed": len(assets),
+            "created": len(created),
+            "errors": errors,
+            "reviews": AssetClassificationReviewSerializer(created, many=True).data,
+        })
+
+
 
     @action(detail=False, methods=['post'])
 
@@ -867,6 +1302,12 @@ class AssetViewSet(viewsets.ModelViewSet):
         sync_status.save()
 
         start_time = timezone.now()
+        discovery_run = AssetDiscoveryRun.objects.create(
+            source=AssetDiscoveryRun.Source.NMAP,
+            status=AssetDiscoveryRun.Status.RUNNING,
+            started_by=_request_user_or_none(request),
+            target_scope="Redes configuradas",
+        )
 
         
 
@@ -874,41 +1315,30 @@ class AssetViewSet(viewsets.ModelViewSet):
 
             service = NmapDiscoveryService(username=username, password=password)
 
-            
-
-            # Limpa lixo de execuções anteriores mal sucedidas
-
-            cleaned_count = service.cleanup_ghost_assets()
-
-            
-
             # 2. Realizar o scan
 
             found_hosts = service.run_all_networks_scan()
 
             found_ips_list = [h["ip"] for h in found_hosts if h.get("ip")]
+            discovery_run.processed_count = len(found_hosts)
 
             
 
             if not found_hosts:
-
-                # Se não encontrou nada, purga tudo o que era 'discovery'
-
-                purged_count = service.purge_missing_assets([])
-
-                
 
                 sync_status.status = 'SUCCESS'
 
                 sync_status.duration_seconds = (timezone.now() - start_time).seconds
 
                 sync_status.save()
+                discovery_run.raw_summary = {"found_ips": []}
+                discovery_run.finish(AssetDiscoveryRun.Status.COMPLETED)
 
 
 
                 return Response({
 
-                    "detail": f"O scan terminou mas não foram encontrados dispositivos ativos. ({purged_count} ativos antigos removidos)",
+                    "detail": "O scan terminou mas não foram encontrados dispositivos ativos.",
 
                     "found": 0,
 
@@ -916,23 +1346,45 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                     "ignored": 0,
 
-                    "cleaned": cleaned_count,
-
-                    "purged": purged_count
+                    "run_id": str(discovery_run.id)
 
                 })
 
 
 
-            # 3. Purgar ativos que já não estão presentes
-
-            purged_count = service.purge_missing_assets(found_ips_list)
-
-            
-
-            # 4. Criar/Ignorar novos ativos
+            # 3. Criar/Ignorar novos ativos, sem apagar histórico de scans anteriores
 
             stats = service.match_and_create_assets(found_hosts)
+            assets_by_ip = stats.pop("assets_by_ip", {})
+            for host in found_hosts:
+                ip = host.get("ip") or ""
+                asset = assets_by_ip.get(ip)
+                services = host.get("services") or []
+                finding_status = (
+                    AssetDiscoveryFinding.Status.CONFIRMED
+                    if asset and asset.source == "manual"
+                    else AssetDiscoveryFinding.Status.NEW
+                )
+                AssetDiscoveryFinding.objects.create(
+                    run=discovery_run,
+                    asset=asset,
+                    ip_address=ip,
+                    hostname=host.get("hostname") or "",
+                    os_name=host.get("os_name") or "",
+                    open_ports=[
+                        service.split(" ", 1)[0]
+                        for service in services
+                        if isinstance(service, str) and service
+                    ],
+                    services=services,
+                    vulnerabilities=host.get("vulnerabilities") or [],
+                    status=finding_status,
+                    confidence_score=80 if asset else 60,
+                    match_reason="Correspondência por IP existente." if asset else "Novo ativo detetado por Nmap.",
+                    raw_data=host,
+                )
+                if asset:
+                    _create_exposure_snapshot(asset, host, discovery_run, "nmap")
 
             
 
@@ -943,12 +1395,24 @@ class AssetViewSet(viewsets.ModelViewSet):
             sync_status.duration_seconds = (timezone.now() - start_time).seconds
 
             sync_status.save()
+            discovery_run.created_count = stats["created"]
+            discovery_run.updated_count = stats.get("updated", 0)
+            discovery_run.confirmed_count = AssetDiscoveryFinding.objects.filter(
+                run=discovery_run,
+                status=AssetDiscoveryFinding.Status.CONFIRMED,
+            ).count()
+            discovery_run.raw_summary = {
+                "found_ips": found_ips_list,
+                "created": stats["created"],
+                "ignored": stats["ignored"],
+            }
+            discovery_run.finish(AssetDiscoveryRun.Status.COMPLETED)
 
 
 
             return Response({
 
-                "detail": f"Scan Nmap concluído. {len(found_hosts)} dispositivos encontrados, {stats['created']} novos integrados. ({purged_count} removidos por estarem offline)",
+                "detail": f"Scan Nmap concluído. {len(found_hosts)} dispositivos encontrados, {stats['created']} novos registados para validação.",
 
                 "found": len(found_hosts),
 
@@ -956,9 +1420,7 @@ class AssetViewSet(viewsets.ModelViewSet):
 
                 "ignored": stats["ignored"],
 
-                "cleaned": cleaned_count,
-
-                "purged": purged_count
+                "run_id": str(discovery_run.id)
 
             })
 
@@ -969,6 +1431,7 @@ class AssetViewSet(viewsets.ModelViewSet):
             sync_status.last_error = str(e)
 
             sync_status.save()
+            discovery_run.finish(AssetDiscoveryRun.Status.FAILED, str(e))
 
             import traceback
 
@@ -1163,6 +1626,7 @@ class AssetViewSet(viewsets.ModelViewSet):
             asset.last_sync_at = timezone.now()
 
             asset.save()
+            _create_exposure_snapshot(asset, host_data, source="nmap")
 
             
 
@@ -1485,8 +1949,3 @@ class RiskConfigurationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(config)
 
         return Response(serializer.data)
-
-
-
-
-

@@ -75,8 +75,8 @@ class SourceNormalizer:
             "entity_type": "evidence",
         },
         "technical_regulation": {
-            "source_label": "Regulamento tecnico legacy",
-            "governance_layer": "legacy_compatibility",
+            "source_label": "Fonte normativa",
+            "governance_layer": "external_regulatory",
             "entity_type": "technical_regulation",
         },
         "procedure": {
@@ -204,7 +204,12 @@ class SourceNormalizer:
             "score": score,
         }
 
-        for optional_key in ["framework", "control_code"]:
+        metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
+        metadata_url = metadata.get("url") or metadata.get("source_url")
+        if metadata_url and not source.get("url"):
+            normalized["url"] = metadata_url
+
+        for optional_key in ["framework", "control_code", "url", "metadata"]:
             if source.get(optional_key):
                 normalized[optional_key] = source[optional_key]
 

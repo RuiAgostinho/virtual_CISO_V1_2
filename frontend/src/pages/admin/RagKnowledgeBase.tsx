@@ -352,11 +352,13 @@ export default function RagKnowledgeBase() {
                     <div className="max-w-3xl">
                       <div className="flex items-center gap-2">
                         <Zap className="h-4 w-4 text-emerald-700" />
-                        <p className="text-sm font-bold text-slate-950">Completar embeddings governance</p>
+                        <p className="text-sm font-bold text-slate-950">Completar chunks governance detalhados</p>
                       </div>
                       <p className="mt-2 text-xs font-semibold leading-relaxed text-emerald-900/80">
-                        Processa apenas chunks em falta da nova camada transversal, sem apagar dados e sem reprocessar a
-                        base inteira. Usa missing-only e foca mapeamentos interno-framework e mecanismos por controlo.
+                        Processa apenas entidades governance que ainda nao têm chunk dedicado da nova camada transversal,
+                        sem apagar dados e sem reprocessar a base inteira. Isto é diferente de "Sem embedding": os chunks
+                        existentes podem estar todos vetorizados, mas ainda faltar cobertura detalhada para tarefas,
+                        mappings ou mecanismos recentes.
                       </p>
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {governanceMissing.map((row) => (
@@ -397,7 +399,7 @@ export default function RagKnowledgeBase() {
                       </button>
                       <p className="text-[11px] font-semibold text-emerald-800">
                         {governanceMissingTotal > 0
-                          ? `${governanceMissingTotal} itens ainda sem chunk dedicado.`
+                          ? `${governanceMissingTotal} entidades ainda sem chunk governance dedicado.`
                           : "Governance detalhado completo."}
                       </p>
                     </div>

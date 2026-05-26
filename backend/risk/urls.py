@@ -14,7 +14,15 @@ from .views import (
 
     AssetLocationViewSet, AssetEnvironmentViewSet, AssetInfrastructureViewSet,
 
-    RiskConfigurationViewSet
+    RiskConfigurationViewSet,
+
+    AssetClassificationReviewViewSet,
+
+    AssetDiscoveryFindingViewSet,
+
+    AssetDiscoveryRunViewSet,
+
+    AssetExposureSnapshotViewSet
 
 )
 
@@ -49,6 +57,14 @@ router.register(r'asset-locations', AssetLocationViewSet, basename='asset-locati
 router.register(r'asset-environments', AssetEnvironmentViewSet, basename='asset-environment')
 
 router.register(r'asset-infrastructures', AssetInfrastructureViewSet, basename='asset-infrastructure')
+
+router.register(r'asset-discovery-runs', AssetDiscoveryRunViewSet, basename='asset-discovery-run')
+
+router.register(r'asset-discovery-findings', AssetDiscoveryFindingViewSet, basename='asset-discovery-finding')
+
+router.register(r'asset-exposure-snapshots', AssetExposureSnapshotViewSet, basename='asset-exposure-snapshot')
+
+router.register(r'asset-classification-reviews', AssetClassificationReviewViewSet, basename='asset-classification-review')
 
 
 

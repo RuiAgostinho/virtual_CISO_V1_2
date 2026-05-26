@@ -64,6 +64,12 @@ class IntegrationConfigViewSet(viewsets.ModelViewSet):
                 res.raise_for_status()
                 return Response({"status": "success", "message": "Serviço EPSS alcançável!"})
 
+            elif provider == 'kev':
+                url = config.api_url or "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+                res = requests.get(url, timeout=5)
+                res.raise_for_status()
+                return Response({"status": "success", "message": "Feed CISA KEV alcançável!"})
+
             elif provider == 'nmap':
                 import paramiko
                 ssh = paramiko.SSHClient()

@@ -85,7 +85,7 @@ class LLMRouter:
         r"\b(framework|frameworks|iso|iso27001|iso27002|nist|nistcsf|qnrc|27001|27002|csf|nis2|controlo|controlos|compliance|conformidade)\b",
     ]
     PRIORITIZATION_PATTERNS = [
-        r"\b(prioriza|priorizar|urgente|urgentes|corrigir primeiro|corrigir em primeiro|remediar primeiro|prioridade)\b",
+        r"\b(prioriza|priorizar|urgente|urgentes|corrigir primeiro|corrigir em primeiro|remediar primeiro|prioridade|por onde comeco|por onde começo|comeco|começo)\b",
         r"\b(vulnerabilidade|vulnerabilidades|cve|cves)\b",
     ]
     GENERAL_QA_PATTERNS = [

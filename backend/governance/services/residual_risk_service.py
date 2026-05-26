@@ -7,6 +7,7 @@ from governance.models import (
     GovernanceRiskLink,
     InternalControlMechanism,
 )
+from governance.services.compliance_propagation_engine import CompliancePropagationEngine
 
 
 class GovernanceResidualRiskService:
@@ -270,12 +271,63 @@ class GovernanceResidualRiskService:
 
     @classmethod
     def _implementation_factor(cls, link):
+        compliance_factor = cls._compliance_factor(link)
+        if compliance_factor is not None:
+            return compliance_factor
         if link.source_type == GovernanceRiskLink.SourceType.INTERNAL_CONTROL_MECHANISM:
             source = cls._resolve_source(link.source_type, link.source_id)
             if not source:
                 return Decimal("0.00")
             return cls.IMPLEMENTATION_FACTORS.get(source.implementation_status, Decimal("0.00"))
         return Decimal("1.00")
+
+    @classmethod
+    def _compliance_factor(cls, link):
+        source = cls._resolve_source(link.source_type, link.source_id)
+        if not source:
+            return Decimal("0.00")
+        try:
+            if link.source_type == GovernanceRiskLink.SourceType.INTERNAL_CONTROL_MECHANISM:
+                result = CompliancePropagationEngine.calculate_mechanism(
+                    source.mechanism,
+                    mode=CompliancePropagationEngine.OFFICIAL,
+                    include_details=False,
+                    include_gaps=False,
+                    link_context=source,
+                )
+            elif link.source_type == GovernanceRiskLink.SourceType.INTERNAL_CONTROL:
+                result = CompliancePropagationEngine.calculate_internal_control(
+                    source,
+                    mode=CompliancePropagationEngine.OFFICIAL,
+                    include_details=False,
+                    include_gaps=False,
+                )
+            elif link.source_type == GovernanceRiskLink.SourceType.MECHANISM:
+                result = CompliancePropagationEngine.calculate_mechanism(
+                    source,
+                    mode=CompliancePropagationEngine.OFFICIAL,
+                    include_details=False,
+                    include_gaps=False,
+                )
+            elif link.source_type == GovernanceRiskLink.SourceType.POLICY:
+                result = CompliancePropagationEngine.calculate_policy(
+                    source,
+                    mode=CompliancePropagationEngine.OFFICIAL,
+                    include_details=False,
+                    include_gaps=False,
+                )
+            elif link.source_type == GovernanceRiskLink.SourceType.GOVERNANCE_DOCUMENT:
+                result = CompliancePropagationEngine.calculate_governance_document(
+                    source,
+                    mode=CompliancePropagationEngine.OFFICIAL,
+                    include_details=False,
+                    include_gaps=False,
+                )
+            else:
+                return None
+        except Exception:
+            return None
+        return max(Decimal("0.00"), min(Decimal("1.00"), Decimal(str(result.get("score", 0))) / Decimal("100")))
 
     @classmethod
     def _combined_reduction(cls, contributions):

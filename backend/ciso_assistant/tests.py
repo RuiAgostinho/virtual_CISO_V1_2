@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from ciso_assistant.models import AssistantRecommendation, KnowledgeChunk
 from ciso_assistant.services.governance_context_adapter import GovernanceContextAdapter
 from ciso_assistant.services.knowledge_ingestion import KnowledgeIngestionService
+from ciso_assistant.services.llm_router import LLMRouter
 from ciso_assistant.services.orchestrator import QueryOrchestrator
 from ciso_assistant.services.policy_advice_service import PolicyAdviceService
 from ciso_assistant.services.prompt_builder import PromptBuilder
@@ -656,3 +657,13 @@ class StructuredQueryLegacyFallbackTests(TestCase):
 
         self.assertEqual(result["type"], "control_count")
         self.assertEqual(result["value"], 1)
+
+
+class VulnerabilityPrioritizationRouterTests(TestCase):
+    def test_professor_use_case_question_routes_to_vulnerability_prioritization(self):
+        decision = LLMRouter.detect_task_type(
+            "Apareceram 137 vulnerabilidades novas esta semana. Por onde começo?"
+        )
+
+        self.assertEqual(decision["task_type"], "vulnerability_prioritization")
+        self.assertEqual(decision["decision_source"], "prioritization_rule")

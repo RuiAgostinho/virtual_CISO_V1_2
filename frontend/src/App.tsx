@@ -44,6 +44,7 @@ const GovernanceDashboard = React.lazy(() => import("@/pages/governance/Governan
 const GovernanceWorkbench = React.lazy(() => import("@/pages/governance/GovernanceWorkbench"));
 const GovernanceHealth = React.lazy(() => import("@/pages/governance/GovernanceHealth"));
 const GovernanceEvaluation = React.lazy(() => import("@/pages/governance/GovernanceEvaluation"));
+const ComplianceDrift = React.lazy(() => import("@/pages/governance/ComplianceDrift"));
 const GovernanceExceptions = React.lazy(() => import("@/pages/governance/GovernanceExceptions"));
 const ResidualRiskMappings = React.lazy(() => import("@/pages/governance/ResidualRiskMappings"));
 const GovernanceActionPlan = React.lazy(() => import("@/pages/governance/GovernanceActionPlan"));
@@ -147,6 +148,7 @@ export default function App() {
             <Route path="/governance/workbench" element={<GovernanceWorkbench />} />
             <Route path="/governance/health" element={<GovernanceHealth />} />
             <Route path="/governance/evaluation" element={<GovernanceEvaluation />} />
+            <Route path="/governance/drift" element={<ComplianceDrift />} />
             <Route path="/governance/exceptions" element={<GovernanceExceptions />} />
             <Route path="/governance/residual-risk-mappings" element={<ResidualRiskMappings />} />
             <Route path="/governance/action-plan" element={<GovernanceActionPlan />} />

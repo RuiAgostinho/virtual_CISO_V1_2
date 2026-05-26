@@ -14,6 +14,8 @@ class IntegrationConfig(models.Model):
 
         ('nist', 'NIST NVD'),
 
+        ('kev', 'CISA KEV'),
+
         ('nmap', 'Nmap Discovery (SSH)'),
 
     ]

@@ -43,6 +43,17 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString("pt-PT");
 }
 
+function evidenceWizardUrl(params: Record<string, string | number | null | undefined>) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      search.set(key, String(value));
+    }
+  });
+  const query = search.toString();
+  return query ? `/governance/evidence/wizard?${query}` : "/governance/evidence/wizard";
+}
+
 function statusLabel(status?: string) {
   const labels: Record<string, string> = {
     draft: "Rascunho",
@@ -1123,6 +1134,9 @@ export default function PolicyDetail() {
       const latestPolicyAdvice = policyAdviceHistoryData.results?.[0];
       setPolicyGapAdviceResult(latestPolicyAdvice ? historyEntryToAssistantResponse(latestPolicyAdvice) : null);
       setPolicyAssistantHistory(policyAdviceHistoryData.results || []);
+      // Mostra a politica assim que o núcleo está disponível. Traceability, dossier,
+      // mecanismos e evidências podem continuar a carregar em segundo plano.
+      setLoading(false);
 
       const internalControlIds = Array.from(new Set(
         policyInternalControlList
@@ -2455,6 +2469,11 @@ export default function PolicyDetail() {
     setActualEvidenceFile(null);
     setError(null);
     setMappingMessage(null);
+    window.setTimeout(() => {
+      document
+        .getElementById(`actual-evidence-form-${mechanism.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
   };
 
   const createActualEvidenceForInternalMechanism = async () => {
@@ -4687,7 +4706,7 @@ export default function PolicyDetail() {
                                     </div>
 
                                     {collectingActualEvidenceFor?.mechanismMappingId === String(mechanism.id) && (
-                                      <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm">
+                                      <div id={`actual-evidence-form-${mechanism.id}`} className="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm">
                                         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                                           <div>
                                             <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">Adicionar evidencia real</p>
@@ -4695,13 +4714,30 @@ export default function PolicyDetail() {
                                               Anexa uma fotografia, log, relatorio, ticket ou referencia que prove este mecanismo. A ligacao fica em draft para validacao.
                                             </p>
                                           </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => setCollectingActualEvidenceFor(null)}
-                                            className="text-xs font-bold uppercase tracking-wide text-slate-400 hover:text-slate-700"
-                                          >
-                                            Cancelar
-                                          </button>
+                                          <div className="flex flex-wrap gap-2">
+                                            <Link
+                                              to={evidenceWizardUrl({
+                                                target_type: "mechanism",
+                                                target_id: collectingActualEvidenceFor.mechanismId,
+                                                target_label: collectingActualEvidenceFor.mechanismLabel,
+                                                evidence_title: actualEvidenceDraft.title,
+                                                evidence_type: actualEvidenceDraft.evidence_type,
+                                                description: actualEvidenceDraft.description,
+                                                link_type: "evidences",
+                                                rationale: actualEvidenceDraft.description,
+                                              })}
+                                              className="inline-flex items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-indigo-700 hover:bg-indigo-100"
+                                            >
+                                              Abrir wizard completo
+                                            </Link>
+                                            <button
+                                              type="button"
+                                              onClick={() => setCollectingActualEvidenceFor(null)}
+                                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-400 hover:text-slate-700"
+                                            >
+                                              Cancelar
+                                            </button>
+                                          </div>
                                         </div>
 
                                         <div className="mt-4 grid gap-3 lg:grid-cols-2">

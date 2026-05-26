@@ -2,6 +2,13 @@ from rest_framework import serializers
 
 from .models.asset import Asset, AssetHistory, AssetCategory, AssetType, RiskConfiguration
 
+from .models.discovery import (
+    AssetClassificationReview,
+    AssetDiscoveryFinding,
+    AssetDiscoveryRun,
+    AssetExposureSnapshot,
+)
+
 from .models.software import Software, SoftwareHistory
 
 from .models.vulnerability import Vulnerability, AssetVulnerability, VulnerabilityHistory
@@ -123,6 +130,96 @@ class AssetHistorySerializer(serializers.ModelSerializer):
         model = AssetHistory
 
         fields = '__all__'
+
+
+
+class AssetDiscoveryRunSerializer(serializers.ModelSerializer):
+
+    findings_count = serializers.IntegerField(source='findings.count', read_only=True)
+
+    class Meta:
+
+        model = AssetDiscoveryRun
+
+        fields = '__all__'
+
+        read_only_fields = (
+            'started_by', 'started_at', 'completed_at', 'duration_seconds',
+            'processed_count', 'created_count', 'updated_count',
+            'confirmed_count', 'ignored_count', 'duplicate_count',
+            'raw_summary', 'created_at', 'updated_at', 'findings_count'
+        )
+
+
+
+class AssetDiscoveryFindingSerializer(serializers.ModelSerializer):
+
+    asset_name = serializers.CharField(source='asset.name', read_only=True)
+
+    run_source = serializers.CharField(source='run.source', read_only=True)
+
+    run_started_at = serializers.DateTimeField(source='run.started_at', read_only=True)
+
+    class Meta:
+
+        model = AssetDiscoveryFinding
+
+        fields = '__all__'
+
+        read_only_fields = ('reviewed_by', 'reviewed_at', 'created_at', 'updated_at')
+
+
+
+class AssetExposureSnapshotSerializer(serializers.ModelSerializer):
+
+    asset_name = serializers.CharField(source='asset.name', read_only=True)
+
+    discovery_run_source = serializers.CharField(source='discovery_run.source', read_only=True)
+
+    class Meta:
+
+        model = AssetExposureSnapshot
+
+        fields = '__all__'
+
+
+
+class AssetClassificationReviewSerializer(serializers.ModelSerializer):
+
+    asset_name = serializers.CharField(source='asset.name', read_only=True)
+
+    reviewed_by_name = serializers.CharField(source='reviewed_by.username', read_only=True)
+
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+
+        model = AssetClassificationReview
+
+        fields = '__all__'
+
+        read_only_fields = (
+            'created_by', 'reviewed_by', 'reviewed_at', 'snapshot',
+            'created_at', 'updated_at'
+        )
+
+    def validate(self, attrs):
+        for field in (
+            'confidentiality',
+            'integrity',
+            'availability',
+            'exposure',
+            'business_value',
+            'dependency_score',
+        ):
+            value = attrs.get(field, getattr(self.instance, field, 3))
+            try:
+                numeric_value = int(value)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({field: 'O valor deve estar entre 1 e 5.'})
+            if value is not None and (numeric_value < 1 or numeric_value > 5):
+                raise serializers.ValidationError({field: 'O valor deve estar entre 1 e 5.'})
+        return attrs
 
 
 
@@ -298,6 +395,13 @@ class VulnerabilitySerializer(serializers.ModelSerializer):
 
         fields = '__all__'
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from .services.intel_service import IntelService
+
+        data.update(IntelService.serialize_quality_flags(instance))
+        return data
+
 
 
 # --- Asset Vulnerability (Occurrence) ---
@@ -412,8 +516,20 @@ class AssetSerializer(serializers.ModelSerializer):
 
     criticality_breakdown = serializers.SerializerMethodField()
 
+    current_classification_review = serializers.SerializerMethodField()
+
+    latest_exposure_snapshot = serializers.SerializerMethodField()
+
     def get_criticality_breakdown(self, obj):
         return obj.criticality_breakdown()
+
+    def get_current_classification_review(self, obj):
+        review = obj.classification_reviews.filter(is_current=True).order_by('-created_at').first()
+        return AssetClassificationReviewSerializer(review).data if review else None
+
+    def get_latest_exposure_snapshot(self, obj):
+        snapshot = obj.exposure_snapshots.order_by('-captured_at').first()
+        return AssetExposureSnapshotSerializer(snapshot).data if snapshot else None
 
     class Meta:
 
@@ -442,7 +558,9 @@ class AssetSerializer(serializers.ModelSerializer):
 
             'dependent_assets_details', 'external_service_assets_details', 'integration_assets_details',
 
-            'depends_on_software_details', 'criticality_breakdown'
+            'depends_on_software_details', 'criticality_breakdown',
+
+            'current_classification_review', 'latest_exposure_snapshot'
 
         ]
 
@@ -480,6 +598,30 @@ class AssetListSerializer(serializers.ModelSerializer):
 
     environment_name = serializers.CharField(source='environment.name', read_only=True)
 
+    classification_status = serializers.SerializerMethodField()
+
+    classification_review_due = serializers.SerializerMethodField()
+
+    latest_exposure_score = serializers.SerializerMethodField()
+
+    latest_exposure_at = serializers.SerializerMethodField()
+
+    def get_classification_status(self, obj):
+        review = obj.classification_reviews.filter(is_current=True).order_by('-created_at').first()
+        return review.status if review else 'not_validated'
+
+    def get_classification_review_due(self, obj):
+        review = obj.classification_reviews.filter(is_current=True).order_by('-created_at').first()
+        return review.next_review_at if review else None
+
+    def get_latest_exposure_score(self, obj):
+        snapshot = obj.exposure_snapshots.order_by('-captured_at').first()
+        return snapshot.exposure_score if snapshot else None
+
+    def get_latest_exposure_at(self, obj):
+        snapshot = obj.exposure_snapshots.order_by('-captured_at').first()
+        return snapshot.captured_at if snapshot else None
+
 
 
     class Meta:
@@ -502,9 +644,15 @@ class AssetListSerializer(serializers.ModelSerializer):
 
             'owner', 'criticality', 'confidentiality', 'integrity', 'availability', 'exposure',
 
+            'business_value', 'dependency_score',
+
             'status', 'source', 'last_sync_at', 'wazuh_ip', 'secondary_ips', 'parent',
 
-            'vulnerabilities_count', 'controls_count'
+            'vulnerabilities_count', 'controls_count',
+
+            'classification_status', 'classification_review_due',
+
+            'latest_exposure_score', 'latest_exposure_at'
 
         ]
 

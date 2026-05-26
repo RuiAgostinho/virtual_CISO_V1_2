@@ -4,7 +4,7 @@ from .control import Control, ControlMapping
 
 from .internal_control import InternalControl, InternalControlFrameworkMapping
 
-from .assessment import ControlAssessment, Evidence, Finding, ImprovementAction
+from .assessment import ControlAssessment, ControlAssessmentSnapshot, Evidence, Finding, ImprovementAction
 
 from .compliance_gap import ComplianceGap
 

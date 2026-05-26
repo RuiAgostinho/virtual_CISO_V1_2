@@ -1,5 +1,7 @@
 import uuid
 
+from django.conf import settings
+
 from django.db import models
 
 from .framework import FrameworkProfile
@@ -11,6 +13,8 @@ from .base import TimeStampedModel
 from django.core.exceptions import ValidationError
 
 from django.db.models import Q
+
+from django.utils import timezone
 
 
 
@@ -115,6 +119,106 @@ class ControlAssessment(TimeStampedModel):
         return super().save(*args, **kwargs)
 
     
+
+class ControlAssessmentSnapshot(TimeStampedModel):
+
+    class SnapshotType(models.TextChoices):
+
+        BASELINE = "baseline", "Baseline"
+
+        AUDIT = "audit", "Audit"
+
+        MANUAL = "manual", "Manual"
+
+        SYSTEM = "system", "System"
+
+        DEMO = "demo", "Demo"
+
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    assessment = models.ForeignKey(ControlAssessment, on_delete=models.CASCADE, related_name="snapshots")
+
+    profile = models.ForeignKey(FrameworkProfile, on_delete=models.CASCADE, related_name="assessment_snapshots")
+
+    control = models.ForeignKey(Control, on_delete=models.CASCADE, related_name="assessment_snapshots")
+
+    snapshot_type = models.CharField(max_length=20, choices=SnapshotType.choices, default=SnapshotType.MANUAL)
+
+    snapshot_label = models.CharField(max_length=180, blank=True)
+
+    captured_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    implementation_status = models.CharField(max_length=20, choices=ControlAssessment.ImplementationStatus.choices)
+
+    maturity_level = models.PositiveSmallIntegerField(default=0)
+
+    effectiveness = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+
+    risk_inherent = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+
+    risk_residual = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+
+    notes = models.TextField(blank=True)
+
+    assessed_at = models.DateTimeField(null=True, blank=True)
+
+    assessed_by = models.CharField(max_length=150, blank=True)
+
+    source = models.CharField(max_length=80, blank=True, default="control_assessment")
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="control_assessment_snapshots",
+    )
+
+
+    class Meta:
+
+        ordering = ["-captured_at", "control__framework__code", "control__code"]
+
+        indexes = [
+
+            models.Index(fields=["assessment", "captured_at"], name="ix_ca_snapshot_assessment_time"),
+
+            models.Index(fields=["control", "captured_at"], name="ix_ca_snapshot_control_time"),
+
+            models.Index(fields=["profile", "captured_at"], name="ix_ca_snapshot_profile_time"),
+
+            models.Index(fields=["snapshot_type"], name="ix_ca_snapshot_type"),
+
+        ]
+
+
+    @classmethod
+    def from_assessment(cls, assessment, snapshot_label="", snapshot_type=None, user=None, captured_at=None):
+
+        return cls.objects.create(
+            assessment=assessment,
+            profile=assessment.profile,
+            control=assessment.control,
+            snapshot_type=snapshot_type or cls.SnapshotType.MANUAL,
+            snapshot_label=snapshot_label or "",
+            captured_at=captured_at or timezone.now(),
+            implementation_status=assessment.implementation_status,
+            maturity_level=assessment.maturity_level,
+            effectiveness=assessment.effectiveness,
+            risk_inherent=assessment.risk_inherent,
+            risk_residual=assessment.risk_residual,
+            notes=assessment.notes,
+            assessed_at=assessment.assessed_at,
+            assessed_by=assessment.assessed_by,
+            created_by=user if user and getattr(user, "is_authenticated", False) else None,
+        )
+
+
+    def __str__(self):
+
+        return f"{self.control.code} @ {self.captured_at:%Y-%m-%d %H:%M}"
+
 
 class Evidence(TimeStampedModel):
 
@@ -257,8 +361,5 @@ class ImprovementAction(TimeStampedModel):
             models.Index(fields=["due_date"], name="ix_action_due_date"),
 
         ]
-
-
-
 
 

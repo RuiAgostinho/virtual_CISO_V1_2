@@ -33,8 +33,34 @@ class SemanticRetrievalService:
         if any(term in normalized for term in ["procedimento", "procedimentos", "processo operacional"]):
             return ["governance_document", "governance_section", "procedure"]
 
-        if any(term in normalized for term in ["regulamento", "regulamentos", "norma tecnica", "requisito tecnico"]):
-            return ["governance_document", "governance_section", "technical_regulation"]
+        if any(
+            term in normalized
+            for term in [
+                "artigo",
+                "decreto",
+                "decreto-lei",
+                "dl 125",
+                "dl125",
+                "lei",
+                "nis2",
+                "regulamento",
+                "regulamentos",
+                "norma tecnica",
+                "requisito tecnico",
+                "diretiva",
+                "directiva",
+            ]
+        ):
+            return [
+                "technical_regulation",
+                "governance_document",
+                "governance_section",
+                "internal_control",
+                "framework_mapping",
+                "internal_control_mechanism",
+                "evidence_item",
+                "control",
+            ]
 
         if any(
             term in normalized
@@ -58,6 +84,7 @@ class SemanticRetrievalService:
 
         if any(term in normalized for term in ["gap", "gaps", "desvio", "desvios", "conformidade", "score", "pontuacao"]):
             return [
+                "technical_regulation",
                 "internal_control",
                 "framework_mapping",
                 "internal_control_mechanism",
@@ -67,7 +94,7 @@ class SemanticRetrievalService:
             ]
 
         if any(term in normalized for term in ["controlo", "controlos", "controle", "controles", "framework", "iso", "nist", "qnrc", "nis2"]):
-            return ["internal_control", "framework_mapping", "internal_control_mechanism", "control", "mechanism"]
+            return ["internal_control", "framework_mapping", "internal_control_mechanism", "control", "mechanism", "technical_regulation"]
 
         if any(term in normalized for term in ["mecanismo", "mecanismos", "mechanism", "mechanisms"]):
             return ["internal_control_mechanism", "mechanism", "evidence_item"]
@@ -78,15 +105,80 @@ class SemanticRetrievalService:
     def lexical_bonus(cls, query: str, chunk: KnowledgeChunk) -> float:
         normalized_query = cls.normalize_text(query)
         tokens = {token for token in re.findall(r"[a-z0-9]+", normalized_query) if len(token) >= 3}
+        if "artigo" in normalized_query:
+            tokens.update(token for token in re.findall(r"\d+", normalized_query) if len(token) >= 1)
         if not tokens:
             return 0.0
 
+        title_text = cls.normalize_text(chunk.title)
         haystack = cls.normalize_text(f"{chunk.title} {chunk.chunk_text} {chunk.source_ref}")
         bonus = 0.0
         for token in tokens:
             if token in haystack:
                 bonus += 2.5
-        return min(bonus, 15.0)
+
+        for phrase, weight in {
+            "cadeia de abastecimento": 55.0,
+            "seguranca da cadeia de abastecimento": 65.0,
+            "gestao de riscos": 18.0,
+            "sistema de gestao de riscos": 24.0,
+            "risco residual": 20.0,
+        }.items():
+            if phrase in normalized_query and phrase in haystack:
+                bonus += weight
+            if phrase in normalized_query and phrase in title_text:
+                bonus += weight
+
+        metadata = chunk.metadata_json or {}
+        if chunk.source_type == "technical_regulation":
+            if any(term in normalized_query for term in ["artigo", "decreto", "dl 125", "dl125", "nis2", "diretiva", "directiva"]):
+                bonus += 4.0
+            article_number = str(metadata.get("article_number") or "")
+            if article_number and any(token in cls.normalize_text(article_number) for token in tokens):
+                bonus += 22.0
+            article_title = cls.normalize_text(str(metadata.get("article_title") or ""))
+            if article_title and article_title in normalized_query:
+                bonus += 45.0
+            if metadata.get("normative_document") == "DL125_2025" and any(term in normalized_query for term in ["dl 125", "dl125", "decreto"]):
+                bonus += 6.0
+        return min(bonus, 140.0)
+
+
+    @classmethod
+    def lexical_filter_tokens(cls, query: str) -> list[str]:
+        normalized_query = cls.normalize_text(query)
+        tokens = [token for token in re.findall(r"[a-z0-9]+", normalized_query) if len(token) >= 4]
+        if "artigo" in normalized_query:
+            tokens.extend(token for token in re.findall(r"\d+", normalized_query) if token)
+        priority_tokens = [
+            token
+            for token in tokens
+            if token
+            in {
+                "artigo",
+                "abastecimento",
+                "cadeia",
+                "fornecedor",
+                "fornecedores",
+                "prestador",
+                "prestadores",
+                "nis2",
+                "dl125",
+                "diretiva",
+                "directiva",
+                "conformidade",
+                "risco",
+                "riscos",
+            }
+        ]
+        ordered = priority_tokens + tokens
+        seen = set()
+        unique = []
+        for token in ordered:
+            if token not in seen:
+                unique.append(token)
+                seen.add(token)
+        return unique[:8]
 
 
     @classmethod
@@ -162,9 +254,35 @@ class SemanticRetrievalService:
             # L2Distance expects a vector field and the query array.
             # lower distance = higher similarity
             candidate_limit = max(top_k * 4, top_k)
-            results = queryset.annotate(
+            results = list(queryset.annotate(
                 distance=L2Distance('embedding', query_vector)
-            ).order_by('distance')[:candidate_limit]
+            ).order_by('distance')[:candidate_limit])
+
+            exact_phrase_q = Q()
+            normalized_query = cls.normalize_text(query)
+            for phrase in ["cadeia de abastecimento", "seguranca da cadeia de abastecimento", "risco residual"]:
+                if phrase in normalized_query:
+                    exact_phrase_q |= Q(title__icontains=phrase) | Q(chunk_text__icontains=phrase)
+            if exact_phrase_q:
+                exact_phrase_results = list(
+                    queryset.filter(exact_phrase_q)
+                    .annotate(distance=L2Distance("embedding", query_vector))
+                    .order_by("distance")[: max(candidate_limit * 2, 80)]
+                )
+                seen_ids = {obj.id for obj in results}
+                results.extend(obj for obj in exact_phrase_results if obj.id not in seen_ids)
+
+            lexical_q = Q()
+            for token in cls.lexical_filter_tokens(query):
+                lexical_q |= Q(title__icontains=token) | Q(chunk_text__icontains=token) | Q(source_ref__icontains=token)
+            if lexical_q:
+                lexical_results = list(
+                    queryset.filter(lexical_q)
+                    .annotate(distance=L2Distance("embedding", query_vector))
+                    .order_by("distance")[: max(candidate_limit * 5, 120)]
+                )
+                seen_ids = {obj.id for obj in results}
+                results.extend(obj for obj in lexical_results if obj.id not in seen_ids)
 
             ranked_results = sorted(
                 results,
@@ -174,6 +292,7 @@ class SemanticRetrievalService:
             # 4. Serialize Chunks securely
             retrieved_chunks = []
             for obj in ranked_results:
+                metadata = obj.metadata_json or {}
                 retrieved_chunks.append({
                     "id": str(obj.id),
                     "title": obj.title,
@@ -183,7 +302,8 @@ class SemanticRetrievalService:
                     "framework": obj.framework,
                     "control_code": obj.control_code,
                     "distance": round(obj.distance, 4) if getattr(obj, 'distance', None) is not None else 0.0,
-                    "metadata": obj.metadata_json
+                    "metadata": metadata,
+                    "url": metadata.get("url") or metadata.get("source_url"),
                 })
             
             logger.info(f"[SEMANTIC_RETRIEVAL] Successfully retrieved {len(retrieved_chunks)} chunks.")

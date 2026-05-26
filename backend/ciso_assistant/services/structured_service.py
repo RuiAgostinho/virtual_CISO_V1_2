@@ -12,6 +12,7 @@ from governance.models import (
 )
 from governance.services.control_mapping_engine import ControlMappingEngine
 from governance.services.compliance_propagation_engine import CompliancePropagationEngine
+from governance.services.security_posture_drift import SecurityPostureDriftService
 from risk.models import Asset, Vulnerability
 
 
@@ -105,6 +106,26 @@ class StructuredQueryService:
         has_metric_context = any(term in q for term in compliance_terms)
         has_framework_context = any(term in q for term in framework_terms)
         return has_compliance_context or (has_metric_context and has_framework_context)
+
+    @classmethod
+    def is_drift_query(cls, query: str) -> bool:
+        q = cls.normalize_text(query)
+        drift_terms = [
+            "piorou",
+            "pioraram",
+            "regressao",
+            "regressao",
+            "regrediu",
+            "drift",
+            "desde a ultima auditoria",
+            "desde ultima auditoria",
+            "alterou",
+            "degradou",
+            "degradacao",
+            "postura",
+        ]
+        audit_terms = ["auditoria", "snapshot", "fotografia", "baseline", "postura", "conformidade"]
+        return any(term in q for term in drift_terms) and any(term in q for term in audit_terms)
 
     @classmethod
     def detect_compliance_intent(cls, query: str) -> str:
@@ -378,6 +399,17 @@ class StructuredQueryService:
         result["raw_text"] = cls.format_structured_response(result)
         return result
 
+    @classmethod
+    def run_drift_query(cls, query: str) -> dict:
+        payload = SecurityPostureDriftService.overview()
+        result = {
+            "type": "posture_drift_summary",
+            "payload": payload,
+            "raw_text": "",
+        }
+        result["raw_text"] = cls.format_structured_response(result)
+        return result
+
     @staticmethod
     def format_structured_response(result: dict):
         if result["type"] == "asset_count":
@@ -606,12 +638,41 @@ class StructuredQueryService:
                 f"{counts['implemented']} implementados."
             )
 
+        if result["type"] == "posture_drift_summary":
+            payload = result["payload"]
+            metrics = payload["metrics"]
+            response = (
+                "Análise de regressão de postura desde a última fotografia disponível:\n"
+                f"- Eventos detetados: {metrics['total_events']} "
+                f"({metrics['critical']} críticos, {metrics['high']} altos, {metrics['medium']} médios).\n"
+                f"- Regressões de controlos: {metrics['control_regressions']}.\n"
+                f"- Aumentos de exposição em ativos: {metrics['asset_exposure_regressions']}.\n"
+                f"- Vulnerabilidades novas/recentes: {metrics['new_vulnerabilities']}.\n"
+                f"- Gaps de mapping normativo: {metrics['framework_mapping_gaps']}.\n"
+            )
+            control_lines = [
+                (
+                    f"{item['framework']['code']}:{item['control_code']} - {item['control_title']} "
+                    f"passou de {item['previous']['implementation_status']} para {item['current']['implementation_status']}."
+                )
+                for item in payload.get("control_regressions", [])[:5]
+            ]
+            if control_lines:
+                response += "\nPrincipais regressões de controlo:\n- " + "\n- ".join(control_lines)
+            recommendations = payload.get("recommendations", [])[:4]
+            if recommendations:
+                response += "\n\nRecomendações:\n- " + "\n- ".join(recommendations)
+            return response
+
         return "Nao foi possivel interpretar a consulta estruturada."
 
     @classmethod
     def run_structured_query(cls, query: str) -> dict:
         q = cls.normalize_text(query)
         intent = cls.detect_structured_intent(query)
+
+        if cls.is_drift_query(query):
+            return cls.run_drift_query(query)
 
         if cls.is_compliance_query(query):
             return cls.run_compliance_query(query)

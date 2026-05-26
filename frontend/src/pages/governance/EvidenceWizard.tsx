@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -295,6 +295,7 @@ function SearchPicker({
 }
 
 export default function EvidenceWizard() {
+  const [searchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState<EvidenceForm>({
     title: "",
@@ -323,9 +324,52 @@ export default function EvidenceWizard() {
   const [saving, setSaving] = useState(false);
   const [createdEvidence, setCreatedEvidence] = useState<any | null>(null);
   const [createdLink, setCreatedLink] = useState<any | null>(null);
+  const [queryPrefillApplied, setQueryPrefillApplied] = useState(false);
 
   const steps = ["Dados", "Referencia", "Alvo", "Relacao", "Impacto", "Revisao"];
   const currentStepId = ["details", "reference", "target_type", "relation", "impact", "review"][currentStep];
+
+  useEffect(() => {
+    if (queryPrefillApplied) return;
+
+    const targetType = searchParams.get("target_type") as TargetType | null;
+    const targetId = searchParams.get("target_id");
+    const targetLabel = searchParams.get("target_label") || targetId || "";
+    const evidenceTitle = searchParams.get("evidence_title") || "";
+    const description = searchParams.get("description") || "";
+    const evidenceType = searchParams.get("evidence_type") as EvidenceType | null;
+    const linkType = searchParams.get("link_type") as LinkType | null;
+    const rationale = searchParams.get("rationale") || description;
+
+    if (evidenceTitle || description || evidenceType) {
+      setForm((current) => ({
+        ...current,
+        title: evidenceTitle || current.title,
+        description: description || current.description,
+        evidence_type: evidenceTypes.some((item) => item.value === evidenceType) ? evidenceType! : current.evidence_type,
+      }));
+    }
+
+    if (targetType && targetTypes.some((item) => item.value === targetType)) {
+      setLinkForm((current) => ({
+        ...current,
+        target_type: targetType,
+        target: targetId
+          ? {
+              id: targetId,
+              label: targetLabel || targetId,
+              description,
+              meta: "pre-selecionado",
+              raw: { id: targetId, title: targetLabel },
+            }
+          : current.target,
+        link_type: linkTypes.some((item) => item.value === linkType) ? linkType! : current.link_type,
+        rationale: rationale || current.rationale,
+      }));
+    }
+
+    setQueryPrefillApplied(true);
+  }, [queryPrefillApplied, searchParams]);
 
   const warnings = useMemo(() => {
     const items: string[] = [];

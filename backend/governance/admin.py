@@ -16,6 +16,7 @@ from .models import (
     EvidenceLink,
     MechanismEvidenceRequirement,
     CompliancePropagationResult,
+    ControlAssessmentSnapshot,
 )
 
 
@@ -522,3 +523,36 @@ class CompliancePropagationResultAdmin(admin.ModelAdmin):
     list_filter = ("result_type", "target_type", "status", "calculation_mode", "calculated_at")
     search_fields = ("target_id",)
     readonly_fields = ("created_at", "updated_at", "calculated_at")
+
+
+@admin.register(ControlAssessmentSnapshot)
+class ControlAssessmentSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "control",
+        "profile",
+        "snapshot_type",
+        "snapshot_label",
+        "implementation_status",
+        "maturity_level",
+        "effectiveness",
+        "risk_residual",
+        "captured_at",
+        "created_by",
+    )
+    list_filter = (
+        "snapshot_type",
+        "implementation_status",
+        "profile",
+        "control__framework",
+        "captured_at",
+    )
+    search_fields = (
+        "snapshot_label",
+        "control__code",
+        "control__title",
+        "control__framework__code",
+        "notes",
+        "assessed_by",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    raw_id_fields = ("assessment", "profile", "control", "created_by")

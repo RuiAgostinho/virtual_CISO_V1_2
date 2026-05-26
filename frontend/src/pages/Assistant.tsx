@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Bot, Database, FileText, Send, ShieldCheck, User } from "lucide-react";
+import { Bot, Database, ExternalLink, FileText, Send, ShieldCheck, User } from "lucide-react";
 import { chatApi, type ChatMessage, type ChatSource } from "@/lib/chatApi";
 
 function sourceTypeLabel(source: ChatSource) {
@@ -133,6 +133,14 @@ function SourceCard({ source }: { source: ChatSource }) {
                     {source.framework && <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">{source.framework}</span>}
                     {source.control_code && <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">{source.control_code}</span>}
                 </div>
+            )}
+            {source.url && (
+                <a
+                    href={source.url}
+                    className="mt-3 inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50"
+                >
+                    Abrir fonte <ExternalLink className="h-3 w-3" />
+                </a>
             )}
         </div>
     );

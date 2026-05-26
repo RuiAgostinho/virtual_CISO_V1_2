@@ -114,7 +114,18 @@ export interface Vulnerability {
     mitigation?: string;
     epss_score?: number | string;
     epss_percentile?: number | string;
+    epss_last_updated?: string | null;
+    nist_last_updated?: string | null;
+    kev_last_updated?: string | null;
+    nvd_data?: ApiRecord | null;
     is_in_kev?: boolean;
+    has_cvss?: boolean;
+    has_epss?: boolean;
+    has_nvd?: boolean;
+    has_kev_check?: boolean;
+    has_kev?: boolean;
+    has_mitigation?: boolean;
+    is_fully_enriched?: boolean;
     source: string;
     published_at?: string;
     controls?: ApiRecord[];
@@ -142,6 +153,8 @@ export interface Asset {
     integrity?: number | string;
     availability?: number | string;
     exposure: number;
+    business_value?: number | string;
+    dependency_score?: number | string;
     business_process?: string;
     business_owner?: string | number;
     business_owner_name?: string;
@@ -166,6 +179,96 @@ export interface Asset {
     vulnerabilities_count?: number;
     controls_count?: number;
     wazuh_ip?: string;
+    classification_status?: string;
+    classification_review_due?: string | null;
+    latest_exposure_score?: number | null;
+    latest_exposure_at?: string | null;
+    current_classification_review?: AssetClassificationReview | null;
+    latest_exposure_snapshot?: AssetExposureSnapshot | null;
+}
+
+export interface AssetDiscoveryRun {
+    id: string;
+    source: string;
+    status: string;
+    target_scope?: string;
+    started_at: string;
+    completed_at?: string | null;
+    duration_seconds?: number;
+    processed_count?: number;
+    created_count?: number;
+    updated_count?: number;
+    confirmed_count?: number;
+    ignored_count?: number;
+    duplicate_count?: number;
+    findings_count?: number;
+    error_message?: string;
+    notes?: string;
+}
+
+export interface AssetDiscoveryFinding {
+    id: string;
+    run: string;
+    run_source?: string;
+    run_started_at?: string;
+    asset?: string | null;
+    asset_name?: string | null;
+    ip_address?: string;
+    hostname?: string;
+    mac_address?: string;
+    os_name?: string;
+    open_ports?: string[];
+    services?: string[];
+    vulnerabilities?: ApiRecord[];
+    status: string;
+    confidence_score?: string | number;
+    match_reason?: string;
+    reviewed_at?: string | null;
+    created_at?: string;
+}
+
+export interface AssetExposureSnapshot {
+    id: string;
+    asset: string;
+    asset_name?: string;
+    discovery_run?: string | null;
+    source: string;
+    captured_at: string;
+    exposure_score: number;
+    exposure_label?: string;
+    open_ports?: string[];
+    services?: string[];
+    vulnerabilities_summary?: ApiRecord;
+}
+
+export interface AssetClassificationReview {
+    id: string;
+    asset: string;
+    asset_name?: string;
+    status: string;
+    classification_score?: string | number;
+    criticality_at_review?: string;
+    confidentiality: number;
+    integrity: number;
+    availability: number;
+    exposure: number;
+    business_value: number;
+    dependency_score: number;
+    rationale?: string;
+    is_current?: boolean;
+    reviewed_at?: string | null;
+    next_review_at?: string | null;
+    snapshot?: ApiRecord;
+}
+
+export interface AssetClassificationOverview {
+    total_assets: number;
+    validated: number;
+    incomplete?: number;
+    pending_review: number;
+    expired: number;
+    not_validated: number;
+    by_criticality: Array<{ criticality: string; count: number }>;
 }
 
 export interface AssetVulnerability {
@@ -268,6 +371,35 @@ export interface PrioritizedVulnerability {
     risk_reasons: string[];
     remediation_reasons: string[];
     priority_summary: string;
+    model_mode?: "explainable_weighted" | "xgboost_experimental";
+    model_note?: string;
+    contribution_breakdown?: Array<{
+        code: string;
+        label: string;
+        raw_value: string;
+        normalized_score: number;
+        weight: number;
+        contribution: number;
+        source: string;
+        explanation: string;
+    }>;
+    recommended_action?: string;
+    comparison_group?: {
+        enabled?: boolean;
+        reason?: string;
+        cvss_score?: number;
+        same_cvss_count?: number;
+        position_in_same_cvss?: number;
+        explanation?: string;
+        top_same_cvss?: {
+            cve_id?: string;
+            asset_name?: string;
+            priority_score?: number;
+        };
+    };
+    data_quality?: Record<string, boolean>;
+    governance_context?: Record<string, unknown>;
+    experimental_model?: Record<string, unknown>;
 }
 
 export interface RiskAssessment {
@@ -296,6 +428,72 @@ export type RiskDashboardPayload = {
     top_assets: { asset__name: string; score: number }[];
 };
 
+export type CisoRiskPanelAsset = {
+    id: string;
+    name: string;
+    criticality?: string;
+    exposure?: number;
+    business_value?: number;
+    dependency_score?: number;
+    owner?: string;
+};
+
+export type CisoRiskPanelOccurrence = {
+    id: string;
+    asset_id: string;
+    asset_name: string;
+    asset_criticality?: string;
+    cve_id: string;
+    vulnerability_id: string;
+    severity?: string;
+    cvss_score?: number | null;
+    epss_score?: number | null;
+    is_in_kev?: boolean;
+    status?: string;
+    last_seen?: string | null;
+    attention_score?: number;
+    priority_reason?: string;
+};
+
+export type CisoRiskPanelPayload = {
+    generated_at: string;
+    metrics: {
+        total_assets: number;
+        critical_exposed_assets: number;
+        assets_without_classification: number;
+        assets_without_owner: number;
+        active_vulnerabilities: number;
+        critical_vulnerabilities_on_critical_assets: number;
+        kev_open: number;
+        vulnerabilities_without_mitigation: number;
+        open_risks: number;
+        inherent_risk_average: number;
+        residual_risk_average: number;
+        governance_reduction_average: number;
+    };
+    governance: Record<string, number>;
+    lists: {
+        critical_exposed_assets: CisoRiskPanelAsset[];
+        assets_without_classification: CisoRiskPanelAsset[];
+        assets_without_owner: CisoRiskPanelAsset[];
+        critical_vulnerabilities_on_critical_assets: CisoRiskPanelOccurrence[];
+        kev_open: CisoRiskPanelOccurrence[];
+        vulnerabilities_without_mitigation: CisoRiskPanelOccurrence[];
+        top_prioritized_vulnerabilities: CisoRiskPanelOccurrence[];
+    };
+    top_risks_by_domain: Array<{
+        domain: string;
+        risk_count: number;
+        average_inherent_score: number;
+    }>;
+    temporal_evolution: Array<{
+        month: string | null;
+        risk_count: number;
+        average_inherent_score: number;
+        max_score: number;
+    }>;
+};
+
 export type SoftwareStats = ApiRecord & {
     total?: number;
     vulnerable?: number;
@@ -306,6 +504,25 @@ export type SyncStatusItem = ApiRecord & {
     status?: string;
     last_sync_at?: string | null;
 };
+
+export interface VulnerabilityIntelQuality {
+    total: number;
+    cvss_present: number;
+    epss_present: number;
+    nvd_present: number;
+    kev_checked: number;
+    kev_present: number;
+    mitigation_present: number;
+    missing_cvss: number;
+    missing_epss: number;
+    missing_nvd: number;
+    missing_kev_check: number;
+    missing_mitigation: number;
+    missing_enrichment: number;
+    without_any_enrichment: number;
+    sync_statuses?: Record<string, ApiRecord>;
+    generated_at?: string;
+}
 
 function cleanParams(params?: QueryParams): string {
     if (!params) return "";
@@ -349,6 +566,31 @@ export const riskApi = {
             method: "PATCH",
             body: JSON.stringify(payload)
         });
+    },
+
+    async validateAssetClassification(id: EntityId, payload: Partial<AssetClassificationReview> & { owner?: string } = {}): Promise<AssetClassificationReview> {
+        return await request<AssetClassificationReview>(`/api/risk/assets/${id}/validate_classification/`, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async classifyAsset(id: EntityId, payload: Partial<AssetClassificationReview> & { owner?: string; classification_status?: string }): Promise<AssetClassificationReview> {
+        return await request<AssetClassificationReview>(`/api/risk/assets/${id}/classify/`, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async bulkClassifyAssets(payload: Partial<AssetClassificationReview> & { owner?: string; classification_status?: string; asset_ids: EntityId[] }): Promise<{ processed: number; created: number; errors: ApiRecord[]; reviews: AssetClassificationReview[] }> {
+        return await request<{ processed: number; created: number; errors: ApiRecord[]; reviews: AssetClassificationReview[] }>('/api/risk/assets/bulk_classify/', {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async getAssetClassificationOverview(): Promise<AssetClassificationOverview> {
+        return await request<AssetClassificationOverview>('/api/risk/assets/classification_overview/');
     },
 
     async enrichAsset(id: EntityId): Promise<OperationResult> {
@@ -478,6 +720,17 @@ export const riskApi = {
         });
     },
 
+    async refreshKevIntel(): Promise<OperationResult> {
+        return await request<OperationResult>('/api/risk/vulnerabilities/refresh_kev/', {
+            method: "POST",
+            body: JSON.stringify({})
+        });
+    },
+
+    async getVulnerabilityIntelQuality(): Promise<VulnerabilityIntelQuality> {
+        return await request<VulnerabilityIntelQuality>('/api/risk/vulnerabilities/intel_quality/');
+    },
+
     async listVulnerabilityOccurrences(params?: QueryParams): Promise<PaginatedResponse<AssetVulnerability>> {
         const query = cleanParams(params);
         return await request<PaginatedResponse<AssetVulnerability>>(`/api/risk/vulnerability-occurrences/${query ? '?' + query : ''}`);
@@ -512,6 +765,10 @@ export const riskApi = {
 
     async getRiskDashboard(): Promise<RiskDashboardPayload> {
         return await request<RiskDashboardPayload>('/api/risk/risks/dashboard/');
+    },
+
+    async getCisoRiskPanel(): Promise<CisoRiskPanelPayload> {
+        return await request<CisoRiskPanelPayload>('/api/risk/risks/ciso-panel/');
     },
 
     // --- Risk Treatments & Assessments ---
@@ -564,6 +821,31 @@ export const riskApi = {
   runNmapScan: () => request<OperationResult>("/api/risk/assets/scan_nmap/", { method: "POST" }),
   getSyncStatus: () => request<PaginatedResponse<SyncStatusItem> | SyncStatusItem[]>("/api/integrations/sync-status/"),
   getNetworkMap: () => request<{ nodes: NetworkMapNode[]; edges: NetworkMapEdge[] }>("/api/risk/assets/network_map/"),
+  listAssetDiscoveryRuns: (params?: QueryParams) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetDiscoveryRun>>(`/api/risk/asset-discovery-runs/${query ? '?' + query : ''}`);
+  },
+  listAssetDiscoveryFindings: (params?: QueryParams) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetDiscoveryFinding>>(`/api/risk/asset-discovery-findings/${query ? '?' + query : ''}`);
+  },
+  confirmAssetDiscoveryFinding: (id: EntityId) => request<AssetDiscoveryFinding>(`/api/risk/asset-discovery-findings/${id}/confirm/`, { method: "POST" }),
+  ignoreAssetDiscoveryFinding: (id: EntityId, reason?: string) => request<AssetDiscoveryFinding>(`/api/risk/asset-discovery-findings/${id}/ignore/`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason || "" })
+  }),
+  markAssetDiscoveryFindingDuplicate: (id: EntityId, asset?: EntityId, reason?: string) => request<AssetDiscoveryFinding>(`/api/risk/asset-discovery-findings/${id}/mark_duplicate/`, {
+    method: "POST",
+    body: JSON.stringify({ asset, reason: reason || "" })
+  }),
+  listAssetExposureSnapshots: (params?: QueryParams) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetExposureSnapshot>>(`/api/risk/asset-exposure-snapshots/${query ? '?' + query : ''}`);
+  },
+  listAssetClassificationReviews: (params?: QueryParams) => {
+    const query = cleanParams(params);
+    return request<PaginatedResponse<AssetClassificationReview>>(`/api/risk/asset-classification-reviews/${query ? '?' + query : ''}`);
+  },
 
   // UC4: Prioritization
   listPrioritizedVulnerabilities: (params?: QueryParams) => {
