@@ -398,9 +398,60 @@ export interface PrioritizedVulnerability {
         };
     };
     data_quality?: Record<string, boolean>;
-    governance_context?: Record<string, unknown>;
+    governance_context?: PrioritizedGovernanceContext;
     experimental_model?: Record<string, unknown>;
 }
+
+export type PrioritizedGovernanceContext = {
+    governance_links?: number;
+    approved_governance_links?: number;
+    internal_controls?: number;
+    internal_control_items?: Array<{
+        id: string;
+        code?: string;
+        title?: string;
+        domain?: string;
+        criticality?: string;
+    }>;
+    mechanisms?: number;
+    mechanism_items?: Array<{
+        id: string;
+        title?: string;
+        relationship_type?: string;
+        implementation_status?: string;
+        mandatory?: boolean;
+        contribution_weight?: number;
+    }>;
+    valid_evidence?: number;
+    evidence_items?: Array<{
+        id: string;
+        title?: string;
+        type?: string;
+        status?: string;
+        confidence_level?: number;
+        valid_until?: string | null;
+    }>;
+    framework_items?: Array<{
+        framework?: string;
+        framework_name?: string;
+        control_code?: string;
+        control_title?: string;
+        coverage_percentage?: number;
+        relationship_type?: string;
+    }>;
+    mechanism_gap?: number;
+    mechanism_label?: string;
+    evidence_gap?: number;
+    evidence_label?: string;
+    regulatory_relevance?: number;
+    regulatory_label?: string;
+    residual_reduction?: number;
+    residual_gap?: number;
+    residual_label?: string;
+    missing_controls?: boolean;
+    missing_mechanisms?: boolean;
+    missing_evidence?: boolean;
+};
 
 export interface RiskAssessment {
     id: string;
