@@ -23,58 +23,58 @@ const emptyRequirementForm = {
 
 const evidenceTypes = [
   { value: "", label: "Todos os tipos" },
-  { value: "report", label: "Report" },
-  { value: "screenshot", label: "Screenshot" },
+  { value: "report", label: "Relatório" },
+  { value: "screenshot", label: "Captura de ecrã" },
   { value: "ticket", label: "Ticket" },
   { value: "log", label: "Log" },
-  { value: "audit_report", label: "Audit report" },
-  { value: "configuration_export", label: "Configuration export" },
-  { value: "meeting_minutes", label: "Meeting minutes" },
-  { value: "approval_record", label: "Approval record" },
-  { value: "vulnerability_scan", label: "Vulnerability scan" },
-  { value: "siem_alert", label: "SIEM alert" },
-  { value: "manual_attestation", label: "Manual attestation" },
-  { value: "other", label: "Other" },
+  { value: "audit_report", label: "Relatório de auditoria" },
+  { value: "configuration_export", label: "Exportação de configuração" },
+  { value: "meeting_minutes", label: "Ata de reunião" },
+  { value: "approval_record", label: "Registo de aprovação" },
+  { value: "vulnerability_scan", label: "Análise de vulnerabilidades" },
+  { value: "siem_alert", label: "Alerta SIEM" },
+  { value: "manual_attestation", label: "Declaração manual" },
+  { value: "other", label: "Outro" },
 ];
 
 const statuses = [
   { value: "", label: "Todos os estados" },
-  { value: "draft", label: "Draft" },
-  { value: "pending_review", label: "Pending review" },
-  { value: "valid", label: "Valid" },
-  { value: "expired", label: "Expired" },
-  { value: "rejected", label: "Rejected" },
-  { value: "deprecated", label: "Deprecated" },
+  { value: "draft", label: "Rascunho" },
+  { value: "pending_review", label: "Pendente de revisão" },
+  { value: "valid", label: "Válida" },
+  { value: "expired", label: "Expirada" },
+  { value: "rejected", label: "Rejeitada" },
+  { value: "deprecated", label: "Descontinuada" },
 ];
 
 const priorities = [
   { value: "", label: "Todas as prioridades" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "critical", label: "Critical" },
+  { value: "low", label: "Baixa" },
+  { value: "medium", label: "Média" },
+  { value: "high", label: "Alta" },
+  { value: "critical", label: "Crítica" },
 ];
 
 const requirementScopes = [
-  { value: "", label: "Todos os ambitos" },
+  { value: "", label: "Todos os âmbitos" },
   { value: "specific", label: "Ligados a mecanismo" },
-  { value: "template", label: "Templates globais" },
+  { value: "template", label: "Modelos globais" },
 ];
 
 const validityFilters = [
   { value: "", label: "Toda a validade" },
-  { value: "valid", label: "Valida" },
+  { value: "valid", label: "Válida" },
   { value: "expired", label: "Expirada" },
   { value: "none", label: "Sem validade definida" },
 ];
 
 const mechanismEvidenceStatuses = [
   { value: "", label: "Todos os mecanismos" },
-  { value: "missing_real", label: "Sem evidencia real" },
-  { value: "missing_valid", label: "Sem evidencia valida" },
-  { value: "pending_review", label: "Com validacao pendente" },
-  { value: "expired", label: "Com evidencia expirada" },
-  { value: "ready", label: "Com evidencia valida" },
+  { value: "missing_real", label: "Sem evidência real" },
+  { value: "missing_valid", label: "Sem evidência válida" },
+  { value: "pending_review", label: "Com validação pendente" },
+  { value: "expired", label: "Com evidência expirada" },
+  { value: "ready", label: "Com evidência válida" },
 ];
 
 function unwrap<T>(data: any): T[] {
@@ -88,7 +88,7 @@ function formatDate(value?: string | null) {
 
 function evidenceTypeLabel(type?: string) {
   const labels = Object.fromEntries(evidenceTypes.map((item) => [item.value, item.label]));
-  return labels[type || ""] || type || "Evidence";
+  return labels[type || ""] || type || "Evidência";
 }
 
 function evidenceTypeTone(type?: string) {
@@ -102,12 +102,12 @@ function evidenceTypeTone(type?: string) {
 
 function statusLabel(status?: string) {
   const labels: Record<string, string> = {
-    draft: "Draft",
-    pending_review: "Pending review",
-    valid: "Valid",
-    expired: "Expired",
-    rejected: "Rejected",
-    deprecated: "Deprecated",
+    draft: "Rascunho",
+    pending_review: "Pendente de revisão",
+    valid: "Válida",
+    expired: "Expirada",
+    rejected: "Rejeitada",
+    deprecated: "Descontinuada",
   };
   return labels[status || ""] || status || "Sem estado";
 }
@@ -121,7 +121,7 @@ function statusTone(status?: string) {
 
 function priorityLabel(priority?: string) {
   const labels = Object.fromEntries(priorities.map((item) => [item.value, item.label]));
-  return labels[priority || ""] || priority || "Medium";
+  return labels[priority || ""] || priority || "Média";
 }
 
 function priorityTone(priority?: string) {
@@ -153,7 +153,7 @@ function isExpired(evidence: EvidenceRecord) {
 
 function validityLabel(evidence: EvidenceRecord) {
   if (!evidence.valid_until) return "Sem validade";
-  return isExpired(evidence) ? "Expirada" : "Valida";
+  return isExpired(evidence) ? "Expirada" : "Válida";
 }
 
 function validityTone(evidence: EvidenceRecord) {
@@ -181,12 +181,12 @@ function scoreBarTone(score?: number) {
 
 function implementationLabel(status?: string) {
   const labels: Record<string, string> = {
-    not_implemented: "Nao implementado",
+    not_implemented: "Não implementado",
     planned: "Planeado",
     partially_implemented: "Parcial",
     implemented: "Implementado",
     implemented_evidenced: "Implementado e evidenciado",
-    not_applicable: "Nao aplicavel",
+    not_applicable: "Não aplicável",
   };
   return labels[status || ""] || status || "Sem estado";
 }
@@ -223,17 +223,17 @@ function MechanismEvidenceOverview({
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <FileCheck2 className="h-5 w-5 text-slate-600" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.actual_evidence ?? 0}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Evidencias reais</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Evidências reais</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.valid_actual_evidence ?? 0}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Validas oficiais</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Válidas oficiais</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.mechanisms_without_valid_evidence ?? 0}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Sem prova valida</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Sem prova válida</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Timer className="h-5 w-5 text-red-600" />
@@ -252,7 +252,7 @@ function MechanismEvidenceOverview({
               onKeyDown={(event) => {
                 if (event.key === "Enter") onRefresh();
               }}
-              placeholder="Pesquisar por mecanismo, descricao ou tipo..."
+              placeholder="Pesquisar por mecanismo, descrição ou tipo..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
@@ -282,11 +282,11 @@ function MechanismEvidenceOverview({
               {loading ? "A carregar..." : `${rows.length} mecanismo(s) analisado(s)`}
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-500">
-              A conformidade oficial exige evidencia real valida e EvidenceLink aprovado. Tipos esperados orientam a recolha, mas nao provam por si so.
+              A conformidade oficial exige evidência real válida e ligação de evidência aprovada. Os tipos esperados orientam a recolha, mas não provam por si só.
             </p>
           </div>
           <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">
-            Score medio {metrics.average_official_score ?? 0}%
+            Score médio {metrics.average_official_score ?? 0}%
           </GovernanceBadge>
         </div>
 
@@ -305,16 +305,16 @@ function MechanismEvidenceOverview({
                     <div className="flex flex-wrap items-center gap-2">
                       <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-700">{row.mechanism.mechanism_type || "Mecanismo"}</GovernanceBadge>
                       <GovernanceBadge className={row.valid_actual_evidence_count > 0 ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-red-100 bg-red-50 text-red-700"}>
-                        {row.valid_actual_evidence_count > 0 ? "Com evidencia valida" : "Sem evidencia valida"}
+                        {row.valid_actual_evidence_count > 0 ? "Com evidência válida" : "Sem evidência válida"}
                       </GovernanceBadge>
-                      {row.pending_review_count > 0 && <GovernanceBadge className="border-amber-100 bg-amber-50 text-amber-700">{row.pending_review_count} pending review</GovernanceBadge>}
+                      {row.pending_review_count > 0 && <GovernanceBadge className="border-amber-100 bg-amber-50 text-amber-700">{row.pending_review_count} pendentes de revisão</GovernanceBadge>}
                       {row.expired_evidence_count > 0 && <GovernanceBadge className="border-red-100 bg-red-50 text-red-700">{row.expired_evidence_count} expiradas</GovernanceBadge>}
                     </div>
                     <Link to={row.mechanism.href} className="mt-3 block text-xl font-bold text-slate-950 hover:text-indigo-700">
                       {row.mechanism.title}
                     </Link>
                     <p className="mt-2 max-w-4xl text-sm font-semibold leading-relaxed text-slate-500">
-                      {row.mechanism.description || "Sem descricao."}
+                      {row.mechanism.description || "Sem descrição."}
                     </p>
                   </div>
                   <div className="grid min-w-[260px] gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -324,7 +324,7 @@ function MechanismEvidenceOverview({
                         <p className={`mt-1 text-3xl font-bold ${scoreTone(row.official_score)}`}>{row.official_score ?? 0}%</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Simulacao</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Simulação</p>
                         <p className="mt-1 text-xl font-bold text-slate-700">{row.simulation_score ?? 0}%</p>
                       </div>
                     </div>
@@ -340,13 +340,13 @@ function MechanismEvidenceOverview({
                 <div className="mt-5 grid gap-4 xl:grid-cols-3">
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-emerald-800">Evidencia esperada</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-emerald-800">Evidência esperada</h3>
                       <GovernanceBadge className="border-emerald-100 bg-white text-emerald-700">{row.expected_evidence_count}</GovernanceBadge>
                     </div>
                     <div className="mt-3 space-y-2">
                       {row.expected_evidence.length === 0 ? (
                         <p className="rounded-xl border border-dashed border-emerald-200 bg-white px-3 py-4 text-sm font-semibold text-emerald-800">
-                          Sem tipos de evidencia esperada definidos.
+                          Sem tipos de evidência esperada definidos.
                         </p>
                       ) : row.expected_evidence.map((item: any) => (
                         <div key={item.id} className="rounded-xl border border-emerald-100 bg-white p-3">
@@ -363,24 +363,24 @@ function MechanismEvidenceOverview({
 
                   <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-800">Evidencia real recolhida</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-indigo-800">Evidência real recolhida</h3>
                       <GovernanceBadge className="border-indigo-100 bg-white text-indigo-700">{row.actual_evidence_count}</GovernanceBadge>
                     </div>
                     <div className="mt-3 space-y-2">
                       {row.actual_evidence.length === 0 ? (
                         <p className="rounded-xl border border-dashed border-indigo-200 bg-white px-3 py-4 text-sm font-semibold text-indigo-800">
-                          Ainda nao existe evidencia real associada ao mecanismo.
+                          Ainda não existe evidência real associada ao mecanismo.
                         </p>
                       ) : row.actual_evidence.map((item: any) => (
                         <Link key={item.id} to={item.href} className="block rounded-xl border border-indigo-100 bg-white p-3 hover:border-indigo-200">
                           <p className="text-sm font-bold text-slate-950">{item.title}</p>
-                          <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{item.description || item.source || item.external_reference || "Evidencia recolhida."}</p>
+                          <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{item.description || item.source || item.external_reference || "Evidência recolhida."}</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <GovernanceBadge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</GovernanceBadge>
                             <GovernanceBadge className={statusTone(item.evidence_status)}>{statusLabel(item.evidence_status)}</GovernanceBadge>
                             <GovernanceBadge className={statusTone(item.validation_status)}>{statusLabel(item.validation_status)}</GovernanceBadge>
                             <GovernanceBadge className={item.expired ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
-                              {item.expired ? "Expirada" : item.valid_until ? `Valida ate ${formatDate(item.valid_until)}` : "Sem prazo"}
+                              {item.expired ? "Expirada" : item.valid_until ? `Válida até ${formatDate(item.valid_until)}` : "Sem prazo"}
                             </GovernanceBadge>
                           </div>
                         </Link>
@@ -496,7 +496,7 @@ export default function EvidenceItemsList() {
       setMechanismOverview(data);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar evidencias por mecanismo.");
+      setError(err?.message || "Não foi possível carregar evidências por mecanismo.");
     } finally {
       setMechanismOverviewLoading(false);
     }
@@ -517,7 +517,7 @@ export default function EvidenceItemsList() {
       setItems(unwrap<EvidenceRecord>(data));
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar evidencias.");
+      setError(err?.message || "Não foi possível carregar evidências.");
     } finally {
       setLoading(false);
     }
@@ -546,7 +546,7 @@ export default function EvidenceItemsList() {
       setMechanisms(unwrap<any>(mechanismsData));
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar tipos de evidencia esperada.");
+      setError(err?.message || "Não foi possível carregar tipos de evidência esperada.");
     } finally {
       setRequirementsLoading(false);
     }
@@ -591,7 +591,7 @@ export default function EvidenceItemsList() {
 
   const saveRequirement = async () => {
     if (!requirementForm.title.trim()) {
-      setError("Indica o titulo do tipo de evidencia esperada.");
+      setError("Indica o título do tipo de evidência esperada.");
       return;
     }
 
@@ -617,7 +617,7 @@ export default function EvidenceItemsList() {
           ...basePayload,
           mechanism: selectedMechanismIds[0] || null,
         });
-        setRequirementMessage("Tipo de evidencia esperado atualizado.");
+        setRequirementMessage("Tipo de evidência esperado atualizado.");
       } else {
         const targets = selectedMechanismIds.length ? selectedMechanismIds : [null];
         await Promise.all(targets.map((mechanismId) =>
@@ -628,8 +628,8 @@ export default function EvidenceItemsList() {
         ));
         setRequirementMessage(
           selectedMechanismIds.length > 1
-            ? `Tipo de evidencia criado para ${selectedMechanismIds.length} mecanismos.`
-            : "Tipo de evidencia esperado criado."
+            ? `Tipo de evidência criado para ${selectedMechanismIds.length} mecanismos.`
+            : "Tipo de evidência esperado criado."
         );
       }
 
@@ -637,7 +637,7 @@ export default function EvidenceItemsList() {
       await loadRequirements();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel guardar o tipo de evidencia esperada.");
+      setError(err?.message || "Não foi possível guardar o tipo de evidência esperada.");
     } finally {
       setSavingRequirement(false);
     }
@@ -653,7 +653,7 @@ export default function EvidenceItemsList() {
       await loadRequirements();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel alterar o estado do tipo de evidencia.");
+      setError(err?.message || "Não foi possível alterar o estado do tipo de evidência.");
     } finally {
       setSavingRequirement(false);
     }
@@ -689,10 +689,10 @@ export default function EvidenceItemsList() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Catalogo de evidencias</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Evidencias</h1>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Catálogo de evidências</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Evidências</h1>
             <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
-              Gere os tipos de evidencia que cada mecanismo deve exigir e consulte as evidencias reais recolhidas.
+              Gere os tipos de evidência que cada mecanismo deve exigir e consulte as evidências reais recolhidas.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -703,7 +703,7 @@ export default function EvidenceItemsList() {
             {activeTab !== "requirements" && (
               <Link to="/governance/evidence/wizard" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
                 <FilePlus2 className="h-4 w-4" />
-                Criar evidencia
+                Criar evidência
               </Link>
             )}
           </div>
@@ -720,7 +720,7 @@ export default function EvidenceItemsList() {
             <Workflow className="h-4 w-4" />
             Por mecanismo
           </span>
-          <span className="mt-1 block text-xs font-semibold opacity-80">Cruza evidencia esperada, evidencia real e impacto no score.</span>
+          <span className="mt-1 block text-xs font-semibold opacity-80">Cruza evidência esperada, evidência real e impacto no score.</span>
         </button>
         <button
           type="button"
@@ -740,9 +740,9 @@ export default function EvidenceItemsList() {
         >
           <span className="flex items-center gap-2 text-sm font-bold">
             <FileCheck2 className="h-4 w-4" />
-            Evidencias recolhidas
+            Evidências recolhidas
           </span>
-          <span className="mt-1 block text-xs font-semibold opacity-80">Ficheiros, logs, fotografias, tickets e referencias reais.</span>
+          <span className="mt-1 block text-xs font-semibold opacity-80">Ficheiros, logs, fotografias, tickets e referências reais.</span>
         </button>
       </section>
 
@@ -802,7 +802,7 @@ export default function EvidenceItemsList() {
                   <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
                     {editingRequirement ? "Editar tipo esperado" : "Novo tipo esperado"}
                   </p>
-                  <h2 className="mt-1 text-xl font-bold text-slate-950">Tipo de evidencia</h2>
+                  <h2 className="mt-1 text-xl font-bold text-slate-950">Tipo de evidência</h2>
                   <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
                     Define o que o CISO deve recolher para comprovar um mecanismo.
                   </p>
@@ -816,7 +816,7 @@ export default function EvidenceItemsList() {
 
               <div className="mt-5 space-y-4">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Titulo</label>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Título</label>
                   <input
                     value={requirementForm.title}
                     onChange={(event) => setRequirementForm((current) => ({ ...current, title: event.target.value }))}
@@ -825,7 +825,7 @@ export default function EvidenceItemsList() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Descricao / instrucao de recolha</label>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Descrição / instrução de recolha</label>
                   <textarea
                     value={requirementForm.description}
                     onChange={(event) => setRequirementForm((current) => ({ ...current, description: event.target.value }))}
@@ -867,7 +867,7 @@ export default function EvidenceItemsList() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Dominio de controlo</label>
+                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Domínio de controlo</label>
                     <input
                       value={requirementForm.control_domain}
                       onChange={(event) => setRequirementForm((current) => ({ ...current, control_domain: event.target.value }))}
@@ -886,12 +886,12 @@ export default function EvidenceItemsList() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Rationale</label>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Justificação</label>
                   <textarea
                     value={requirementForm.rationale}
                     onChange={(event) => setRequirementForm((current) => ({ ...current, rationale: event.target.value }))}
                     rows={3}
-                    placeholder="Porque e que esta evidencia e necessaria para este mecanismo?"
+                    placeholder="Porque é que esta evidência é necessária para este mecanismo?"
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                   />
                 </div>
@@ -908,7 +908,7 @@ export default function EvidenceItemsList() {
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Associar a mecanismos</p>
                   <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
-                    Sem mecanismos selecionados, o tipo fica como template global reutilizavel.
+                    Sem mecanismos selecionados, o tipo fica como modelo global reutilizável.
                   </p>
                   <input
                     value={mechanismSearch}
@@ -934,7 +934,7 @@ export default function EvidenceItemsList() {
                           />
                           <span>
                             <span className="block font-bold text-slate-900">{mechanismLabel(mechanism)}</span>
-                            <span className="mt-1 line-clamp-2 block text-xs font-semibold text-slate-500">{mechanism.description || mechanism.mechanism_type || "Sem descricao."}</span>
+                            <span className="mt-1 line-clamp-2 block text-xs font-semibold text-slate-500">{mechanism.description || mechanism.mechanism_type || "Sem descrição."}</span>
                           </span>
                         </label>
                       );
@@ -954,7 +954,7 @@ export default function EvidenceItemsList() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800 disabled:opacity-60"
                 >
                   <Save className="h-4 w-4" />
-                  {editingRequirement ? "Guardar alteracoes" : "Criar tipo esperado"}
+                  {editingRequirement ? "Guardar alterações" : "Criar tipo esperado"}
                 </button>
               </div>
             </div>
@@ -970,7 +970,7 @@ export default function EvidenceItemsList() {
                       onKeyDown={(event) => {
                         if (event.key === "Enter") loadRequirements();
                       }}
-                      placeholder="Pesquisar por titulo, instrucao, mecanismo..."
+                      placeholder="Pesquisar por título, instrução, mecanismo..."
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
@@ -1016,15 +1016,15 @@ export default function EvidenceItemsList() {
                           </div>
                           <h3 className="mt-3 text-lg font-bold text-slate-950">{requirement.title}</h3>
                           <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
-                            {requirement.description || requirement.rationale || "Sem instrucao de recolha."}
+                            {requirement.description || requirement.rationale || "Sem instrução de recolha."}
                           </p>
                           <div className="mt-3 grid gap-3 text-xs font-semibold text-slate-500 md:grid-cols-2">
                             <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
                               <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Mecanismo</span>
-                              <span className="mt-1 block text-slate-700">{requirement.mechanism_title || "Template global"}</span>
+                              <span className="mt-1 block text-slate-700">{requirement.mechanism_title || "Modelo global"}</span>
                             </div>
                             <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Dominio / keywords</span>
+                              <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Domínio / palavras-chave</span>
                               <span className="mt-1 block text-slate-700">
                                 {[requirement.control_domain, Array.isArray(requirement.keywords) ? requirement.keywords.join(", ") : ""].filter(Boolean).join(" - ") || "-"}
                               </span>
@@ -1058,7 +1058,7 @@ export default function EvidenceItemsList() {
                 {requirementsLoading && <div className="p-12 text-center text-sm font-bold uppercase tracking-wide text-slate-400">A carregar tipos esperados...</div>}
                 {!requirementsLoading && requirements.length === 0 && (
                   <div className="p-12 text-center text-sm font-semibold text-slate-500">
-                    Sem tipos de evidencia esperada para os filtros atuais.
+                    Sem tipos de evidência esperada para os filtros atuais.
                   </div>
                 )}
               </section>
@@ -1071,12 +1071,12 @@ export default function EvidenceItemsList() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <FileCheck2 className="h-5 w-5 text-indigo-700" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.total}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Evidencias</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Evidências</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <ShieldCheck className="h-5 w-5 text-emerald-600" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.valid}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Validas</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Válidas</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-red-600" />
@@ -1086,7 +1086,7 @@ export default function EvidenceItemsList() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Workflow className="h-5 w-5 text-cyan-600" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.linked}</p>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Com ligacoes</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Com ligações</p>
         </div>
       </section>
 
@@ -1100,7 +1100,7 @@ export default function EvidenceItemsList() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") load();
               }}
-              placeholder="Pesquisar por titulo, descricao, fonte ou referencia..."
+              placeholder="Pesquisar por título, descrição, fonte ou referência..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
@@ -1113,7 +1113,7 @@ export default function EvidenceItemsList() {
           <select value={filters.validity} onChange={(event) => setFilters((current) => ({ ...current, validity: event.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
             {validityFilters.map((filter) => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
           </select>
-          <input value={filters.owner} onChange={(event) => setFilters((current) => ({ ...current, owner: event.target.value }))} placeholder="Owner" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
+          <input value={filters.owner} onChange={(event) => setFilters((current) => ({ ...current, owner: event.target.value }))} placeholder="Responsável" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
           <button onClick={load} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
             Filtrar
           </button>
@@ -1129,7 +1129,7 @@ export default function EvidenceItemsList() {
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            {loading ? "A carregar..." : `${filteredItems.length} evidencia(s) encontradas`}
+            {loading ? "A carregar..." : `${filteredItems.length} evidência(s) encontradas`}
           </p>
         </div>
 
@@ -1137,14 +1137,14 @@ export default function EvidenceItemsList() {
           <table className="w-full min-w-[1120px] text-left text-sm">
             <thead className="border-b border-slate-100 bg-slate-50/70">
               <tr>
-                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Titulo</th>
+                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Título</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Tipo</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Estado</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Fonte</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Validade</th>
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Confianca</th>
-                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Owner</th>
-                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Acoes</th>
+                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Responsável</th>
+                <th className="px-5 py-4 text-xs font-bold uppercase tracking-wide text-slate-400">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1154,7 +1154,7 @@ export default function EvidenceItemsList() {
                     <Link to={`/governance/evidence/${item.id}`} className="font-bold text-slate-950 hover:text-indigo-700">
                       {item.title}
                     </Link>
-                    <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{item.description || item.external_reference || "Sem descricao."}</p>
+                    <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{item.description || item.external_reference || "Sem descrição."}</p>
                   </td>
                   <td className="px-5 py-4">
                     <GovernanceBadge className={evidenceTypeTone(item.evidence_type)}>{evidenceTypeLabel(item.evidence_type)}</GovernanceBadge>
@@ -1189,10 +1189,10 @@ export default function EvidenceItemsList() {
           </table>
         </div>
 
-        {loading && <div className="p-12 text-center text-sm font-bold uppercase tracking-wide text-slate-400">A carregar evidencias...</div>}
+        {loading && <div className="p-12 text-center text-sm font-bold uppercase tracking-wide text-slate-400">A carregar evidências...</div>}
         {!loading && filteredItems.length === 0 && (
           <div className="p-12 text-center text-sm font-semibold text-slate-500">
-            Sem evidencias para os filtros atuais.
+            Sem evidências para os filtros atuais.
           </div>
         )}
       </section>
@@ -1201,7 +1201,7 @@ export default function EvidenceItemsList() {
         <div className="flex items-start gap-3 text-sm font-semibold text-slate-600">
           <Timer className="mt-0.5 h-4 w-4 text-slate-400" />
           <p>
-            A validade e calculada no frontend para facilitar filtros rapidos. O backend continua a devolver os campos oficiais
+            A validade é calculada no frontend para facilitar filtros rápidos. O backend continua a devolver os campos oficiais
             <span className="font-bold text-slate-800"> valid_until</span>, <span className="font-bold text-slate-800">is_expired</span> e
             <span className="font-bold text-slate-800"> is_score_eligible</span>.
           </p>

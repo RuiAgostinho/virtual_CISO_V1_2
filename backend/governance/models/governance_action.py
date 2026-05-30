@@ -39,6 +39,7 @@ class GovernanceAction(TimeStampedModel):
 
     class SourceType(models.TextChoices):
         MANUAL = "manual", "Manual"
+        ONBOARDING = "onboarding", "Onboarding"
         WORKBENCH = "workbench", "Workbench"
         COMPLIANCE_GAP = "compliance_gap", "Compliance gap"
         AI_RECOMMENDATION = "ai_recommendation", "AI recommendation"

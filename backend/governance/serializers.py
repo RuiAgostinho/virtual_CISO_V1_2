@@ -16,6 +16,9 @@ from company.serializers import CompanyProfileSerializer
 
 
 class FrameworkSerializer(serializers.ModelSerializer):
+    controls_count = serializers.IntegerField(source="controls.count", read_only=True)
+    sections_count = serializers.IntegerField(source="sections.count", read_only=True)
+
     class Meta:
         model = Framework
         fields = "__all__"
@@ -93,7 +96,38 @@ class ControlMechanismSerializer(serializers.ModelSerializer):
 
 class ControlSerializer(serializers.ModelSerializer):
     framework_name = serializers.CharField(source="framework.name", read_only=True)
+    framework_code = serializers.CharField(source="framework.code", read_only=True)
+    framework_version = serializers.CharField(source="framework.version", read_only=True)
+    section_code = serializers.SerializerMethodField()
+    section_name = serializers.SerializerMethodField()
     mechanisms_count = serializers.IntegerField(read_only=True)
+    internal_mappings_count = serializers.SerializerMethodField()
+    approved_internal_mappings_count = serializers.SerializerMethodField()
+
+    def get_section_code(self, obj):
+        return obj.section.code if obj.section_id and obj.section else None
+
+    def get_section_name(self, obj):
+        return obj.section.name if obj.section_id and obj.section else None
+
+    def get_internal_mappings_count(self, obj):
+        annotated_value = getattr(obj, "internal_mappings_count", None)
+        if annotated_value is not None:
+            return annotated_value
+        return obj.internal_control_mappings.exclude(
+            validation_status__in=[
+                InternalControlFrameworkMapping.ValidationStatus.REJECTED,
+                InternalControlFrameworkMapping.ValidationStatus.DEPRECATED,
+            ]
+        ).count()
+
+    def get_approved_internal_mappings_count(self, obj):
+        annotated_value = getattr(obj, "approved_internal_mappings_count", None)
+        if annotated_value is not None:
+            return annotated_value
+        return obj.internal_control_mappings.filter(
+            validation_status=InternalControlFrameworkMapping.ValidationStatus.APPROVED
+        ).count()
 
     class Meta:
         model = Control
@@ -102,11 +136,20 @@ class ControlSerializer(serializers.ModelSerializer):
             "code",
             "title",
             "description",
+            "implementation_guidance",
             "is_mandatory",
+            "applicability_scope",
             "status",
             "framework",
             "framework_name",
+            "framework_code",
+            "framework_version",
+            "section",
+            "section_code",
+            "section_name",
             "mechanisms_count",
+            "internal_mappings_count",
+            "approved_internal_mappings_count",
         ]
 
 

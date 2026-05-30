@@ -1,3 +1,4 @@
+import os
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -515,6 +516,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        os.environ.setdefault("VIRTUAL_CISO_DISABLE_RAG_SIGNALS", "1")
         self.approve = options["approve"]
         self.deprecate_legacy = options["deprecate_legacy"]
         self.deprecate_stale_rule_based = options["deprecate_stale_rule_based"]

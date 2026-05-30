@@ -54,11 +54,35 @@ export type PolicyRecord = LegacyApiRecord & {
 export type FrameworkRecord = LegacyApiRecord & {
     version?: string;
     framework_type?: string;
+    publisher?: string;
+    source_uri?: string;
+    is_active?: boolean;
+    controls_count?: number;
+    sections_count?: number;
+};
+
+export type FrameworkSectionRecord = ApiRecord & {
+    id: string;
+    code?: string;
+    name?: string;
+    level?: number;
+    parent?: string | null;
+    sort_order?: number;
 };
 
 export type FrameworkControlRecord = LegacyApiRecord & {
     framework?: string;
+    framework_code?: string;
     section?: string;
+    section_code?: string;
+    section_name?: string;
+    framework_version?: string;
+    implementation_guidance?: string;
+    applicability_scope?: string;
+    is_mandatory?: boolean;
+    mechanisms_count?: number;
+    internal_mappings_count?: number;
+    approved_internal_mappings_count?: number;
 };
 
 export type MechanismRecord = LegacyApiRecord & {
@@ -507,7 +531,7 @@ export type GovernanceActionType =
 
 export type GovernanceActionPriority = "low" | "medium" | "high" | "critical";
 export type GovernanceActionStatus = "open" | "in_progress" | "blocked" | "done" | "deferred" | "cancelled";
-export type GovernanceActionSourceType = "manual" | "workbench" | "compliance_gap" | "ai_recommendation" | "score" | "exception";
+export type GovernanceActionSourceType = "manual" | "onboarding" | "workbench" | "compliance_gap" | "ai_recommendation" | "score" | "exception";
 
 export type GovernanceAction = {
     id: string;
@@ -1201,6 +1225,11 @@ export const governanceApi = {
             method: "POST",
             body: JSON.stringify({ owner })
         }),
+    generateGovernanceActionsFromOnboarding: (owner?: string, action_ids?: string[]) =>
+        request<GovernanceActionGenerationResult>("/api/governance/governance-actions/generate-from-onboarding/", {
+            method: "POST",
+            body: JSON.stringify({ owner, action_ids })
+        }),
     generateMechanismTasks: (owner?: string, force = false) =>
         request<GovernanceActionGenerationResult>("/api/governance/governance-actions/generate-mechanism-tasks/", {
             method: "POST",
@@ -1277,7 +1306,18 @@ export const governanceApi = {
             body: JSON.stringify({})
         }),
 
-    getFrameworks: () => request<PaginatedResponse<FrameworkRecord>>("/api/governance/frameworks/"),
+    getFrameworks: (params?: QueryParams) => {
+        let url = "/api/governance/frameworks/";
+        if (params) {
+            const query = toSearchParams(params).toString();
+            url += `?${query}`;
+        }
+        return request<PaginatedResponse<FrameworkRecord> | FrameworkRecord[]>(url);
+    },
+    getFramework: (id: string) =>
+        request<FrameworkRecord>(`/api/governance/frameworks/${id}/`),
+    getFrameworkSections: (id: string) =>
+        request<FrameworkSectionRecord[]>(`/api/governance/frameworks/${id}/sections/`),
     listControls: (params?: QueryParams) => {
         let url = "/api/governance/controls/";
         if (params) {

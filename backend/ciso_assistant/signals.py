@@ -1,4 +1,5 @@
 import logging
+import os
 
 from django.db import transaction
 from django.db.models.signals import m2m_changed, post_delete, post_save
@@ -30,44 +31,50 @@ from governance.models.mechanism import Mechanism, SuggestedMechanism
 logger = logging.getLogger(__name__)
 
 
+def schedule_on_commit(callback):
+    if os.environ.get("VIRTUAL_CISO_DISABLE_RAG_SIGNALS") == "1":
+        return
+    transaction.on_commit(callback)
+
+
 def schedule_policy_index(policy_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_policy(policy_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_policy(policy_id))
 
 
 def schedule_technical_regulation_index(regulation_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_technical_regulation(regulation_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_technical_regulation(regulation_id))
 
 
 def schedule_procedure_index(procedure_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_procedure(procedure_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_procedure(procedure_id))
 
 
 def schedule_policy_evidence_index(evidence_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_policy_evidence(evidence_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_policy_evidence(evidence_id))
 
 
 def schedule_compliance_gap_index(gap_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_compliance_gap(gap_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_compliance_gap(gap_id))
 
 
 def schedule_control_index(control_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_control(control_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_control(control_id))
 
 
 def schedule_mechanism_index(mechanism_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_mechanism(mechanism_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_mechanism(mechanism_id))
 
 
 def schedule_internal_control_index(control_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_internal_control(control_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_internal_control(control_id))
 
 
 def schedule_governance_document_index(document_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_governance_document(document_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_governance_document(document_id))
 
 
 def schedule_governance_section_index(section_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_governance_section(section_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_governance_section(section_id))
 
 
 def schedule_runbook_step_parent_index(step_id):
@@ -78,23 +85,23 @@ def schedule_runbook_step_parent_index(step_id):
             return
         KnowledgeIngestionService.upsert_governance_document(step.runbook_id)
 
-    transaction.on_commit(index_parent_document)
+    schedule_on_commit(index_parent_document)
 
 
 def schedule_evidence_item_index(evidence_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_evidence_item(evidence_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_evidence_item(evidence_id))
 
 
 def schedule_framework_mapping_index(mapping_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_framework_mapping(mapping_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_framework_mapping(mapping_id))
 
 
 def schedule_internal_control_mechanism_index(link_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_internal_control_mechanism(link_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_internal_control_mechanism(link_id))
 
 
 def schedule_governance_action_index(action_id):
-    transaction.on_commit(lambda: KnowledgeIngestionService.upsert_governance_action(action_id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.upsert_governance_action(action_id))
 
 
 def schedule_evidence_link_target_index(link):
@@ -124,7 +131,7 @@ def index_policy_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Policy)
 def delete_policy_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_policy(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_policy(instance.id))
 
 
 @receiver(post_save, sender=PolicySection)
@@ -150,7 +157,7 @@ def index_technical_regulation_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=TechnicalRegulation)
 def delete_technical_regulation_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_technical_regulation(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_technical_regulation(instance.id))
 
 
 @receiver(m2m_changed, sender=TechnicalRegulation.controls.through)
@@ -166,7 +173,7 @@ def index_procedure_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Procedure)
 def delete_procedure_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_procedure(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_procedure(instance.id))
 
 
 @receiver(m2m_changed, sender=Procedure.controls.through)
@@ -182,7 +189,7 @@ def index_policy_evidence_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=PolicyEvidence)
 def delete_policy_evidence_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_policy_evidence(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_policy_evidence(instance.id))
 
 
 @receiver(post_save, sender=ComplianceGap)
@@ -192,7 +199,7 @@ def index_compliance_gap_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=ComplianceGap)
 def delete_compliance_gap_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_compliance_gap(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_compliance_gap(instance.id))
 
 
 # --- Control and Mechanism: incremental indexing ------------------------------
@@ -208,7 +215,7 @@ def index_control_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Control)
 def delete_control_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_control(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_control(instance.id))
 
 
 @receiver(post_save, sender=Mechanism)
@@ -218,7 +225,7 @@ def index_mechanism_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Mechanism)
 def delete_mechanism_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_mechanism(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_mechanism(instance.id))
 
 
 @receiver(post_save, sender=SuggestedMechanism)
@@ -243,7 +250,7 @@ def index_internal_control_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=InternalControl)
 def delete_internal_control_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_internal_control(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_internal_control(instance.id))
 
 
 @receiver(post_save, sender=PolicyInternalControl)
@@ -268,7 +275,7 @@ def index_framework_mapping_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=InternalControlFrameworkMapping)
 def delete_framework_mapping_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_framework_mapping(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_framework_mapping(instance.id))
     if instance.internal_control_id:
         schedule_internal_control_index(instance.internal_control_id)
 
@@ -282,7 +289,7 @@ def index_internal_control_mechanism_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=InternalControlMechanism)
 def delete_internal_control_mechanism_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_internal_control_mechanism(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_internal_control_mechanism(instance.id))
     if instance.internal_control_id:
         schedule_internal_control_index(instance.internal_control_id)
     if instance.mechanism_id:
@@ -296,7 +303,7 @@ def index_governance_document_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=GovernanceDocument)
 def delete_governance_document_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_governance_document(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_governance_document(instance.id))
 
 
 @receiver(post_save, sender=GovernanceDocumentControl)
@@ -321,7 +328,7 @@ def index_governance_section_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=GovernanceDocumentSection)
 def delete_governance_section_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_governance_section(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_governance_section(instance.id))
     if instance.document_id:
         schedule_governance_document_index(instance.document_id)
 
@@ -344,7 +351,7 @@ def index_evidence_item_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=EvidenceItem)
 def delete_evidence_item_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_evidence_item(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_evidence_item(instance.id))
 
 
 @receiver(post_save, sender=EvidenceLink)
@@ -367,4 +374,4 @@ def index_governance_action_after_save(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=GovernanceAction)
 def delete_governance_action_chunk_after_delete(sender, instance, **kwargs):
-    transaction.on_commit(lambda: KnowledgeIngestionService.delete_governance_action(instance.id))
+    schedule_on_commit(lambda: KnowledgeIngestionService.delete_governance_action(instance.id))

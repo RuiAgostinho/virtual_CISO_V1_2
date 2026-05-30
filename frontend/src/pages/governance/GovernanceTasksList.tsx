@@ -18,6 +18,7 @@ import {
   governanceApi,
   type GovernanceAction,
   type GovernanceActionPriority,
+  type GovernanceActionSourceType,
   type GovernanceActionStatus,
   type GovernanceActionType,
 } from "@/lib/governanceApi";
@@ -48,6 +49,16 @@ const priorityLabels: Record<GovernanceActionPriority, string> = {
   critical: "Critica",
 };
 
+const sourceTypeLabels: Record<GovernanceActionSourceType, string> = {
+  manual: "Manual",
+  onboarding: "Onboarding institucional",
+  workbench: "Workbench",
+  compliance_gap: "Gap de conformidade",
+  ai_recommendation: "Recomendação IA",
+  score: "Score",
+  exception: "Exceção",
+};
+
 const statusLabels: Record<GovernanceActionStatus, string> = {
   open: "Aberta",
   in_progress: "Em curso",
@@ -68,6 +79,7 @@ const targetTypeLabels: Record<string, string> = {
   risk: "Risco",
   asset: "Ativo",
   vulnerability: "Vulnerabilidade",
+  institutional_onboarding: "Onboarding institucional",
 };
 
 const priorityTone: Record<GovernanceActionPriority, string> = {
@@ -419,7 +431,11 @@ export default function GovernanceTasksList() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Tipo</p>
                     <p className="mt-1 text-sm font-bold text-slate-800">{actionTypeLabels[action.action_type]}</p>
-                    {action.source_type && <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{action.source_type}</p>}
+                    {action.source_type && (
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        {sourceTypeLabels[action.source_type] || action.source_type}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Owner / prazo</p>

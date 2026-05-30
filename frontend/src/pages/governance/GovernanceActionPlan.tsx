@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowRight,
@@ -17,6 +17,7 @@ import {
   governanceApi,
   type GovernanceAction,
   type GovernanceActionPriority,
+  type GovernanceActionSourceType,
   type GovernanceActionStatus,
   type GovernanceActionType,
 } from "@/lib/governanceApi";
@@ -60,6 +61,16 @@ const statusLabels: Record<GovernanceActionStatus, string> = {
   done: "Concluida",
   deferred: "Adiada",
   cancelled: "Cancelada",
+};
+
+const sourceTypeLabels: Record<GovernanceActionSourceType, string> = {
+  manual: "Manual",
+  onboarding: "Onboarding institucional",
+  workbench: "Workbench",
+  compliance_gap: "Gap de conformidade",
+  ai_recommendation: "Recomendação IA",
+  score: "Score",
+  exception: "Exceção",
 };
 
 const priorityTone: Record<GovernanceActionPriority, string> = {
@@ -116,6 +127,11 @@ function isClosed(action: GovernanceAction) {
 }
 
 export default function GovernanceActionPlan() {
+  const [searchParams] = useSearchParams();
+  const sourceParam = searchParams.get("source_type") as GovernanceActionSourceType | null;
+  const sourceFilter = sourceParam && sourceTypeLabels[sourceParam] ? sourceParam : "";
+  const createdFromUrl = searchParams.get("created");
+  const updatedFromUrl = searchParams.get("updated");
   const [actions, setActions] = useState<GovernanceAction[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ActionDraft>>({});
   const [loading, setLoading] = useState(true);
@@ -131,7 +147,11 @@ export default function GovernanceActionPlan() {
     setLoading(true);
     setError(null);
     try {
-      const data = await governanceApi.listGovernanceActions({ page_size: 300, ordering: "due_date" });
+      const data = await governanceApi.listGovernanceActions({
+        page_size: 300,
+        ordering: "due_date",
+        ...(sourceFilter ? { source_type: sourceFilter } : {}),
+      });
       const rows = normalize(data);
       setActions(rows);
       setDrafts(
@@ -151,11 +171,19 @@ export default function GovernanceActionPlan() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceFilter]);
 
   useEffect(() => {
     void loadActions();
   }, [loadActions]);
+
+  useEffect(() => {
+    if (sourceFilter === "onboarding" && (createdFromUrl || updatedFromUrl)) {
+      setNotice(
+        `Tarefas de onboarding prontas: ${createdFromUrl || 0} criadas, ${updatedFromUrl || 0} atualizadas.`,
+      );
+    }
+  }, [createdFromUrl, sourceFilter, updatedFromUrl]);
 
   const filteredActions = useMemo(() => {
     return actions.filter((action) => {
@@ -358,7 +386,12 @@ export default function GovernanceActionPlan() {
           <div className="divide-y divide-slate-100">
             {filteredActions.map((action) => {
               const draft = drafts[action.id] || { owner: action.owner || "", priority: action.priority, due_date: action.due_date || "" };
-              const contextHref = action.source_type === "workbench" ? workbenchLinks[action.source_key] : "";
+              const contextHref =
+                action.source_type === "workbench"
+                  ? workbenchLinks[action.source_key]
+                  : action.source_type === "onboarding"
+                    ? "/onboarding"
+                    : "";
               return (
                 <article key={action.id} className="p-6">
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -375,7 +408,7 @@ export default function GovernanceActionPlan() {
                       ) : null}
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-black uppercase text-slate-400">
                         <span>{actionTypeLabels[action.action_type]}</span>
-                        <span>Fonte: {action.source_type}</span>
+                        <span>Fonte: {sourceTypeLabels[action.source_type] || action.source_type}</span>
                         {action.target_label || action.target_id ? <span>Alvo: {action.target_label || action.target_id}</span> : null}
                       </div>
                     </div>

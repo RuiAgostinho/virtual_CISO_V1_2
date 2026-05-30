@@ -52,20 +52,20 @@ function compactText(value?: string | null, fallback = "-") {
 
 function evidenceTypeLabel(type?: string) {
   const labels: Record<string, string> = {
-    report: "Report",
-    screenshot: "Screenshot",
+    report: "Relatório",
+    screenshot: "Captura de ecrã",
     ticket: "Ticket",
     log: "Log",
-    audit_report: "Audit report",
-    configuration_export: "Configuration export",
-    meeting_minutes: "Meeting minutes",
-    approval_record: "Approval record",
-    vulnerability_scan: "Vulnerability scan",
-    siem_alert: "SIEM alert",
-    manual_attestation: "Manual attestation",
-    other: "Other",
+    audit_report: "Relatório de auditoria",
+    configuration_export: "Exportação de configuração",
+    meeting_minutes: "Ata de reunião",
+    approval_record: "Registo de aprovação",
+    vulnerability_scan: "Análise de vulnerabilidades",
+    siem_alert: "Alerta SIEM",
+    manual_attestation: "Declaração manual",
+    other: "Outro",
   };
-  return labels[type || ""] || type || "Evidence";
+  return labels[type || ""] || type || "Evidência";
 }
 
 function evidenceTypeTone(type?: string) {
@@ -79,13 +79,13 @@ function evidenceTypeTone(type?: string) {
 
 function statusLabel(status?: string) {
   const labels: Record<string, string> = {
-    draft: "Draft",
-    pending_review: "Pending review",
-    approved: "Approved",
-    valid: "Valid",
-    expired: "Expired",
-    rejected: "Rejected",
-    deprecated: "Deprecated",
+    draft: "Rascunho",
+    pending_review: "Pendente de revisão",
+    approved: "Aprovada",
+    valid: "Válida",
+    expired: "Expirada",
+    rejected: "Rejeitada",
+    deprecated: "Descontinuada",
   };
   return labels[status || ""] || status || "Sem estado";
 }
@@ -99,19 +99,19 @@ function statusTone(status?: string) {
 
 function targetTypeLabel(type?: string) {
   const labels: Record<string, string> = {
-    mechanism: "Mechanism",
-    internal_control: "Internal control",
-    governance_document: "Governance document",
-    runbook_step: "Runbook step",
-    framework_control: "Framework control",
-    policy: "Policy",
-    risk: "Risk",
-    asset: "Asset",
-    vulnerability: "Vulnerability",
-    finding: "Finding",
-    improvement_action: "Improvement action",
+    mechanism: "Mecanismo",
+    internal_control: "Controlo interno",
+    governance_document: "Documento de governação",
+    runbook_step: "Passo de runbook",
+    framework_control: "Controlo externo",
+    policy: "Política",
+    risk: "Risco",
+    asset: "Ativo",
+    vulnerability: "Vulnerabilidade",
+    finding: "Constatação",
+    improvement_action: "Ação de melhoria",
   };
-  return labels[type || ""] || type || "Target";
+  return labels[type || ""] || type || "Alvo";
 }
 
 function entityLabel(item: any) {
@@ -184,12 +184,12 @@ function EvidenceLinksPanel({
 }) {
   return (
     <SectionCard
-      title="Evidence links"
+      title="Ligações de evidência"
       icon={Link2}
       action={(
         <Link to={mappingReviewHref} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
           <GitBranch className="h-4 w-4" />
-          Mapping Review
+          Revisão de mapeamentos
         </Link>
       )}
     >
@@ -198,14 +198,14 @@ function EvidenceLinksPanel({
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Target</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Relacao</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Alvo</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Relação</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Estado</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Origem</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Rationale</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Confianca</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Justificação</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Confiança</th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Validado</th>
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Acoes</th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-400">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -250,7 +250,7 @@ function EvidenceLinksPanel({
                           onClick={() => onDeprecated(link)}
                           className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 disabled:opacity-50"
                         >
-                          {actionLoading === `deprecated-${link.id}` ? "..." : "Deprecated"}
+                          {actionLoading === `deprecated-${link.id}` ? "..." : "Descontinuar"}
                         </button>
                       </div>
                     </td>
@@ -261,7 +261,7 @@ function EvidenceLinksPanel({
           </table>
         </div>
       ) : (
-        <EmptyState text="Esta evidencia ainda nao tem EvidenceLinks." />
+        <EmptyState text="Esta evidência ainda não tem ligações associadas." />
       )}
     </SectionCard>
   );
@@ -285,8 +285,8 @@ function EvidenceImpactPanel({ impact, traceability }: { impact: any; traceabili
         <RelationshipList title="Mecanismos" items={mechanisms} empty="Sem mecanismos suportados." />
         <RelationshipList title="Controlos internos" items={internalControls} empty="Sem controlos internos impactados." />
         <RelationshipList title="Documentos" items={documents} empty="Sem documentos relacionados." />
-        <RelationshipList title="Politicas" items={policies} empty="Sem politicas relacionadas." />
-        <RelationshipList title="Framework controls" items={frameworkControls} empty="Sem controlos externos impactados." />
+        <RelationshipList title="Políticas" items={policies} empty="Sem políticas relacionadas." />
+        <RelationshipList title="Controlos externos" items={frameworkControls} empty="Sem controlos externos impactados." />
         <RelationshipList title="Frameworks" items={frameworks} empty="Sem frameworks impactadas." />
       </div>
 
@@ -316,7 +316,7 @@ function EvidenceImpactPanel({ impact, traceability }: { impact: any; traceabili
             {(traceability?.gaps || []).slice(0, 8).map((gap: any, index: number) => (
               <div key={`${gap.type || gap.gap_type || "gap"}-${index}`} className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
                 <p className="text-sm font-bold text-amber-900">{gap.type || gap.gap_type || "Gap"}</p>
-                <p className="mt-1 text-sm font-semibold text-amber-800">{gap.description || gap.recommendation || "Sem descricao."}</p>
+                <p className="mt-1 text-sm font-semibold text-amber-800">{gap.description || gap.recommendation || "Sem descrição."}</p>
               </div>
             ))}
           </div>
@@ -372,7 +372,7 @@ export default function EvidenceItemDetail() {
       setTraceability(traceabilityPayload);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Nao foi possivel carregar a evidencia.");
+      setError(err?.message || "Não foi possível carregar a evidência.");
     } finally {
       setLoading(false);
     }
@@ -385,20 +385,20 @@ export default function EvidenceItemDetail() {
   const warnings = useMemo(() => {
     if (!evidence) return [];
     const items: Array<{ type: string; text: string }> = [];
-    if (isExpired(evidence) || evidence.status === "expired") items.push({ type: "expired", text: "Esta evidencia esta expirada e nao deve contar para score official." });
-    if (evidence.status === "rejected" || evidence.status === "deprecated") items.push({ type: "inactive", text: "O estado da evidencia impede a sua utilizacao como evidencia oficial." });
+    if (isExpired(evidence) || evidence.status === "expired") items.push({ type: "expired", text: "Esta evidência está expirada e não deve contar para o score oficial." });
+    if (evidence.status === "rejected" || evidence.status === "deprecated") items.push({ type: "inactive", text: "O estado da evidência impede a sua utilização como evidência oficial." });
     const draftLinks = links.filter((link) => link.validation_status === "draft");
     const pendingLinks = links.filter((link) => link.validation_status === "pending_review");
     const inactiveLinks = links.filter((link) => ["rejected", "deprecated"].includes(link.validation_status));
-    if (draftLinks.length > 0) items.push({ type: "draft", text: `${draftLinks.length} ligacao(oes) em draft ainda nao contam oficialmente.` });
-    if (pendingLinks.length > 0) items.push({ type: "pending", text: `${pendingLinks.length} ligacao(oes) pending_review apenas contam em simulacao.` });
-    if (inactiveLinks.length > 0) items.push({ type: "inactive_links", text: `${inactiveLinks.length} ligacao(oes) rejeitadas ou deprecated estao inativas.` });
-    if (!evidence.source && !evidence.external_reference && !evidence.file) items.push({ type: "reference", text: "A evidencia nao tem fonte, referencia externa ou ficheiro associado." });
+    if (draftLinks.length > 0) items.push({ type: "draft", text: `${draftLinks.length} ligação(ões) em rascunho ainda não contam oficialmente.` });
+    if (pendingLinks.length > 0) items.push({ type: "pending", text: `${pendingLinks.length} ligação(ões) pendentes de revisão apenas contam em simulação.` });
+    if (inactiveLinks.length > 0) items.push({ type: "inactive_links", text: `${inactiveLinks.length} ligação(ões) rejeitadas ou descontinuadas estão inativas.` });
+    if (!evidence.source && !evidence.external_reference && !evidence.file) items.push({ type: "reference", text: "A evidência não tem fonte, referência externa ou ficheiro associado." });
     return items;
   }, [evidence, links]);
 
   const handleApprove = async (link: any) => {
-    if (!window.confirm("Aprovar esta ligacao de evidencia?")) return;
+    if (!window.confirm("Aprovar esta ligação de evidência?")) return;
     setActionLoading(`approve-${link.id}`);
     try {
       await mappingReviewApi.approveEvidenceLink(link.id);
@@ -409,7 +409,7 @@ export default function EvidenceItemDetail() {
   };
 
   const handleReject = async (link: any) => {
-    const rationale = window.prompt("Indica a rationale para rejeitar esta ligacao:");
+    const rationale = window.prompt("Indica a justificação para rejeitar esta ligação:");
     if (!rationale?.trim()) return;
     setActionLoading(`reject-${link.id}`);
     try {
@@ -421,7 +421,7 @@ export default function EvidenceItemDetail() {
   };
 
   const handleDeprecated = async (link: any) => {
-    if (!window.confirm("Marcar esta ligacao como deprecated?")) return;
+    if (!window.confirm("Marcar esta ligação como descontinuada?")) return;
     setActionLoading(`deprecated-${link.id}`);
     try {
       await mappingReviewApi.markEvidenceLinkDeprecated(link.id);
@@ -448,7 +448,7 @@ export default function EvidenceItemDetail() {
       <div className="flex min-h-[420px] items-center justify-center">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-6 py-5 text-sm font-bold text-slate-500 shadow-sm">
           <Loader2 className="h-5 w-5 animate-spin text-indigo-700" />
-          A carregar evidencia...
+          A carregar evidência...
         </div>
       </div>
     );
@@ -458,11 +458,11 @@ export default function EvidenceItemDetail() {
     return (
       <div className="mx-auto max-w-[900px] space-y-4 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
         <AlertTriangle className="h-8 w-8 text-red-600" />
-        <h1 className="text-2xl font-bold text-slate-950">Evidencia indisponivel</h1>
-        <p className="text-sm font-semibold text-slate-500">{error || "Nao foi encontrada evidencia para o ID indicado."}</p>
+        <h1 className="text-2xl font-bold text-slate-950">Evidência indisponível</h1>
+        <p className="text-sm font-semibold text-slate-500">{error || "Não foi encontrada evidência para o ID indicado."}</p>
         <Link to="/governance/evidence" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
           <ArrowLeft className="h-4 w-4" />
-          Voltar as evidencias
+          Voltar às evidências
         </Link>
       </div>
     );
@@ -478,21 +478,21 @@ export default function EvidenceItemDetail() {
     {
       id: "overview",
       label: "Visao geral",
-      description: "Metadados, origem, validade e referencia da evidencia.",
+      description: "Metadados, origem, validade e referência da evidência.",
       badge: statusLabel(evidence.status),
       icon: FileCheck2,
     },
     {
       id: "links",
       label: "Ligacoes",
-      description: "Entidades onde esta evidencia e usada.",
+      description: "Entidades onde esta evidência é usada.",
       badge: `${counts.links} links`,
       icon: Link2,
     },
     {
       id: "impact",
       label: "Impacto",
-      description: "Mecanismos, controlos, politicas e frameworks impactadas.",
+      description: "Mecanismos, controlos, políticas e frameworks impactadas.",
       badge: `${counts.frameworks} frameworks`,
       icon: Network,
     },
@@ -500,13 +500,13 @@ export default function EvidenceItemDetail() {
       id: "scoring",
       label: "Scoring",
       description: "Elegibilidade, expiracao e estado para conformidade.",
-      badge: evidence.is_score_eligible ? "elegivel" : "nao elegivel",
+      badge: evidence.is_score_eligible ? "elegível" : "não elegível",
       icon: Timer,
     },
     {
       id: "audit",
       label: "Auditoria",
-      description: "Avisos, detalhes tecnicos e atalhos API.",
+      description: "Avisos, detalhes técnicos e atalhos API.",
       badge: `${warnings.length} avisos`,
       icon: AlertTriangle,
     },
@@ -517,7 +517,7 @@ export default function EvidenceItemDetail() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <Link to="/governance/evidence" className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-indigo-700">
           <ArrowLeft className="h-4 w-4" />
-          Voltar as evidencias
+          Voltar às evidências
         </Link>
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
@@ -529,7 +529,7 @@ export default function EvidenceItemDetail() {
             </div>
             <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">{evidence.title}</h1>
             <p className="mt-2 max-w-4xl text-sm font-semibold leading-relaxed text-slate-500">
-              {compactText(evidence.description, "Evidencia reutilizavel criada na camada transversal.")}
+              {compactText(evidence.description, "Evidência reutilizável criada na camada transversal.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -539,11 +539,11 @@ export default function EvidenceItemDetail() {
             </button>
             <Link to="/governance/evidence/wizard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
               <FilePlus2 className="h-4 w-4" />
-              Nova evidencia
+              Nova evidência
             </Link>
             <Link to={`/governance/mapping-review?evidence=${evidence.id}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
               <GitBranch className="h-4 w-4" />
-              Mapping Review
+              Revisão de mapeamentos
             </Link>
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function EvidenceItemDetail() {
         </section>
       )}
 
-      <nav className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm lg:grid-cols-5" aria-label="Workspace da evidencia">
+      <nav className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm lg:grid-cols-5" aria-label="Workspace da evidência">
         {workspaceTabs.map((tab) => {
           const Icon = tab.icon;
           const selected = activeWorkspaceTab === tab.id;
@@ -612,7 +612,7 @@ export default function EvidenceItemDetail() {
                 <p className="mt-1 text-sm font-bold text-slate-900">{formatDate(evidence.collected_at)}</p>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Valida ate</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Válida até</p>
                 <p className="mt-1 text-sm font-bold text-slate-900">{formatDate(evidence.valid_until)}</p>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
@@ -625,7 +625,7 @@ export default function EvidenceItemDetail() {
                 </div>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Owner</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Responsável</p>
                 <p className="mt-1 text-sm font-bold text-slate-900">{evidence.owner || "-"}</p>
               </div>
             </div>
@@ -633,7 +633,7 @@ export default function EvidenceItemDetail() {
             <div className="mt-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Descricao</p>
               <div className="mt-2 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold leading-relaxed text-slate-700">
-                {compactText(evidence.description, "Sem descricao detalhada.")}
+                {compactText(evidence.description, "Sem descrição detalhada.")}
               </div>
             </div>
 
@@ -642,10 +642,10 @@ export default function EvidenceItemDetail() {
               {evidence.file ? (
                 <a href={evidence.file} className="mt-1 inline-flex items-center gap-2 text-sm font-bold text-indigo-700 hover:text-indigo-900">
                   <ExternalLink className="h-4 w-4" />
-                  Abrir referencia do ficheiro
+                  Abrir referência do ficheiro
                 </a>
               ) : (
-                <p className="mt-1 text-sm font-semibold text-slate-500">Sem ficheiro associado. A evidencia usa fonte ou referencia externa.</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Sem ficheiro associado. A evidência usa fonte ou referência externa.</p>
               )}
             </div>
           </SectionCard>
@@ -674,13 +674,13 @@ export default function EvidenceItemDetail() {
               <div className="flex items-center justify-between gap-3">
                 <span>Expirada</span>
                 <Badge className={isExpired(evidence) ? "border-red-100 bg-red-50 text-red-700" : "border-emerald-100 bg-emerald-50 text-emerald-700"}>
-                  {isExpired(evidence) ? "Sim" : "Nao"}
+                  {isExpired(evidence) ? "Sim" : "Não"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span>Elegivel para score</span>
                 <Badge className={evidence.is_score_eligible ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500"}>
-                  {evidence.is_score_eligible ? "Sim" : "Nao"}
+                  {evidence.is_score_eligible ? "Sim" : "Não"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -694,18 +694,18 @@ export default function EvidenceItemDetail() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Resumo tecnico" icon={Layers3}>
+          <SectionCard title="Resumo técnico" icon={Layers3}>
             <div className="space-y-3 text-sm font-semibold text-slate-600">
               <div className="flex items-center justify-between gap-3">
-                <span>Evidence type</span>
+                <span>Tipo de evidência</span>
                 <strong className="text-right text-slate-950">{evidence.evidence_type || "-"}</strong>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>Status</span>
+                <span>Estado</span>
                 <strong className="text-right text-slate-950">{evidence.status || "-"}</strong>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>Created</span>
+                <span>Criada</span>
                 <strong className="text-right text-slate-950">{formatDateTime(evidence.created_at)}</strong>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -729,14 +729,14 @@ export default function EvidenceItemDetail() {
                 ))}
               </div>
             ) : (
-              <EmptyState text="Sem avisos relevantes para esta evidencia." />
+              <EmptyState text="Sem avisos relevantes para esta evidência." />
             )}
           </SectionCard>
 
           <SectionCard title="Links rapidos" icon={ExternalLink}>
             <div className="space-y-3">
               <a href={`/api/governance/evidence-items/${evidence.id}/links/`} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
-                EvidenceLinks API
+                API de ligações de evidência
                 <ExternalLink className="h-4 w-4" />
               </a>
               <a href={`/api/governance/evidence-items/${evidence.id}/impact/`} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
@@ -748,7 +748,7 @@ export default function EvidenceItemDetail() {
                 <ExternalLink className="h-4 w-4" />
               </a>
               <Link to={`/governance/mapping-review?evidence=${evidence.id}`} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
-                Mapping Review
+                Revisão de mapeamentos
                 <GitBranch className="h-4 w-4" />
               </Link>
             </div>

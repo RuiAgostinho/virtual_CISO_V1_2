@@ -115,6 +115,13 @@ export const chatApi = {
     });
   },
 
+  async askOnboardingHelp(query: string): Promise<AssistantResponse> {
+    return await request("/api/assistant/onboarding-help/", {
+      method: "POST",
+      body: JSON.stringify({ query, history: [] }),
+    });
+  },
+
   async askPolicyAdvice(payload: PolicyAdvicePayload): Promise<AssistantResponse> {
     return await request("/api/assistant/policy-advice/", {
       method: "POST",

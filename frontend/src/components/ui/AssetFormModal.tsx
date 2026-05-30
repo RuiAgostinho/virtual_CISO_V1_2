@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Loader2, Plus, Save, X } from "lucide-react";
 import { riskApi, type Asset, type AssetCategory, type AssetLookup, type AssetType } from "@/lib/riskApi";
 import { companyApi, type OrgUnit, type Person } from "@/lib/companyApi";
@@ -8,7 +9,8 @@ interface AssetFormModalProps {
   mode: "create" | "edit";
   asset?: AssetModalRecord | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (asset?: Asset) => void | Promise<void>;
+  showClassification?: boolean;
 }
 
 type Lookup = { id: number | string; name: string };
@@ -89,6 +91,22 @@ type ClassificationFieldKey =
 
 type DependencyFieldKey = "dependent_assets" | "external_service_assets" | "integration_assets";
 
+type ClassificationLevel = {
+  value: number;
+  short: string;
+  label: string;
+  definition: string;
+};
+
+type ClassificationField = {
+  key: ClassificationFieldKey;
+  label: string;
+  subtitle: string;
+  group: "cid" | "operational";
+  color: "sky" | "emerald" | "rose" | "amber" | "slate";
+  levels: ClassificationLevel[];
+};
+
 const STATUS_OPTIONS = [
   { value: "Active", label: "Ativo" },
   { value: "New", label: "Novo" },
@@ -96,21 +114,99 @@ const STATUS_OPTIONS = [
   { value: "Retired", label: "Descontinuado" },
 ];
 
-const SCALE_LABEL: Record<number, string> = {
-  1: "Muito baixo",
-  2: "Baixo",
-  3: "Médio",
-  4: "Alto",
-  5: "Crítico",
-};
+const COMMON_LEVELS = [
+  { value: 1, short: "MB" },
+  { value: 2, short: "B" },
+  { value: 3, short: "M" },
+  { value: 4, short: "A" },
+  { value: 5, short: "C" },
+];
 
-const CLASSIFICATION_FIELDS: Array<{ key: ClassificationFieldKey; label: string; hint: string }> = [
-  { key: "confidentiality", label: "Confidencialidade", hint: "Impacto da divulgação não autorizada" },
-  { key: "integrity", label: "Integridade", hint: "Impacto da alteração indevida dos dados" },
-  { key: "availability", label: "Disponibilidade", hint: "Impacto da indisponibilidade do ativo" },
-  { key: "exposure", label: "Exposição", hint: "Grau de exposição a redes não confiáveis" },
-  { key: "business_value", label: "Valor de negócio", hint: "Valor do ativo para a organização" },
-  { key: "dependency_score", label: "Dependência", hint: "Dependência de/para outros ativos" },
+const CLASSIFICATION_FIELDS: ClassificationField[] = [
+  {
+    key: "confidentiality",
+    label: "Confidencialidade",
+    subtitle: "Sensibilidade e sigilo dos dados.",
+    group: "cid",
+    color: "amber",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Público", definition: "Livre acesso. Nenhuma restrição de confidencialidade." },
+      { ...COMMON_LEVELS[1], label: "Baixo", definition: "Dados internos sem sensibilidade; uso corporativo normal." },
+      { ...COMMON_LEVELS[2], label: "Médio", definition: "Acesso restrito a equipas internas ou funções autorizadas." },
+      { ...COMMON_LEVELS[3], label: "Alto", definition: "Informação estratégica; divulgação causa dano financeiro, reputacional ou operacional elevado." },
+      { ...COMMON_LEVELS[4], label: "Crítico", definition: "Divulgação pode causar dano legal, reputacional ou operacional catastrófico." },
+    ],
+  },
+  {
+    key: "integrity",
+    label: "Integridade",
+    subtitle: "Exatidão e proteção contra alterações.",
+    group: "cid",
+    color: "sky",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Mínimo", definition: "Integridade pouco relevante para a função do ativo." },
+      { ...COMMON_LEVELS[1], label: "Residual", definition: "Alteração causa transtorno cosmético ou facilmente corrigível." },
+      { ...COMMON_LEVELS[2], label: "Operacional", definition: "Erros remediáveis, mas com custo, atraso ou validação adicional." },
+      { ...COMMON_LEVELS[3], label: "Grave", definition: "Erros podem afetar decisões, faturação, processos críticos ou confiança." },
+      { ...COMMON_LEVELS[4], label: "Crítico", definition: "Corrupção de dados causa falha total, irreversível ou legalmente material." },
+    ],
+  },
+  {
+    key: "availability",
+    label: "Disponibilidade",
+    subtitle: "Continuidade operacional necessária.",
+    group: "cid",
+    color: "emerald",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Opcional", definition: "Reposição por conveniência, sem impacto relevante no negócio." },
+      { ...COMMON_LEVELS[1], label: "Suporte", definition: "Pode ficar offline até 24 horas sem impacto significativo." },
+      { ...COMMON_LEVELS[2], label: "Laboral", definition: "Indispensável em horário útil; tolerância de algumas horas." },
+      { ...COMMON_LEVELS[3], label: "Core", definition: "Paragem afeta canais principais, produtividade ou serviço essencial." },
+      { ...COMMON_LEVELS[4], label: "24/7 vital", definition: "Indisponibilidade breve pode causar prejuízo elevado ou interrupção crítica." },
+    ],
+  },
+  {
+    key: "exposure",
+    label: "Exposição",
+    subtitle: "Visibilidade perante redes externas.",
+    group: "operational",
+    color: "rose",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Air-gapped", definition: "Isolamento físico ou sem conectividade relevante." },
+      { ...COMMON_LEVELS[1], label: "Isolado", definition: "Sem acesso externo; apenas interfaces locais ou altamente restritas." },
+      { ...COMMON_LEVELS[2], label: "Interno", definition: "Acessível apenas em redes corporativas internas." },
+      { ...COMMON_LEVELS[3], label: "Filtrado", definition: "Acesso via VPN, gateway autenticado ou exposição fortemente controlada." },
+      { ...COMMON_LEVELS[4], label: "Público", definition: "Exposto à Internet, DMZ ou terceiros sem controlo equivalente a rede interna." },
+    ],
+  },
+  {
+    key: "business_value",
+    label: "Valor de negócio",
+    subtitle: "Importância estratégica e financeira.",
+    group: "operational",
+    color: "amber",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Legado/teste", definition: "Ativo de teste ou sem valor direto para o negócio." },
+      { ...COMMON_LEVELS[1], label: "Apoio", definition: "Suporta processos secundários ou administrativos." },
+      { ...COMMON_LEVELS[2], label: "Produtivo", definition: "Necessário para produtividade diária interna." },
+      { ...COMMON_LEVELS[3], label: "Estratégico", definition: "Fundamental para competitividade, serviço ou missão da organização." },
+      { ...COMMON_LEVELS[4], label: "Crítico", definition: "Gera valor central, receita, serviço essencial ou função pública crítica." },
+    ],
+  },
+  {
+    key: "dependency_score",
+    label: "Dependência",
+    subtitle: "Impacto em outros ativos se falhar.",
+    group: "operational",
+    color: "slate",
+    levels: [
+      { ...COMMON_LEVELS[0], label: "Isolado", definition: "Falha não afeta outros sistemas ou processos relevantes." },
+      { ...COMMON_LEVELS[1], label: "Terminal", definition: "Ativo final; poucos ou nenhuns serviços dependem dele." },
+      { ...COMMON_LEVELS[2], label: "Local", definition: "Impacto em fluxos de trabalho ou equipas locais." },
+      { ...COMMON_LEVELS[3], label: "Core", definition: "Vários serviços fundamentais dependem deste ativo." },
+      { ...COMMON_LEVELS[4], label: "Pilar", definition: "Falha deste ativo pode comprometer uma parte significativa da infraestrutura." },
+    ],
+  },
 ];
 
 const DEPENDENCY_FIELDS: Array<{ key: DependencyFieldKey; label: string; hint: string }> = [
@@ -165,7 +261,65 @@ function toNumber(value: number | string | undefined, fallback = 3) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFormModalProps) {
+function clampClassificationValue(value: number | string | undefined) {
+  const parsed = toNumber(value);
+  return Math.min(5, Math.max(1, parsed));
+}
+
+function getClassificationLevel(field: ClassificationField, value: number | string | undefined) {
+  const normalized = clampClassificationValue(value);
+  return field.levels.find((level) => level.value === normalized) || field.levels[2] || field.levels[0];
+}
+
+function classificationColorClasses(color: ClassificationField["color"], selected = false) {
+  const tones: Record<ClassificationField["color"], string> = {
+    sky: selected ? "border-sky-500 bg-sky-500 text-white" : "border-sky-100 bg-sky-50 text-sky-700",
+    emerald: selected
+      ? "border-emerald-600 bg-emerald-600 text-white"
+      : "border-emerald-100 bg-emerald-50 text-emerald-700",
+    rose: selected ? "border-rose-600 bg-rose-600 text-white" : "border-rose-100 bg-rose-50 text-rose-700",
+    amber: selected ? "border-amber-500 bg-amber-500 text-white" : "border-amber-100 bg-amber-50 text-amber-700",
+    slate: selected ? "border-slate-700 bg-slate-700 text-white" : "border-slate-100 bg-slate-50 text-slate-700",
+  };
+  return tones[color];
+}
+
+function classificationLevelLabel(score: number) {
+  if (score >= 4.5) return "Crítico";
+  if (score >= 3.5) return "Alto";
+  if (score >= 2.5) return "Médio";
+  if (score >= 1.5) return "Baixo";
+  return "Muito baixo";
+}
+
+function classificationLevelTone(score: number) {
+  if (score >= 4.5) return "text-red-700";
+  if (score >= 3.5) return "text-orange-700";
+  if (score >= 2.5) return "text-indigo-700";
+  if (score >= 1.5) return "text-sky-700";
+  return "text-emerald-700";
+}
+
+function calculateClassificationPreview(form: AssetFormState) {
+  const confidentiality = clampClassificationValue(form.confidentiality);
+  const integrity = clampClassificationValue(form.integrity);
+  const availability = clampClassificationValue(form.availability);
+  const exposure = clampClassificationValue(form.exposure);
+  const businessValue = clampClassificationValue(form.business_value);
+  const dependency = clampClassificationValue(form.dependency_score);
+  const cid = (confidentiality + integrity + availability) / 3;
+  const operational = (exposure + businessValue + dependency) / 3;
+  const score = cid * 0.4 + exposure * 0.2 + businessValue * 0.2 + dependency * 0.2;
+
+  return {
+    cid,
+    operational,
+    score,
+    label: classificationLevelLabel(score),
+  };
+}
+
+export function AssetFormModal({ open, mode, asset, onClose, onSaved, showClassification = true }: AssetFormModalProps) {
   const [form, setForm] = useState<AssetFormState>(EMPTY_FORM);
   const [categories, setCategories] = useState<Lookup[]>([]);
   const [types, setTypes] = useState<AssetType[]>([]);
@@ -248,6 +402,9 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
       assetOptions.filter((a) => !(mode === "edit" && asset && String(a.id) === String(asset.id))),
     [assetOptions, mode, asset],
   );
+  const cidClassificationFields = CLASSIFICATION_FIELDS.filter((field) => field.group === "cid");
+  const operationalClassificationFields = CLASSIFICATION_FIELDS.filter((field) => field.group === "operational");
+  const classificationPreview = calculateClassificationPreview(form);
 
   if (!open) return null;
 
@@ -312,13 +469,14 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
     setSaving(true);
     setError(null);
     try {
+      let saved: Asset;
       if (mode === "create") {
         payload.source = "manual";
-        await riskApi.createAsset(payload);
+        saved = await riskApi.createAsset(payload);
       } else {
-        await riskApi.updateAsset(asset!.id, payload);
+        saved = await riskApi.updateAsset(asset!.id, payload);
       }
-      onSaved();
+      await onSaved(saved);
       onClose();
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Não foi possível guardar o ativo."));
@@ -471,7 +629,15 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
           </div>
 
           <div className="space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Responsabilidade</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Responsabilidade</p>
+              <Link
+                to="/governance/responsibilities"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+              >
+                Adicionar/editar pessoas
+              </Link>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <FieldBlock label="Dono de negócio">
                 <CreatableSelect
@@ -527,24 +693,83 @@ export function AssetFormModal({ open, mode, asset, onClose, onSaved }: AssetFor
             ))}
           </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Classificação</p>
-            <p className="text-xs font-medium text-slate-500">
-              Escala de 1 (muito baixo) a 5 (crítico). A criticidade do ativo é recalculada automaticamente a
-              partir destes valores ao guardar.
-            </p>
-            <div className="space-y-2.5">
-              {CLASSIFICATION_FIELDS.map((cf) => (
-                <ScaleRow
-                  key={cf.key}
-                  label={cf.label}
-                  hint={cf.hint}
-                  value={Number(form[cf.key])}
-                  onChange={(v) => set(cf.key, v)}
-                />
-              ))}
+          {showClassification && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Classificação</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Escolhe cada dimensão com apoio no modelo de classificação. A criticidade final é recalculada
+                  automaticamente ao guardar.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-700">
+                    Segurança da informação (CID)
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Impacto em confidencialidade, integridade e disponibilidade.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {cidClassificationFields.map((field) => (
+                    <ClassificationDimensionCard
+                      key={field.key}
+                      field={field}
+                      value={Number(form[field.key])}
+                      onSelect={(value) => set(field.key, value)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-700">
+                    Contexto operacional
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Exposição externa, valor para o negócio e dependência operacional.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {operationalClassificationFields.map((field) => (
+                    <ClassificationDimensionCard
+                      key={field.key}
+                      field={field}
+                      value={Number(form[field.key])}
+                      onSelect={(value) => set(field.key, value)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-700">
+                      Pontuação ponderada estimada
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      CID {classificationPreview.cid.toFixed(2)} / contexto operacional{" "}
+                      {classificationPreview.operational.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-2xl font-black text-slate-950">{classificationPreview.score.toFixed(2)}</p>
+                    <p
+                      className={`text-xs font-black uppercase tracking-wide ${classificationLevelTone(
+                        classificationPreview.score,
+                      )}`}
+                    >
+                      {classificationPreview.label}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <footer className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
@@ -733,47 +958,57 @@ function AssetMultiSelect({
   );
 }
 
-function ScaleRow({
-  label,
-  hint,
+function ClassificationDimensionCard({
+  field,
   value,
-  onChange,
+  onSelect,
 }: {
-  label: string;
-  hint: string;
+  field: ClassificationField;
   value: number;
-  onChange: (v: number) => void;
+  onSelect: (value: number) => void;
 }) {
+  const level = getClassificationLevel(field, value);
+
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-slate-800">{label}</p>
-          <p className="text-[11px] font-medium text-slate-500">{hint}</p>
+    <article className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{field.label}</p>
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">{field.subtitle}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => onChange(n)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                  value === n
-                    ? "bg-indigo-600 text-white"
-                    : "bg-white text-slate-500 ring-1 ring-slate-200 hover:ring-indigo-300"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <span className="w-20 text-right text-[11px] font-bold uppercase tracking-wide text-slate-400">
-            {SCALE_LABEL[value] || "—"}
-          </span>
-        </div>
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm font-black ${classificationColorClasses(
+            field.color,
+            true,
+          )}`}
+        >
+          {value}
+        </span>
       </div>
-    </div>
+
+      <div className="mt-4 grid grid-cols-5 gap-1.5 rounded-2xl bg-slate-50 p-1.5">
+        {field.levels.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelect(option.value)}
+            className={`rounded-xl border px-2 py-2 text-[11px] font-black transition-colors ${
+              value === option.value
+                ? classificationColorClasses(field.color, true)
+                : "border-transparent bg-white text-slate-500 hover:border-indigo-200 hover:text-indigo-700"
+            }`}
+          >
+            {option.short}
+          </button>
+        ))}
+      </div>
+
+      <div className={`mt-3 rounded-2xl border p-3 ${classificationColorClasses(field.color)}`}>
+        <p className="text-[10px] font-black uppercase tracking-wide opacity-80">Definição técnica</p>
+        <p className="mt-1 text-sm font-black">{level.label}</p>
+        <p className="mt-1 text-xs font-semibold leading-relaxed opacity-90">{level.definition}</p>
+      </div>
+    </article>
   );
 }
 

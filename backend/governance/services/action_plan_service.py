@@ -10,6 +10,22 @@ class GovernanceActionPlanService:
     """Creates auditable governance actions from persisted operational gaps."""
 
     DEFAULT_OWNER = "CISO"
+    ONBOARDING_SKIP_IDS = {"workbench"}
+    ONBOARDING_RULES = {
+        "institutional_context": ("review_score", 7, False, "Registo do enquadramento institucional e regulatorio validado."),
+        "confirm_dl125_classification": ("review_score", 7, False, "Racional DL 125/2025/NIS2 validado e revisto pelo CISO."),
+        "legal_responsibilities": ("review_document", 14, True, "Responsaveis, contactos e processo de notificacao documentados."),
+        "responsible_contact": ("review_document", 7, True, "Nomeacao formal do responsavel e do ponto de contacto permanente."),
+        "approved_security_policy": ("correct_policy", 14, True, "Politica aprovada ou atualizada com owner, versao e data de revisao."),
+        "asset_inventory": ("other", 14, True, "Inventario de ativos classificado e revisto pelo owner."),
+        "risk_assessment": ("review_score", 21, True, "Avaliacao de risco residual com ligacao a ativos, controlos e mecanismos."),
+        "incident_response": ("review_document", 14, True, "Procedimento ou runbook de resposta a incidentes aprovado."),
+        "backup_continuity": ("implement_mechanism", 21, True, "Plano de backup/continuidade testado e evidenciado."),
+        "supplier_security": ("other", 21, True, "Registo de fornecedores criticos e controlos compensatorios."),
+        "training_culture": ("other", 30, True, "Registo de plano de formacao e evidencias de participacao."),
+        "crypto_access": ("implement_mechanism", 21, True, "MFA, RBAC, PAM ou controlos equivalentes mapeados e evidenciados."),
+        "evidence_register": ("collect_evidence", 14, True, "Evidencias reais associadas aos mecanismos, controlos ou documentos relevantes."),
+    }
 
     WORKBENCH_RULES = {
         "pending_mappings": ("approve_mapping", "high", 7, "Validar mappings pendentes para passarem a contar como oficiais."),
@@ -115,6 +131,142 @@ class GovernanceActionPlanService:
         }
 
     @classmethod
+    def generate_from_onboarding(cls, profile, owner=None, user=None, selected_action_ids=None):
+        """Create formal governance actions from the institutional onboarding answers.
+
+        The source_key is stable per action id, so running the onboarding again updates
+        active actions instead of duplicating the CISO work queue.
+        """
+
+        answers = profile.onboarding_answers or {}
+        recommended_actions = profile.onboarding_recommended_actions or []
+        if not recommended_actions:
+            recommended_actions = [
+                {
+                    "id": "institutional_context",
+                    "title": "Validar contexto institucional e regulatorio",
+                    "detail": "Confirmar enquadramento institucional, obrigacoes aplicaveis e plano inicial.",
+                    "path": "/governance/regulatory",
+                    "priority": "high",
+                }
+            ]
+
+        default_owner = (
+            owner
+            or answers.get("cybersecurity_responsible_name")
+            or answers.get("permanent_contact_name")
+            or cls.DEFAULT_OWNER
+        )
+        classification = answers.get("entity_category") or "por confirmar"
+        obligations = answers.get("dl125_obligations_snapshot") or []
+        if isinstance(obligations, list):
+            obligations_text = "\n".join(f"- {item}" for item in obligations[:8])
+        else:
+            obligations_text = str(obligations or "")
+
+        selected_ids = None
+        if selected_action_ids is not None:
+            selected_ids = {str(action_id).strip() for action_id in selected_action_ids if str(action_id).strip()}
+
+        today = timezone.localdate()
+        created = 0
+        updated = 0
+        skipped = 0
+        actions = []
+
+        for item in recommended_actions:
+            action_id = str(item.get("id") or "").strip()
+            if not action_id or action_id in cls.ONBOARDING_SKIP_IDS:
+                skipped += 1
+                continue
+            if selected_ids is not None and action_id not in selected_ids:
+                skipped += 1
+                continue
+
+            rule = cls.ONBOARDING_RULES.get(
+                action_id,
+                ("other", cls._due_days_for_priority(item.get("priority")), True, ""),
+            )
+            action_type, due_days, evidence_required = rule[:3]
+            rule_expected_evidence = rule[3] if len(rule) > 3 else ""
+            priority = cls._normalize_priority(item.get("priority"))
+            source_key = f"institutional_onboarding:{action_id}"
+            title = str(item.get("title") or action_id).strip()
+            detail = str(item.get("detail") or "").strip()
+            path = str(item.get("path") or "").strip()
+            description = (
+                f"{detail}\n\n"
+                f"Origem: wizard de onboarding institucional.\n"
+                f"Classificacao DL 125/2025/NIS2: {classification}."
+            ).strip()
+            if obligations_text:
+                description = f"{description}\n\nObrigacoes de referencia:\n{obligations_text}"
+
+            recommendation = cls._onboarding_recommendation(action_id, item)
+            expected_evidence = rule_expected_evidence or cls._onboarding_expected_evidence(action_type, action_id)
+            due_date = today + timedelta(days=due_days)
+
+            existing = GovernanceAction.objects.filter(
+                source_type=GovernanceAction.SourceType.ONBOARDING,
+                source_key=source_key,
+                status__in=cls.ACTIVE_STATUSES,
+            ).first()
+
+            payload = {
+                "action_type": action_type,
+                "title": title,
+                "description": description,
+                "recommendation": recommendation,
+                "target_type": "institutional_onboarding",
+                "target_id": action_id,
+                "source_type": GovernanceAction.SourceType.ONBOARDING,
+                "source_key": source_key,
+                "owner": default_owner,
+                "priority": priority,
+                "due_date": due_date,
+                "evidence_required": evidence_required,
+                "expected_evidence": expected_evidence,
+                "ai_generated": False,
+                "ai_rationale": "Gerada por regras do onboarding institucional com base nos dados guardados na BD.",
+                "dependency_notes": f"Origem funcional: {path}" if path else "",
+                "notes": cls.execution_notes(
+                    action_type=action_type,
+                    title=title,
+                    description=detail,
+                    recommendation=recommendation,
+                    source_key=source_key,
+                    target_label="Onboarding institucional",
+                ),
+            }
+
+            if existing:
+                for field, value in payload.items():
+                    if field in {"owner", "due_date", "notes"} and getattr(existing, field):
+                        continue
+                    setattr(existing, field, value)
+                if user and getattr(user, "is_authenticated", False):
+                    existing.updated_by = user
+                existing.save()
+                action = existing
+                updated += 1
+            else:
+                action = GovernanceAction.objects.create(
+                    **payload,
+                    created_by=user if user and getattr(user, "is_authenticated", False) else None,
+                    updated_by=user if user and getattr(user, "is_authenticated", False) else None,
+                )
+                created += 1
+            actions.append(action)
+
+        return {
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+            "total": len(actions),
+            "actions": actions,
+        }
+
+    @classmethod
     def execution_notes_for_action(cls, action):
         return cls.execution_notes(
             action_type=action.action_type,
@@ -150,6 +302,50 @@ class GovernanceActionPlanService:
         if target_label:
             lines.extend(["", "Alvo", f"- {target_label}"])
         return "\n".join(lines)
+
+    @staticmethod
+    def _normalize_priority(value):
+        if value in {
+            GovernanceAction.Priority.LOW,
+            GovernanceAction.Priority.MEDIUM,
+            GovernanceAction.Priority.HIGH,
+            GovernanceAction.Priority.CRITICAL,
+        }:
+            return value
+        return GovernanceAction.Priority.MEDIUM
+
+    @classmethod
+    def _due_days_for_priority(cls, priority):
+        priority = cls._normalize_priority(priority)
+        return {
+            GovernanceAction.Priority.CRITICAL: 3,
+            GovernanceAction.Priority.HIGH: 7,
+            GovernanceAction.Priority.MEDIUM: 21,
+            GovernanceAction.Priority.LOW: 45,
+        }.get(priority, 21)
+
+    @staticmethod
+    def _onboarding_recommendation(action_id, item):
+        detail = str(item.get("detail") or "").strip()
+        path = str(item.get("path") or "").strip()
+        recommendation = detail or "Executar a acao inicial e documentar a decisao tomada."
+        if path:
+            recommendation = f"{recommendation} Pagina sugerida: {path}."
+        return recommendation
+
+    @staticmethod
+    def _onboarding_expected_evidence(action_type, action_id):
+        if action_type == GovernanceAction.ActionType.COLLECT_EVIDENCE:
+            return "EvidenceItem valido e EvidenceLink aprovado para o mecanismo, controlo, documento ou politica aplicavel."
+        if action_type == GovernanceAction.ActionType.IMPLEMENT_MECHANISM:
+            return "Plano de implementacao, configuracao, registo tecnico, teste ou comprovativo operacional do mecanismo."
+        if action_type == GovernanceAction.ActionType.CORRECT_POLICY:
+            return "Politica criada, revista ou aprovada, com versao, owner, data de revisao e controlos internos associados."
+        if action_id in {"responsible_contact", "legal_responsibilities"}:
+            return "Nomeacao, ata, despacho, registo interno ou documento equivalente com responsaveis e contactos."
+        if action_type == GovernanceAction.ActionType.REVIEW_DOCUMENT:
+            return "Documento, procedimento, runbook ou registo formal revisto e aprovado."
+        return "Registo de decisao, screenshot, documento, ata ou referencia que comprove a conclusao da tarefa."
 
     @staticmethod
     def _execution_steps(action_type, source_key=""):

@@ -59,10 +59,10 @@ export default function SoftwareInventory() {
     const critical = items.filter((item) => item.max_severity === "Critical" || item.max_severity === "High").length;
     const assets = items.reduce((sum, item) => sum + Number(item.assets_count || 0), 0);
     return {
-      total: stats?.total ?? items.length,
+      total: stats?.total_software ?? stats?.total ?? items.length,
       vulnerable: stats?.with_vulnerabilities ?? vulnerable,
-      critical: stats?.critical_or_high ?? critical,
-      assets: stats?.assets_count ?? assets,
+      critical: stats?.critical_or_high ?? stats?.critical_cves ?? stats?.critical ?? critical,
+      assets: stats?.assets_count ?? stats?.total_assets ?? assets,
     };
   }, [items, stats]);
 

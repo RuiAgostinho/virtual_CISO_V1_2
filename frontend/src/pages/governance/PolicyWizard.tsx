@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { governanceApi } from "@/lib/governanceApi";
 import { mappingReviewApi, type MappingRecord, type SearchOption } from "@/lib/mappingReviewApi";
+import { companyApi, type ListResponse, type Person } from "@/lib/companyApi";
 
 type Applicability = "mandatory" | "recommended" | "not_applicable";
 
@@ -26,6 +27,7 @@ type PolicyGeneralForm = {
   title: string;
   version: string;
   owner: string;
+  owner_person: string;
   scope: string;
   purpose: string;
   status: string;
@@ -272,6 +274,10 @@ function getApiErrorMessage(err: any, fallback: string) {
   return fallback;
 }
 
+function unwrapList<T>(data: ListResponse<T>): T[] {
+  return Array.isArray(data) ? data : data.results || [];
+}
+
 function Stepper({ currentStep }: { currentStep: number }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
@@ -423,6 +429,7 @@ export default function PolicyWizard() {
     title: "",
     version: "1.0",
     owner: "",
+    owner_person: "",
     scope: "",
     purpose: "",
     status: "draft",
@@ -430,6 +437,7 @@ export default function PolicyWizard() {
     review_date: "",
   });
   const [selectedControls, setSelectedControls] = useState<SelectedControl[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -448,6 +456,13 @@ export default function PolicyWizard() {
       code: buildPolicyCode(current.title, selectedDomain, codeSeed),
     }));
   }, [autoCode, codeSeed, selectedDomain, form.title]);
+
+  useEffect(() => {
+    companyApi
+      .listPeople({ page_size: 1000 })
+      .then((data) => setPeople(unwrapList(data)))
+      .catch(() => setPeople([]));
+  }, []);
 
   const selectedIds = useMemo(
     () => new Set(selectedControls.map((control) => String(control.option.id))),
@@ -613,7 +628,7 @@ export default function PolicyWizard() {
       approval_date: form.approval_date || null,
       review_date: form.review_date || null,
       next_review_date: null,
-      owner_person: null,
+      owner_person: form.owner_person || null,
       owner_org_unit: null,
       accountable_person: null,
       related_frameworks: relatedFrameworks,
@@ -695,6 +710,7 @@ export default function PolicyWizard() {
                       title: "",
                       version: "1.0",
                       owner: "",
+                      owner_person: "",
                       scope: "",
                       purpose: "",
                       status: "draft",
@@ -833,15 +849,39 @@ export default function PolicyWizard() {
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner</span>
+                <Link to="/governance/responsibilities" className="text-[10px] font-bold uppercase tracking-wide text-indigo-700 hover:underline">
+                  Adicionar/editar pessoas
+                </Link>
+              </div>
+              <select
+                value={form.owner_person}
+                onChange={(event) => {
+                  const person = people.find((item) => String(item.id) === event.target.value);
+                  setForm((current) => ({
+                    ...current,
+                    owner_person: event.target.value,
+                    owner: person?.name || current.owner,
+                  }));
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="">Escolher pessoa ou preencher abaixo</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} {person.role ? `- ${person.role}` : person.email ? `- ${person.email}` : ""}
+                  </option>
+                ))}
+              </select>
               <input
                 value={form.owner}
                 onChange={(event) => setForm((current) => ({ ...current, owner: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                placeholder="CISO, IT Manager, DPO..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                placeholder="Fallback textual"
               />
-            </label>
+            </div>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ambito</span>
               <textarea

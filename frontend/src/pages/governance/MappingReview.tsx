@@ -63,8 +63,8 @@ const mappingKinds: Array<{ key: MatrixKind; label: string; description: string 
   { key: "policy_internal_control", label: "Politica interna x Controlo interno", description: "Politicas POL ligadas ao catalogo IC." },
   { key: "governance_document_control", label: "Documento interno x Controlo interno", description: "Documentos DOC e controlos IC." },
   { key: "internal_control_framework_mapping", label: "Controlo interno x Controlo externo", description: "IC mapeado para requisitos EXT de frameworks." },
-  { key: "internal_control_mechanism", label: "Controlo interno x Mecanismo", description: "IC suportado por mecanismo reutilizavel." },
-  { key: "evidence_link", label: "Evidencia x Entidades", description: "Evidencias EV reutilizadas por contexto." },
+  { key: "internal_control_mechanism", label: "Controlo interno x Mecanismo", description: "IC suportado por mecanismo reutilizável." },
+  { key: "evidence_link", label: "Evidência x entidades", description: "Evidências reutilizadas por contexto." },
   { key: "framework_internal_control", label: "Framework externa x Controlo interno", description: "Vista inversa por framework externa." },
 ];
 
@@ -106,11 +106,11 @@ type AutocompleteEntityType =
 
 const evidenceTargetOptions: Array<{ value: EvidenceTargetType; label: string }> = [
   { value: "internal_control", label: "Internal control" },
-  { value: "mechanism", label: "Mechanism" },
+  { value: "mechanism", label: "Mecanismo" },
   { value: "governance_document", label: "Governance document" },
   { value: "runbook_step", label: "Runbook step" },
-  { value: "framework_control", label: "Framework control" },
-  { value: "policy", label: "Policy" },
+  { value: "framework_control", label: "Controlo externo" },
+  { value: "policy", label: "Política" },
   { value: "risk", label: "Risk" },
   { value: "asset", label: "Asset" },
   { value: "vulnerability", label: "Vulnerability" },
@@ -141,7 +141,7 @@ function entityTypeLabel(type: AutocompleteEntityType) {
     framework: "Framework externa",
     framework_control: "Controlo externo EXT",
     mechanism: "Mecanismo",
-    evidence_item: "Evidencia",
+    evidence_item: "Evidência",
     runbook_step: "Runbook step",
     risk: "Risco",
     asset: "Ativo",
@@ -154,13 +154,13 @@ function entityTypeLabel(type: AutocompleteEntityType) {
 
 function mappingEntityTypeLabel(type?: string) {
   const labels: Record<string, string> = {
-    policy: "POL · politica interna",
+    policy: "POL · política interna",
     governance_document: "DOC · documento interno",
     internal_control: "IC · controlo interno",
     framework: "FW · framework externa",
     framework_control: "EXT · controlo externo",
     mechanism: "MEC · mecanismo",
-    evidence_item: "EV · evidencia",
+    evidence_item: "EV · evidência",
     runbook_step: "RUN · runbook step",
   };
   return labels[type || ""] || type || "-";
@@ -268,25 +268,25 @@ function MappingReviewDashboard({
   return (
     <section className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <KpiTile label="Approved" value={overviewOrLocal("mappings_approved", "approved")} detail="Mapeamentos validados para uso oficial." icon={CheckCircle2} tone="emerald" />
-        <KpiTile label="Pending review" value={overviewOrLocal("mappings_pending_review", "pending_review")} detail="Fila de validacao humana." icon={ClipboardCheck} tone="amber" />
-        <KpiTile label="Rejected" value={overviewOrLocal("mappings_rejected", "rejected")} detail="Mapeamentos rejeitados, fora do calculo." icon={XCircle} tone="red" />
-        <KpiTile label="Deprecated" value={overviewOrLocal("mappings_deprecated", "deprecated")} detail="Mapeamentos descontinuados." icon={Trash2} tone="slate" />
-        <KpiTile label="Draft" value={overviewOrLocal("mappings_draft", "draft")} detail="Ainda sem validacao formal." icon={Pencil} tone="indigo" />
+        <KpiTile label="Aprovados" value={overviewOrLocal("mappings_approved", "approved")} detail="Mapeamentos validados para uso oficial." icon={CheckCircle2} tone="emerald" />
+        <KpiTile label="Pendentes de revisão" value={overviewOrLocal("mappings_pending_review", "pending_review")} detail="Fila de validação humana." icon={ClipboardCheck} tone="amber" />
+        <KpiTile label="Rejeitados" value={overviewOrLocal("mappings_rejected", "rejected")} detail="Mapeamentos rejeitados, fora do cálculo." icon={XCircle} tone="red" />
+        <KpiTile label="Descontinuados" value={overviewOrLocal("mappings_deprecated", "deprecated")} detail="Mapeamentos descontinuados." icon={Trash2} tone="slate" />
+        <KpiTile label="Rascunhos" value={overviewOrLocal("mappings_draft", "draft")} detail="Ainda sem validação formal." icon={Pencil} tone="indigo" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <KpiTile label="Sem rationale" value={noRationale} detail="Precisam de justificação." icon={FileSearch} tone="amber" />
-        <KpiTile label="Baixa confidence" value={lowConfidence} detail="Confidence abaixo de 50%." icon={AlertTriangle} tone="red" />
-        <KpiTile label="Mecanismos sem evidencia" value={mechanismWithoutEvidence} detail="Implementacao sem suporte documental." icon={Link2} tone="amber" />
-        <KpiTile label="Controlos sem mecanismo" value={internalWithoutMechanisms} detail="Controlo interno sem implementacao." icon={Network} tone="red" />
+        <KpiTile label="Sem justificação" value={noRationale} detail="Precisam de justificação." icon={FileSearch} tone="amber" />
+        <KpiTile label="Baixa confiança" value={lowConfidence} detail="Confiança abaixo de 50%." icon={AlertTriangle} tone="red" />
+        <KpiTile label="Mecanismos sem evidência" value={mechanismWithoutEvidence} detail="Implementação sem suporte documental." icon={Link2} tone="amber" />
+        <KpiTile label="Controlos sem mecanismo" value={internalWithoutMechanisms} detail="Controlo interno sem implementação." icon={Network} tone="red" />
         <KpiTile label="Sem framework mapping" value={internalWithoutFramework} detail="Sem impacto externo rastreavel." icon={Layers3} tone="cyan" />
-        <KpiTile label="Evidencias expiradas" value={expiredEvidence} detail="Nao contam para score oficial." icon={AlertTriangle} tone="red" />
+        <KpiTile label="Evidências expiradas" value={expiredEvidence} detail="Não contam para score oficial." icon={AlertTriangle} tone="red" />
       </div>
 
       {frameworkLowCoverage > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-          Existem {frameworkLowCoverage} frameworks com baixa cobertura. Revê os mapeamentos InternalControl x FrameworkControl.
+          Existem {frameworkLowCoverage} frameworks com baixa cobertura. Revê os mapeamentos Controlo interno x Controlo externo.
         </div>
       )}
     </section>
@@ -313,11 +313,11 @@ function MappingFilters({
           Estado
           <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={filters.validation_status} onChange={(event) => update("validation_status", event.target.value)}>
             <option value="">Todos</option>
-            <option value="draft">Draft</option>
-            <option value="pending_review">Pending review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="deprecated">Deprecated</option>
+            <option value="draft">Rascunho</option>
+            <option value="pending_review">Pendente de revisão</option>
+            <option value="approved">Aprovado</option>
+            <option value="rejected">Rejeitado</option>
+            <option value="deprecated">Descontinuado</option>
           </select>
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
@@ -333,7 +333,7 @@ function MappingFilters({
           </select>
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
-          Dominio
+          Domínio
           <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.domain} onChange={(event) => update("domain", event.target.value)} placeholder="Governance" />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
@@ -342,39 +342,39 @@ function MappingFilters({
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
           Controlo externo EXT
-          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.frameworkControl} onChange={(event) => update("frameworkControl", event.target.value)} placeholder="ID ou codigo" />
+          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.frameworkControl} onChange={(event) => update("frameworkControl", event.target.value)} placeholder="ID ou código" />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
-          Policy
+          Política
           <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.policy} onChange={(event) => update("policy", event.target.value)} placeholder="POL-..." />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
           Documento
-          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.document} onChange={(event) => update("document", event.target.value)} placeholder="ID ou titulo" />
+          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.document} onChange={(event) => update("document", event.target.value)} placeholder="ID ou título" />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
           Controlo interno IC
           <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.internalControl} onChange={(event) => update("internalControl", event.target.value)} placeholder="IC-..." />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
-          Mechanism
+          Mecanismo
           <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.mechanism} onChange={(event) => update("mechanism", event.target.value)} placeholder="MFA, backup..." />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500">
-          Evidence
-          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.evidence} onChange={(event) => update("evidence", event.target.value)} placeholder="ID ou titulo" />
+          Evidência
+          <input className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={filters.evidence} onChange={(event) => update("evidence", event.target.value)} placeholder="ID ou título" />
         </label>
         <label className="space-y-1 text-xs font-bold text-slate-500 md:col-span-2">
           Pesquisa
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <input className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm font-semibold text-slate-700" value={filters.search} onChange={(event) => update("search", event.target.value)} placeholder="Codigo, titulo, rationale..." />
+            <input className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-sm font-semibold text-slate-700" value={filters.search} onChange={(event) => update("search", event.target.value)} placeholder="Código, título, justificação..." />
           </div>
         </label>
       </div>
       <label className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
         <input type="checkbox" checked={filters.includeInactive} onChange={(event) => update("includeInactive", event.target.checked)} />
-        Incluir rejected/deprecated na matriz
+        Incluir rejeitados/descontinuados na matriz
       </label>
     </div>
   );
@@ -435,14 +435,14 @@ function MappingMatrixView({
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">Mapping Matrix</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">Matriz de mapeamentos</h2>
             <p className="text-xs font-semibold text-slate-500">{mappings.length} mapeamentos visiveis</p>
           </div>
         </div>
         {mappings.length === 0 ? (
           <MappingEmptyNotice
             title="Sem mapeamentos"
-            detail={contextActive ? "Nao foram encontrados mapeamentos para o contexto selecionado. Podes trocar a matriz ou limpar filtros." : "Ajusta os filtros ou cria um novo mapeamento."}
+            detail={contextActive ? "Não foram encontrados mapeamentos para o contexto selecionado. Podes trocar a matriz ou limpar filtros." : "Ajusta os filtros ou cria um novo mapeamento."}
           />
         ) : (
           <div className="max-h-[640px] overflow-auto">
@@ -453,10 +453,10 @@ function MappingMatrixView({
                   <th className="px-4 py-3">Destino</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Origem mapping</th>
-                  <th className="px-4 py-3">Relacao</th>
-                  <th className="px-4 py-3">Confidence</th>
+                  <th className="px-4 py-3">Relação</th>
+                  <th className="px-4 py-3">Confiança</th>
                   <th className="px-4 py-3">Peso/Cobertura</th>
-                  <th className="px-4 py-3">Rationale</th>
+                  <th className="px-4 py-3">Justificação</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -484,7 +484,7 @@ function MappingMatrixView({
                     <td className="px-4 py-3 text-xs font-bold text-slate-700">{mapping.confidence_score ?? "-"}</td>
                     <td className="px-4 py-3 text-xs font-bold text-slate-700">{mapping.coverage_percentage ?? mapping.contribution_weight ?? "-"}</td>
                     <td className="max-w-[280px] px-4 py-3 text-xs font-medium text-slate-500">
-                      <span className="line-clamp-2">{mapping.rationale || "Sem rationale"}</span>
+                      <span className="line-clamp-2">{mapping.rationale || "Sem justificação"}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -497,7 +497,7 @@ function MappingMatrixView({
                       <button type="button" title="Rejeitar" onClick={() => onReject(mapping)} className="inline-flex h-8 items-center justify-center rounded-lg bg-red-600 px-2 text-white hover:bg-red-700">
                         <X className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" title="Deprecated" onClick={() => onDeprecate(mapping)} className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-600 hover:bg-slate-50">
+                      <button type="button" title="Descontinuar" onClick={() => onDeprecate(mapping)} className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-600 hover:bg-slate-50">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                       </div>
@@ -536,7 +536,7 @@ function PendingMappingsQueue({
     <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">Pending Mappings Queue</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">Fila de mapeamentos pendentes</h2>
           <p className="text-xs font-semibold text-slate-500">Validação humana agrupada por tipo de mapeamento.</p>
         </div>
       </div>
@@ -597,21 +597,21 @@ function ValidationGatePanel({
         <div className="max-w-3xl">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800">
             <ClipboardCheck className="h-3.5 w-3.5" />
-            Etapa explicita de validacao
+            Etapa explícita de validação
           </div>
-          <h2 className="text-base font-bold text-amber-950">Validar mappings no Mapping Review antes do score official</h2>
+          <h2 className="text-base font-bold text-amber-950">Validar mapeamentos antes do score oficial</h2>
           <p className="mt-1 text-sm font-semibold leading-relaxed text-amber-800">
-            Os wizards criam ligacoes em draft para preservar validacao humana. Para o score official ser defensavel, reve rationale, confidence, cobertura/peso e aprova ou rejeita os mappings criticos antes de consultar scoring e traceability.
+            Os assistentes criam ligações em rascunho para preservar a validação humana. Para o score oficial ser defensável, revê a justificação, confiança, cobertura/peso e aprova ou rejeita os mapeamentos críticos antes de consultar scoring e rastreabilidade.
           </p>
           <p className="mt-2 text-xs font-bold uppercase tracking-wide text-amber-900">
-            Fluxo recomendado: criar entidades {"->"} validar mappings {"->"} recalcular/consultar score {"->"} confirmar traceability.
+            Fluxo recomendado: criar entidades {"->"} validar mapeamentos {"->"} recalcular/consultar score {"->"} confirmar rastreabilidade.
           </p>
         </div>
 
         <div className="grid min-w-[280px] grid-cols-3 gap-2">
-          <MiniFact label="Draft" value={draftTotal} />
-          <MiniFact label="Pending" value={pendingTotal} />
-          <MiniFact label="Approved" value={approvedTotal} />
+          <MiniFact label="Rascunho" value={draftTotal} />
+          <MiniFact label="Pendentes" value={pendingTotal} />
+          <MiniFact label="Aprovados" value={approvedTotal} />
         </div>
       </div>
 
@@ -620,9 +620,9 @@ function ValidationGatePanel({
           <thead className="bg-amber-50 text-[10px] font-bold uppercase tracking-wide text-amber-800">
             <tr>
               <th className="px-4 py-3">Tipo de mapping</th>
-              <th className="px-4 py-3">Draft</th>
-              <th className="px-4 py-3">Pending review</th>
-              <th className="px-4 py-3">Approved</th>
+              <th className="px-4 py-3">Rascunho</th>
+              <th className="px-4 py-3">Pendente de revisão</th>
+              <th className="px-4 py-3">Aprovados</th>
               <th className="px-4 py-3">Acao</th>
             </tr>
           </thead>
@@ -749,11 +749,11 @@ function MappingDetailDrawer({
         <div className="flex-1 overflow-auto p-5">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <label className="space-y-1 text-xs font-bold text-slate-500 lg:col-span-2">
-              Rationale
+              Justificação
               <textarea className="min-h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700" value={form.rationale || ""} onChange={(event) => setForm({ ...form, rationale: event.target.value })} />
             </label>
             <label className="space-y-1 text-xs font-bold text-slate-500">
-              Confidence score
+              Nível de confiança
               <input type="number" min={0} max={100} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700" value={form.confidence_score ?? ""} onChange={(event) => setForm({ ...form, confidence_score: event.target.value })} />
             </label>
             {mapping.relationship_type !== undefined && (
@@ -779,22 +779,22 @@ function MappingDetailDrawer({
                   <option value="defines">Defines</option>
                   <option value="implements">Implements</option>
                   <option value="operationalizes">Operationalizes</option>
-                  <option value="evidences">Evidences</option>
+                  <option value="evidences">Evidência</option>
                 </select>
               </label>
             )}
             {mapping.link_type !== undefined && (
               <label className="space-y-1 text-xs font-bold text-slate-500">
-                Link type
+                Tipo de ligação
                 <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={form.link_type || ""} onChange={(event) => setForm({ ...form, link_type: event.target.value })}>
-                  <option value="evidences">Evidences</option>
+                  <option value="evidences">Evidência</option>
                   <option value="supports">Supports</option>
-                  <option value="validates">Validates</option>
+                  <option value="validates">Valida</option>
                   <option value="demonstrates">Demonstrates</option>
                   <option value="mitigates">Mitigates</option>
-                  <option value="justifies">Justifies</option>
-                  <option value="produced_by">Produced by</option>
-                  <option value="required_by">Required by</option>
+                  <option value="justifies">Justifica</option>
+                  <option value="produced_by">Produzida por</option>
+                  <option value="required_by">Exigida por</option>
                 </select>
               </label>
             )}
@@ -812,13 +812,13 @@ function MappingDetailDrawer({
             )}
             {mapping.implementation_status !== undefined && (
               <label className="space-y-1 text-xs font-bold text-slate-500">
-                Implementation status
+                Estado de implementação
                 <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={form.implementation_status || ""} onChange={(event) => setForm({ ...form, implementation_status: event.target.value })}>
-                  <option value="not_implemented">Not implemented</option>
+                  <option value="not_implemented">Não implementado</option>
                   <option value="planned">Planned</option>
                   <option value="partially_implemented">Partially implemented</option>
                   <option value="implemented">Implemented</option>
-                  <option value="implemented_evidenced">Implemented evidenced</option>
+                  <option value="implemented_evidenced">Implementado e evidenciado</option>
                   <option value="not_applicable">Not applicable</option>
                 </select>
               </label>
@@ -826,7 +826,7 @@ function MappingDetailDrawer({
             {mapping.mandatory !== undefined && (
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <input type="checkbox" checked={Boolean(form.mandatory)} onChange={(event) => setForm({ ...form, mandatory: event.target.checked })} />
-                Mecanismo obrigatorio
+                Mecanismo obrigatório
               </label>
             )}
           </div>
@@ -834,10 +834,10 @@ function MappingDetailDrawer({
           <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Auditoria</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 text-xs font-semibold text-slate-600 md:grid-cols-3">
-              <div>Created by: {mapping.created_by_username || "-"}</div>
-              <div>Updated by: {mapping.updated_by_username || "-"}</div>
-              <div>Validated by: {mapping.validated_by_username || "-"}</div>
-              <div className="md:col-span-3">Validated at: {mapping.validated_at || "-"}</div>
+              <div>Criado por: {mapping.created_by_username || "-"}</div>
+              <div>Atualizado por: {mapping.updated_by_username || "-"}</div>
+              <div>Validado por: {mapping.validated_by_username || "-"}</div>
+              <div className="md:col-span-3">Validado em: {mapping.validated_at || "-"}</div>
             </div>
           </div>
 
@@ -853,9 +853,9 @@ function MappingDetailDrawer({
           </div>
 
           <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-red-700">Rejeicao</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-red-700">Rejeição</h3>
             <div className="mt-2 flex gap-2">
-              <input className="h-10 flex-1 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-900" value={rejectRationale} onChange={(event) => setRejectRationale(event.target.value)} placeholder="Rationale obrigatorio para rejeitar" />
+              <input className="h-10 flex-1 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-900" value={rejectRationale} onChange={(event) => setRejectRationale(event.target.value)} placeholder="Justificação obrigatória para rejeitar" />
               <button type="button" disabled={!rejectRationale.trim() || saving} onClick={() => onReject({ ...mapping, rationale: rejectRationale })} className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-bold text-white disabled:opacity-40">
                 <XCircle className="h-4 w-4" />
                 Rejeitar
@@ -875,7 +875,7 @@ function MappingDetailDrawer({
           </button>
           <button type="button" onClick={() => onDeprecate(mapping)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 disabled:opacity-50">
             <Trash2 className="h-4 w-4" />
-            Deprecated
+            Descontinuar
           </button>
         </div>
       </aside>
@@ -976,7 +976,7 @@ function EntityAutocomplete({
               setQuery("");
               setOpen(true);
             }}
-            title="Limpar selecao"
+            title="Limpar seleção"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1082,7 +1082,7 @@ function CreateMappingModal({
     if (!source) return { error: "Seleciona a entidade de origem." };
     if (kind === "internal_control_framework_mapping" && !framework) return { error: "Seleciona a framework." };
     if (!target) return { error: "Seleciona a entidade de destino." };
-    if (!rationale.trim()) return { error: "Indica um rationale para o mapeamento." };
+    if (!rationale.trim()) return { error: "Indica uma justificação para o mapeamento." };
 
     if (kind === "policy_internal_control") {
       return {
@@ -1150,7 +1150,7 @@ function CreateMappingModal({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-950">Novo mapeamento</h2>
-            <p className="text-xs font-semibold text-slate-500">Escolhe as entidades por codigo, titulo ou descricao. O ID tecnico fica visivel depois da selecao.</p>
+            <p className="text-xs font-semibold text-slate-500">Escolhe as entidades por código, título ou descrição. O ID técnico fica visível depois da seleção.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
             <X className="h-5 w-5" />
@@ -1177,13 +1177,13 @@ function CreateMappingModal({
               entityType="framework"
               value={framework}
               onChange={setFramework}
-              helper="A lista de FrameworkControl fica filtrada por esta framework."
+              helper="A lista de controlos externos fica filtrada por esta framework."
             />
           )}
 
           {kind === "evidence_link" && (
             <label className="space-y-1 text-xs font-bold text-slate-500">
-              Target type
+              Tipo de alvo
               <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold" value={targetType} onChange={(event) => setTargetType(event.target.value as EvidenceTargetType)}>
                 {evidenceTargetOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
@@ -1218,7 +1218,7 @@ function CreateMappingModal({
                 <option value="defines">Defines</option>
                 <option value="implements">Implements</option>
                 <option value="operationalizes">Operationalizes</option>
-                <option value="evidences">Evidences</option>
+                <option value="evidences">Evidência</option>
               </select>
             </label>
           )}
@@ -1263,45 +1263,45 @@ function CreateMappingModal({
                 <input type="number" min={0} max={100} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold" value={contribution} onChange={(event) => setContribution(event.target.value)} />
               </label>
               <label className="space-y-1 text-xs font-bold text-slate-500">
-                Implementation status
+                Estado de implementação
                 <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold" value={implementationStatus} onChange={(event) => setImplementationStatus(event.target.value)}>
-                  <option value="not_implemented">Not implemented</option>
+                  <option value="not_implemented">Não implementado</option>
                   <option value="planned">Planned</option>
                   <option value="partially_implemented">Partially implemented</option>
                   <option value="implemented">Implemented</option>
-                  <option value="implemented_evidenced">Implemented evidenced</option>
+                  <option value="implemented_evidenced">Implementado e evidenciado</option>
                   <option value="not_applicable">Not applicable</option>
                 </select>
               </label>
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <input type="checkbox" checked={mandatory} onChange={(event) => setMandatory(event.target.checked)} />
-                Mecanismo obrigatorio
+                Mecanismo obrigatório
               </label>
             </>
           )}
 
           {kind === "evidence_link" && (
             <label className="space-y-1 text-xs font-bold text-slate-500">
-              Link type
+              Tipo de ligação
               <select className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold" value={linkType} onChange={(event) => setLinkType(event.target.value)}>
-                <option value="evidences">Evidences</option>
+                <option value="evidences">Evidência</option>
                 <option value="supports">Supports</option>
-                <option value="validates">Validates</option>
+                <option value="validates">Valida</option>
                 <option value="demonstrates">Demonstrates</option>
                 <option value="mitigates">Mitigates</option>
-                <option value="justifies">Justifies</option>
-                <option value="produced_by">Produced by</option>
-                <option value="required_by">Required by</option>
+                <option value="justifies">Justifica</option>
+                <option value="produced_by">Produzida por</option>
+                <option value="required_by">Exigida por</option>
               </select>
             </label>
           )}
 
           <label className="space-y-1 text-xs font-bold text-slate-500">
-            Confidence score
+            Nível de confiança
             <input type="number" min={0} max={100} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold" value={confidence} onChange={(event) => setConfidence(event.target.value)} />
           </label>
           <label className="space-y-1 text-xs font-bold text-slate-500 md:col-span-2">
-            Rationale
+            Justificação
             <textarea className="min-h-24 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold" value={rationale} onChange={(event) => setRationale(event.target.value)} />
           </label>
         </div>
@@ -1348,7 +1348,7 @@ function TraceabilityPanel({
         if (active) setPayload(data);
       })
       .catch((err: any) => {
-        if (active) setError(friendlyErrorMessage(err, "Erro ao carregar traceability."));
+        if (active) setError(friendlyErrorMessage(err, "Erro ao carregar rastreabilidade."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -1357,9 +1357,9 @@ function TraceabilityPanel({
   }, [targetType, targetId, compact]);
 
   if (!targetType || !targetId) return <MappingEmptyNotice title="Sem entidade" detail="Seleciona uma origem ou destino com ID." />;
-  if (loading) return <LoadingState label="A carregar traceability" />;
+  if (loading) return <LoadingState label="A carregar rastreabilidade" />;
   if (error) return <ErrorState message={error} />;
-  if (!payload) return <MappingEmptyNotice title="Sem traceability" detail="Nao existem dados para mostrar." />;
+  if (!payload) return <MappingEmptyNotice title="Sem rastreabilidade" detail="Não existem dados para mostrar." />;
 
   const relationships = payload.relationships || {};
   const scoreText = payload.scores?.official ? `${payload.scores.official.score}%` : "-";
@@ -1367,9 +1367,9 @@ function TraceabilityPanel({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <MiniFact label="Root" value={payload.root?.type || targetType} />
+        <MiniFact label="Raiz" value={payload.root?.type || targetType} />
         <MiniFact label="Score oficial" value={scoreText} />
-        <MiniFact label="Evidencias" value={payload.evidence?.items?.length || 0} />
+        <MiniFact label="Evidências" value={payload.evidence?.items?.length || 0} />
         <MiniFact label="Gaps" value={payload.gaps?.length || 0} />
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -1480,11 +1480,11 @@ function buildMappingReviewContext(params: URLSearchParams) {
     chips.push({ label, value });
   };
 
-  assign("policy", "policy", "Policy");
+  assign("policy", "policy", "Política");
   assign("document", "document", "Documento");
   assign("internalControl", "internalControl", "Controlo interno IC");
-  assign("mechanism", "mechanism", "Mechanism");
-  assign("evidence", "evidence", "EvidenceItem");
+  assign("mechanism", "mechanism", "Mecanismo");
+  assign("evidence", "evidence", "Evidência");
   assign("framework", "framework", "Framework");
   assign("frameworkControl", "frameworkControl", "Controlo externo EXT");
 
@@ -1709,7 +1709,7 @@ export default function MappingReview() {
       const mappingBatches = await Promise.all(
         editableKinds.map((kind) =>
           loadOptional<MappingRecord[]>(
-            `Nao foi possivel carregar ${matrixKindLabel(kind)}.`,
+            `Não foi possível carregar ${matrixKindLabel(kind)}.`,
             [],
             mappingReviewApi.listMappings(kind, mappingLoadParams)
           )
@@ -1723,7 +1723,7 @@ export default function MappingReview() {
       setLoadWarnings(warnings);
 
       if (warnings.length > 0 && allMappings.length === 0) {
-        setError("Nao foi possivel carregar dados de mapping. Verifica o backend e as migrations/bootstraps da camada de governance.");
+        setError("Não foi possível carregar dados de mapeamento. Verifica o backend e as migrações/bootstrap da camada de governação.");
       } else {
         const firstKindWithData = mappingKinds.find((kind) => {
           if (kind.key === "framework_internal_control") {
@@ -1742,7 +1742,7 @@ export default function MappingReview() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(friendlyErrorMessage(err, "Nao foi possivel carregar a matriz de mapeamentos."));
+      setError(friendlyErrorMessage(err, "Não foi possível carregar a matriz de mapeamentos."));
     } finally {
       setLoading(false);
     }
@@ -1766,7 +1766,7 @@ export default function MappingReview() {
       console.warn("advanced mapping review data", err);
       setLoadWarnings((current) => [
         ...current,
-        "Nao foi possivel carregar KPIs avancados de traceability/gaps. A matriz principal esta disponivel.",
+        "Não foi possível carregar KPIs avançados de rastreabilidade/gaps. A matriz principal está disponível.",
       ]);
     } finally {
       setAdvancedLoading(false);
@@ -1833,7 +1833,7 @@ export default function MappingReview() {
   const handleReject = async (mapping: MappingRecord) => {
     const rationale = mapping.rationale?.trim();
     if (!rationale) {
-      alert("A rejeicao exige rationale.");
+      alert("A rejeição exige justificação.");
       return;
     }
     setSaving(true);
@@ -1848,13 +1848,13 @@ export default function MappingReview() {
   };
 
   const handleDeprecate = async (mapping: MappingRecord) => {
-    if (!window.confirm("Confirmas marcar este mapeamento como deprecated?")) return;
+    if (!window.confirm("Confirmas marcar este mapeamento como descontinuado?")) return;
     setSaving(true);
     try {
       await mappingReviewApi.deprecateMapping(mapping.kind, mapping.id);
       updateLocalMapping(mapping.id, mapping.kind, { validation_status: "deprecated" });
     } catch (err: any) {
-      alert(friendlyErrorMessage(err, "Erro ao marcar deprecated."));
+      alert(friendlyErrorMessage(err, "Erro ao marcar como descontinuado."));
     } finally {
       setSaving(false);
     }
@@ -1878,7 +1878,7 @@ export default function MappingReview() {
     }
   };
 
-  if (loading) return <div className="p-10"><LoadingState label="A carregar Mapping Review" /></div>;
+  if (loading) return <div className="p-10"><LoadingState label="A carregar revisão de mapeamentos" /></div>;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 pb-20">
@@ -1886,11 +1886,11 @@ export default function MappingReview() {
         <div>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-indigo-700">
             <GitBranch className="h-3.5 w-3.5" />
-            Governance traceability
+            Rastreabilidade de governação
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Mapping Review</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Revisão de mapeamentos</h1>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
-            Revisa mapeamentos entre politicas, documentos, controlos internos, mecanismos, evidencias e frameworks.
+            Revisa mapeamentos entre políticas, documentos, controlos internos, mecanismos, evidências e frameworks.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1913,7 +1913,7 @@ export default function MappingReview() {
 
       {loadWarnings.length > 0 && (
         <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 shadow-sm">
-          <div className="font-bold">Alguns dados complementares nao foram carregados.</div>
+          <div className="font-bold">Alguns dados complementares não foram carregados.</div>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {loadWarnings.map((warning) => <li key={warning}>{warning}</li>)}
           </ul>

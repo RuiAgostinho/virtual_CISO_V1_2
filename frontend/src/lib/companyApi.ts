@@ -27,13 +27,23 @@ export interface CompanyProfile {
   employee_count?: number | null;
   city?: string | null;
   country?: string | null;
+  tax_id?: string | null;
+  website?: string | null;
+  main_email?: string | null;
+  main_phone?: string | null;
+  geographic_scope?: string | null;
   critical_services?: string | null;
+  mission?: string | null;
+  vision?: string | null;
+  strategic_objectives?: string | null;
   security_objectives?: string | null;
   primary_security_goals?: string[];
   preferred_frameworks?: string[];
   risk_appetite?: RiskAppetite | null;
+  notes?: string | null;
   onboarding_answers?: Record<string, unknown>;
   onboarding_recommended_actions?: OnboardingAction[];
+  institutional_onboarding_required?: boolean;
   onboarding_completed_at?: string | null;
 }
 

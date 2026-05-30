@@ -627,7 +627,7 @@ export default function FrameworkMappingWizard() {
               <GovernanceBadge className="border-emerald-200 bg-white text-emerald-700">Mapping criado</GovernanceBadge>
               <h1 className="mt-4 text-3xl font-black tracking-tight text-emerald-950">Matriz framework atualizada.</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-800">
-                O mapeamento foi criado como manual/draft para validacao humana. A aprovacao final pode ser feita na Mapping Review.
+                O mapeamento foi criado como manual/rascunho para validação humana. A aprovação final pode ser feita na revisão de mapeamentos.
               </p>
             </div>
             <CheckCircle2 className="h-12 w-12 text-emerald-600" />
@@ -642,7 +642,7 @@ export default function FrameworkMappingWizard() {
 
         <div className="flex flex-wrap gap-3">
           <Link to="/governance/mapping-review" className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">
-            Abrir Mapping Review
+            Abrir revisão de mapeamentos
           </Link>
           {selectedInternalControl && (
             <a href={`/api/governance/traceability/internal-control/${selectedInternalControl.id}/`} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
@@ -679,7 +679,7 @@ export default function FrameworkMappingWizard() {
           <div className="flex flex-wrap gap-2">
             <Link to="/governance/mapping-review" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
               <GitBranch className="h-4 w-4" />
-              Mapping Review
+              Revisão de mapeamentos
             </Link>
           </div>
         </div>
@@ -695,7 +695,7 @@ export default function FrameworkMappingWizard() {
               <p className="font-bold">{validationError || saveError || contextError || "Ja existe um mapping ativo para este par."}</p>
               {activeDuplicate && (
                 <p className="mt-1 text-xs">
-                  Mapping existente: {activeDuplicate.sourceLabel} {"->"} {activeDuplicate.targetLabel}. Abre a Mapping Review para editar ou aprovar este registo.
+                  Mapeamento existente: {activeDuplicate.sourceLabel} {"->"} {activeDuplicate.targetLabel}. Abre a revisão de mapeamentos para editar ou aprovar este registo.
                 </p>
               )}
             </div>
@@ -809,7 +809,7 @@ export default function FrameworkMappingWizard() {
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Confidence score</span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Nível de confiança</span>
                   <input
                     type="number"
                     min={0}
@@ -910,7 +910,7 @@ export default function FrameworkMappingWizard() {
                 {activeDuplicate && (
                   <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                     <p className="font-black">Criacao bloqueada por duplicado ativo.</p>
-                    <p className="mt-1 text-xs">O par selecionado ja existe. Usa a Mapping Review para alterar o mapeamento existente.</p>
+                    <p className="mt-1 text-xs">O par selecionado já existe. Usa a revisão de mapeamentos para alterar o mapeamento existente.</p>
                   </div>
                 )}
               </div>

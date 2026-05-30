@@ -415,7 +415,7 @@ export default function MechanismWizard() {
       contribution_weight: 100,
       mandatory: true,
       implementation_status: "planned",
-      rationale: "Associacao criada no MechanismWizard para operacionalizar o controlo interno.",
+      rationale: "Associação criada no assistente de mecanismos para operacionalizar o controlo interno.",
       confidence_score: 100,
       traceability: null,
       existingLinks: [],
@@ -434,7 +434,7 @@ export default function MechanismWizard() {
       ...current,
       {
         option,
-        rationale: "Evidencia associada ao mecanismo atraves do MechanismWizard.",
+        rationale: "Evidência associada ao mecanismo através do assistente de mecanismos.",
       },
     ]);
   };
@@ -569,7 +569,7 @@ export default function MechanismWizard() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/governance/mapping-review" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
                   <GitBranch className="h-4 w-4" />
-                  Mapping Review
+                  Revisão de mapeamentos
                 </Link>
                 <a href={`/api/governance/traceability/mechanism/${createdMechanism.id}/?include_scores=true&include_gaps=true&include_evidence=true`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-700 hover:text-indigo-700">
                   <Network className="h-4 w-4" />
@@ -602,7 +602,7 @@ export default function MechanismWizard() {
               <Wrench className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Mechanism Wizard</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Assistente de mecanismos</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Criar mecanismo reutilizavel</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
                 Cria ou reutiliza mecanismos, associa-os a controlos internos e define o estado operacional para scoring por propagacao.
@@ -724,7 +724,7 @@ export default function MechanismWizard() {
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-slate-950">Associacoes InternalControlMechanism</h2>
+                <h2 className="text-base font-bold text-slate-950">Associações entre controlos internos e mecanismos</h2>
                 <p className="text-xs font-semibold text-slate-500">Define estado operacional, peso, obrigatoriedade e rationale por controlo.</p>
               </div>
               <GovernanceBadge className="border-slate-200 bg-slate-50 text-slate-500">{selectedControls.length} selecionado(s)</GovernanceBadge>
@@ -769,7 +769,7 @@ export default function MechanismWizard() {
                       <input type="number" min={0} max={100} value={control.contribution_weight} onChange={(event) => updateControl(String(control.option.id), { contribution_weight: Number(event.target.value) })} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
                     </label>
                     <label className="block">
-                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Confidence score</span>
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Nível de confiança</span>
                       <input type="number" min={0} max={100} value={control.confidence_score} onChange={(event) => updateControl(String(control.option.id), { confidence_score: Number(event.target.value) })} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
                     </label>
                     <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 xl:mt-6">
@@ -797,10 +797,10 @@ export default function MechanismWizard() {
       {currentStepId === "evidence" && (
         <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-base font-bold text-slate-950">Associar EvidenceItem</h2>
+            <h2 className="mb-3 text-base font-bold text-slate-950">Associar evidência</h2>
             <SearchPicker kind="evidence_item" selected={null} onSelect={(option) => option && addEvidence(option)} placeholder="Pesquisar evidencia por titulo, fonte ou referencia..." />
             <p className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-slate-500">
-              EvidenceLinks criadas pelo wizard ficam em draft. Para contarem oficialmente no score, devem ser aprovadas no Mapping Review.
+              As ligações de evidência criadas pelo assistente ficam em rascunho. Para contarem oficialmente no score, devem ser aprovadas na revisão de mapeamentos.
             </p>
           </section>
 
@@ -819,7 +819,7 @@ export default function MechanismWizard() {
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-sm font-bold text-slate-950">{link.sourceLabel}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{link.raw?.evidence_type || "EvidenceItem"} - {link.raw?.evidence_status || "status n/d"}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{link.raw?.evidence_type || "Evidência"} - {link.raw?.evidence_status || "estado n/d"}</p>
                     </div>
                     <GovernanceBadge className={statusTone(link.validation_status)}>{link.validation_status}</GovernanceBadge>
                   </div>
@@ -831,7 +831,7 @@ export default function MechanismWizard() {
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-sm font-bold text-indigo-950">{item.option.label}</p>
-                      <p className="mt-1 text-xs font-semibold text-indigo-700">{item.option.description || item.option.meta || "EvidenceItem selecionada."}</p>
+                      <p className="mt-1 text-xs font-semibold text-indigo-700">{item.option.description || item.option.meta || "Evidência selecionada."}</p>
                     </div>
                     <button type="button" onClick={() => removeEvidence(String(item.option.id))} className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50">
                       <Trash2 className="h-4 w-4" />
@@ -874,7 +874,7 @@ export default function MechanismWizard() {
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <ImpactList title="Frameworks impactadas" items={impact.frameworks} />
-              <ImpactList title="Framework controls" items={impact.frameworkControls} />
+              <ImpactList title="Controlos externos" items={impact.frameworkControls} />
               <ImpactList title="Policies impactadas" items={impact.policies} />
               <ImpactList title="Governance documents" items={impact.documents} />
             </div>
@@ -887,8 +887,8 @@ export default function MechanismWizard() {
                 <div key={control.option.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-950">{control.option.label}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <GovernanceBadge className="border-emerald-100 bg-emerald-50 text-emerald-700">official {scoreValue(control.traceability?.scores?.official)}</GovernanceBadge>
-                    <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">simulation {scoreValue(control.traceability?.scores?.simulation)}</GovernanceBadge>
+                    <GovernanceBadge className="border-emerald-100 bg-emerald-50 text-emerald-700">oficial {scoreValue(control.traceability?.scores?.official)}</GovernanceBadge>
+                    <GovernanceBadge className="border-indigo-100 bg-indigo-50 text-indigo-700">simulação {scoreValue(control.traceability?.scores?.simulation)}</GovernanceBadge>
                     <GovernanceBadge className={statusTone(control.implementation_status)}>{implementationLabel(control.implementation_status)}</GovernanceBadge>
                   </div>
                 </div>

@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { riskApi } from "@/lib/riskApi";
 import {
   Activity,
   AlertTriangle,
@@ -45,6 +44,7 @@ export interface NavItem {
   disabled?: boolean;   // renders as non-clickable
   accent?: boolean;     // visual emphasis (Mecanismos — destaque central da tese)
   header?: boolean;     // renders as a non-interactive section label, not a link
+  exact?: boolean;      // active only on the exact URL, useful when sibling items share the same base route
 }
 
 export interface NavGroup {
@@ -53,11 +53,6 @@ export interface NavGroup {
   roles?: Role[];
   items: NavItem[];
 }
-
-type AssetCategory = {
-  id: string | number;
-  name: string;
-};
 
 export const sidebarData: NavGroup[] = [
   // 1. Painel - visão transversal e decisão diária do CISO.
@@ -95,18 +90,18 @@ export const sidebarData: NavGroup[] = [
       { title: "Contexto regulatório", path: "/governance/regulatory", icon: Scale },
     ],
   },
-  // 3. Ativos e Classificação - inventário, classificação e descoberta técnica.
+  // 3. Ativos - inventário, classificação e descoberta técnica.
   {
-    title: "Ativos e Classificação",
+    title: "Ativos",
     icon: Database,
     items: [
-      { title: "Inventário de ativos", path: "/assets/inventory", icon: Database }, // categorias injetadas dinamicamente
+      { title: "Entrada de ativos", path: "/assets/onboarding", icon: ClipboardCheck, accent: true },
+      { title: "Inventário de ativos", path: "/assets/inventory", icon: Database },
+      { title: "Modelo de classificação", path: "/assets/model", icon: Sliders },
       { title: "Tipos de ativo", path: "/admin/asset-types", icon: Sliders },
-      { title: "Inventário de software", path: "/assets/software", icon: Database },
+      { title: "Software instalado", path: "/assets/software", icon: Database },
       { title: "Ambientes", path: "/assets/environments", icon: Blocks },
       { title: "Infraestruturas", path: "/assets/infrastructures", icon: Network },
-      { title: "Classificação da informação", path: "/assets/classification", icon: Target },
-      { title: "Modelo de classificação", path: "/assets/model", icon: Sliders },
       {
         title: "Descoberta e redes",
         icon: Network,
@@ -158,26 +153,16 @@ export const sidebarData: NavGroup[] = [
       { title: "Procedimentos", path: "/governance/procedures", icon: ClipboardCheck },
     ],
   },
-  // 6. Compliance - frameworks, avaliações, gaps e scoring.
+  // 6. Compliance - estado, avaliação, gaps e auditoria. As frameworks externas ficam nos catálogos.
   {
     title: "Compliance",
     icon: ClipboardCheck,
     items: [
-      {
-        title: "Frameworks",
-        icon: Book,
-        children: [
-          { title: "ISO/IEC 27001", path: "/compliance?fw=iso27001" },
-          { title: "NIST CSF", path: "/compliance?fw=nist" },
-          { title: "NIS2 / DL 125/2025", path: "/compliance?fw=nis2" },
-          { title: "QNCS", path: "/compliance?fw=qncs" },
-        ],
-      },
-      { title: "Controlos externos", path: "/controls", icon: CheckCircle },
-      { title: "Avaliações", path: "/maturity", icon: FileCheck },
-      { title: "Compliance gaps / Findings", path: "/compliance-gaps", icon: TrendingDown },
-      { title: "Regressão / drift", path: "/governance/drift", icon: TrendingDown },
-      { title: "Scores e maturidade", path: "/maturity", icon: Target },
+      { title: "Avaliações de controlos", path: "/maturity", icon: FileCheck },
+      { title: "Score e mapeamentos", path: "/compliance-mapping", icon: Target },
+      { title: "Gaps / findings", path: "/compliance-gaps", icon: TrendingDown },
+      { title: "Drift de conformidade", path: "/governance/drift", icon: TrendingDown },
+      { title: "Dossier de auditoria", path: "/governance/policies", icon: FileCheck },
     ],
   },
   // 7. Catálogos e Mappings - ontologia interna e ligações entre entidades.
@@ -185,11 +170,23 @@ export const sidebarData: NavGroup[] = [
     title: "Catálogos e Mappings",
     icon: GitBranch,
     items: [
+      {
+        title: "Frameworks externas",
+        icon: Book,
+        children: [
+          { title: "Catálogo completo", path: "/catalogs/frameworks" },
+          { title: "ISO/IEC 27001", path: "/catalogs/frameworks?search=ISO27001" },
+          { title: "NIST CSF", path: "/catalogs/frameworks?search=NISTCSF" },
+          { title: "NIS2 / DL 125/2025", path: "/catalogs/frameworks?search=NIS2" },
+          { title: "QNRC/CNCS", path: "/catalogs/frameworks?search=QNRC" },
+        ],
+      },
+      { title: "Controlos externos", path: "/controls", icon: CheckCircle },
       { title: "Mecanismos", path: "/governance/mechanisms", icon: Wrench },
       { title: "Evidências", path: "/governance/evidence", icon: FileCheck },
       { title: "Documentos", path: "/governance/documents", icon: BookOpen },
       { title: "Risco residual", path: "/governance/residual-risk-mappings", icon: ShieldAlert },
-      { title: "Mapping Review", path: "/governance/mapping-review", icon: GitBranch, accent: true },
+      { title: "Revisão de mapeamentos", path: "/governance/mapping-review", icon: GitBranch, accent: true },
       { title: "Mapear frameworks", path: "/governance/framework-mapping/wizard", icon: Network },
       { title: "Mapeamento legacy", path: "/compliance-mapping", icon: Network },
       {
@@ -246,6 +243,7 @@ const isNavItemActive = (item: NavItem, currentUrl: string) => {
   if (!item.path) return false;
   const [currentPath] = currentUrl.split("?");
   if (item.path.includes("?")) return currentUrl === item.path;
+  if (item.exact) return currentUrl === item.path;
   return currentPath === item.path || currentPath.startsWith(`${item.path}/`);
 };
 
@@ -387,7 +385,7 @@ const SidebarItem: React.FC<{
         active
           ? "bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-500/20"
           : item.accent
-            ? "bg-indigo-50/60 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-50"
+            ? "text-indigo-700 hover:bg-indigo-50"
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
       }`}
     >
@@ -397,7 +395,7 @@ const SidebarItem: React.FC<{
             active
               ? "bg-white/15 text-white"
               : item.accent
-                ? "bg-white text-indigo-700 ring-1 ring-indigo-200"
+                ? "bg-indigo-50 text-indigo-700"
                 : "bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-slate-900"
           }`}
         >
@@ -437,14 +435,14 @@ const SidebarGroup: React.FC<{
         aria-expanded={isOpen}
         className={`group flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 transition-all duration-200 ${
           active
-            ? "bg-slate-950 text-white shadow-sm"
+            ? "bg-slate-100 text-slate-950 ring-1 ring-slate-200"
             : isOpen
             ? "bg-slate-100 text-slate-950"
             : "text-slate-500 hover:bg-slate-50 hover:text-slate-950"
         }`}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${active ? "bg-white/15 text-white" : isOpen ? "bg-white text-indigo-700 shadow-sm" : "bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-slate-900"}`}>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${active ? "bg-white text-indigo-700 shadow-sm" : isOpen ? "bg-white text-indigo-700 shadow-sm" : "bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-slate-900"}`}>
             <Icon className="h-4 w-4" />
           </span>
           <span className="truncate text-xs font-bold tracking-tight">{group.title}</span>
@@ -488,46 +486,11 @@ export interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ userRole = "ciso", className = "", open = false, onClose }) => {
   const location = useLocation();
-  const [categories, setCategories] = useState<AssetCategory[]>([]);
   const currentUrl = `${location.pathname}${location.search}`;
 
-  useEffect(() => {
-    riskApi.listAssetCategories()
-      .then(res => {
-        const data = Array.isArray(res) ? res : res.results || [];
-        setCategories(data);
-      })
-      .catch((err) => console.error("Erro ao carregar categorias na sidebar:", err));
-  }, []);
-
   const filteredData = useMemo(() => {
-    return sidebarData
-      .filter((group) => !group.roles || group.roles.includes(userRole))
-      .map((group) => {
-        if (group.title !== "Ativos e Classificação") return group;
-
-        return {
-          ...group,
-          items: group.items.map((item) => {
-            if (item.title !== "Inventário de ativos") return item;
-
-            return {
-              ...item,
-              path: undefined,
-              children: [
-                { title: "Geral", path: "/assets/inventory" },
-                ...categories.map((cat) => ({
-                  title: cat.name,
-                  path: cat.name === "Software" || cat.name === "Software Inventory"
-                    ? "/assets/software"
-                    : `/assets/inventory?category=${cat.id}`,
-                })),
-              ],
-            };
-          }),
-        };
-      });
-  }, [userRole, categories]);
+    return sidebarData.filter((group) => !group.roles || group.roles.includes(userRole));
+  }, [userRole]);
 
   const activeGroupIndex = filteredData.findIndex((group) => isGroupActive(group, currentUrl));
   const [openGroupIndex, setOpenGroupIndex] = useState<number | null>(null);

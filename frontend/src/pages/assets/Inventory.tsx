@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, Database, Plus, RefreshCw, Search, Server, ShieldAlert } from "lucide-react";
-import { riskApi, type Asset, type PaginatedResponse } from "@/lib/riskApi";
+import { Link, useSearchParams } from "react-router-dom";
+import { AlertTriangle, Boxes, Database, Plus, RefreshCw, Search, Server, ShieldAlert } from "lucide-react";
+import { riskApi, type Asset, type AssetCategory, type PaginatedResponse, type Software, type SoftwareStats } from "@/lib/riskApi";
 import { AssetFormModal } from "@/components/ui/AssetFormModal";
 
 function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
@@ -20,18 +20,28 @@ function toneForCriticality(value?: string) {
 }
 
 export default function Inventory() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [softwarePreview, setSoftwarePreview] = useState<Software[]>([]);
+  const [softwareStats, setSoftwareStats] = useState<SoftwareStats | null>(null);
+  const [softwareLoading, setSoftwareLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [source, setSource] = useState("");
+  const [category, setCategory] = useState(searchParams.get("category") || "");
   const [formOpen, setFormOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await riskApi.listAssets({ page_size: 500, search, source });
+      const params: Record<string, string | number> = { page_size: 500 };
+      if (search.trim()) params.search = search.trim();
+      if (source) params.source = source;
+      if (category) params.category = category;
+      const data = await riskApi.listAssets(params);
       setAssets(unwrap<Asset>(data));
     } catch (err: unknown) {
       console.error(err);
@@ -39,11 +49,55 @@ export default function Inventory() {
     } finally {
       setLoading(false);
     }
-  }, [search, source]);
+  }, [category, search, source]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let mounted = true;
+    setSoftwareLoading(true);
+    Promise.all([
+      riskApi.listSoftware({ page_size: 8, ordering: "name" }).then((data) => unwrap<Software>(data)),
+      riskApi.getSoftwareStats().catch((): SoftwareStats | null => null),
+    ])
+      .then(([softwareData, statsData]) => {
+        if (!mounted) return;
+        setSoftwarePreview(softwareData);
+        setSoftwareStats(statsData);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSoftwarePreview([]);
+        setSoftwareStats(null);
+      })
+      .finally(() => {
+        if (mounted) setSoftwareLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    riskApi
+      .listAssetCategories({ page_size: 100 })
+      .then((data) => setCategories(unwrap<AssetCategory>(data)))
+      .catch(() => setCategories([]));
+  }, []);
+
+  const handleCategoryChange = (nextCategory: string) => {
+    setCategory(nextCategory);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextCategory) {
+      nextParams.set("category", nextCategory);
+    } else {
+      nextParams.delete("category");
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const metrics = useMemo(() => {
     const critical = assets.filter((asset) => asset.criticality === "Critical" || asset.criticality === "High").length;
@@ -51,6 +105,8 @@ export default function Inventory() {
     const discovered = assets.filter((asset) => asset.source === "wazuh" || asset.source === "discovery").length;
     return { critical, withVulns, discovered };
   }, [assets]);
+
+  const softwareMetric = softwareStats?.total_software ?? softwareStats?.total ?? softwarePreview.length;
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6 pb-16">
@@ -82,7 +138,7 @@ export default function Inventory() {
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-5">
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <Database className="h-5 w-5 text-indigo-700" />
           <p className="mt-3 text-3xl font-bold text-slate-950">{assets.length}</p>
@@ -103,6 +159,11 @@ export default function Inventory() {
           <p className="mt-3 text-3xl font-bold text-slate-950">{metrics.discovered}</p>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Descobertos</p>
         </div>
+        <Link to="/assets/software" className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm transition-colors hover:border-cyan-200 hover:bg-cyan-50">
+          <Boxes className="h-5 w-5 text-cyan-700" />
+          <p className="mt-3 text-3xl font-bold text-slate-950">{softwareLoading ? "..." : softwareMetric}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Software instalado</p>
+        </Link>
       </section>
 
       <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -129,6 +190,36 @@ export default function Inventory() {
           <button onClick={() => void load()} className="rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700">
             Filtrar
           </button>
+        </div>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Tipo de ativo</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleCategoryChange("")}
+              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                category
+                  ? "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+                  : "border-indigo-600 bg-indigo-600 text-white"
+              }`}
+            >
+              Todos
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCategoryChange(String(cat.id))}
+                className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                  String(category) === String(cat.id)
+                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -177,6 +268,53 @@ export default function Inventory() {
           ))}
           {!loading && assets.length === 0 && (
             <div className="p-10 text-center text-sm font-semibold text-slate-500">Sem ativos para os filtros atuais.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-cyan-50 bg-cyan-50/50 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">Software instalado</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              O software é inventariado numa tabela própria e ligado aos ativos onde foi detetado.
+            </p>
+          </div>
+          <Link
+            to="/assets/software"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-cyan-900"
+          >
+            Ver lista completa
+          </Link>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {softwareLoading ? (
+            <div className="p-8 text-center text-sm font-bold text-slate-400">A carregar software instalado...</div>
+          ) : softwarePreview.length === 0 ? (
+            <div className="p-8 text-center text-sm font-bold text-slate-400">Sem software registado.</div>
+          ) : (
+            softwarePreview.map((item) => (
+              <Link
+                key={item.id}
+                to={`/assets/software/${item.id}`}
+                className="grid gap-4 p-5 transition-colors hover:bg-cyan-50/40 lg:grid-cols-[1.3fr_1fr_.5fr]"
+              >
+                <div>
+                  <p className="text-base font-bold text-slate-950">{item.name}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {[item.vendor, item.version, item.architecture].filter(Boolean).join(" / ") || "Sem fabricante ou versao"}
+                  </p>
+                </div>
+                <div className="text-sm font-semibold text-slate-600">
+                  <span className="text-slate-400">Origem</span>
+                  <p className="mt-1 font-bold text-slate-800">{item.source || "manual"}</p>
+                </div>
+                <div className="text-sm font-semibold text-slate-600 lg:text-right">
+                  <span className="text-slate-400">Ativos</span>
+                  <p className="mt-1 font-bold text-slate-800">{item.assets_count || 0}</p>
+                </div>
+              </Link>
+            ))
           )}
         </div>
       </section>

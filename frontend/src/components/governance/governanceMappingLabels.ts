@@ -1,10 +1,10 @@
 export function mappingStatusLabel(status?: string) {
   const labels: Record<string, string> = {
-    draft: "Draft",
-    pending_review: "Pending review",
-    approved: "Approved",
-    rejected: "Rejected",
-    deprecated: "Deprecated",
+    draft: "Rascunho",
+    pending_review: "Pendente de revisão",
+    approved: "Aprovado",
+    rejected: "Rejeitado",
+    deprecated: "Descontinuado",
   };
   return labels[status || ""] || status || "Sem estado";
 }
@@ -12,11 +12,11 @@ export function mappingStatusLabel(status?: string) {
 export function mappingSourceLabel(source?: string) {
   const labels: Record<string, string> = {
     manual: "Manual",
-    migrated: "Migrated",
-    imported: "Imported",
-    ai_suggested: "AI suggested",
-    rule_based: "Rule based",
-    template: "Template",
+    migrated: "Migrado",
+    imported: "Importado",
+    ai_suggested: "Sugerido por IA",
+    rule_based: "Baseado em regras",
+    template: "Modelo",
   };
   return labels[source || ""] || source || "Sem origem";
 }

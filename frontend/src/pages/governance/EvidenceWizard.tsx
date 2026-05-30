@@ -68,52 +68,52 @@ type LinkForm = {
 };
 
 const evidenceTypes: Array<{ value: EvidenceType; label: string }> = [
-  { value: "report", label: "Report" },
-  { value: "screenshot", label: "Screenshot" },
+  { value: "report", label: "Relatório" },
+  { value: "screenshot", label: "Captura de ecrã" },
   { value: "ticket", label: "Ticket" },
   { value: "log", label: "Log" },
-  { value: "audit_report", label: "Audit report" },
-  { value: "configuration_export", label: "Configuration export" },
-  { value: "meeting_minutes", label: "Meeting minutes" },
-  { value: "approval_record", label: "Approval record" },
-  { value: "vulnerability_scan", label: "Vulnerability scan" },
+  { value: "audit_report", label: "Relatório de auditoria" },
+  { value: "configuration_export", label: "Exportação de configuração" },
+  { value: "meeting_minutes", label: "Ata de reunião" },
+  { value: "approval_record", label: "Registo de aprovação" },
+  { value: "vulnerability_scan", label: "Análise de vulnerabilidades" },
   { value: "siem_alert", label: "SIEM alert" },
-  { value: "manual_attestation", label: "Manual attestation" },
-  { value: "other", label: "Other" },
+  { value: "manual_attestation", label: "Declaração manual" },
+  { value: "other", label: "Outro" },
 ];
 
 const statusOptions: Array<{ value: EvidenceStatus; label: string }> = [
-  { value: "draft", label: "Draft" },
-  { value: "pending_review", label: "Pending review" },
-  { value: "valid", label: "Valid" },
-  { value: "expired", label: "Expired" },
-  { value: "rejected", label: "Rejected" },
-  { value: "deprecated", label: "Deprecated" },
+  { value: "draft", label: "Rascunho" },
+  { value: "pending_review", label: "Pendente de revisão" },
+  { value: "valid", label: "Válida" },
+  { value: "expired", label: "Expirada" },
+  { value: "rejected", label: "Rejeitada" },
+  { value: "deprecated", label: "Descontinuada" },
 ];
 
 const targetTypes: Array<{ value: TargetType; label: string; description: string }> = [
-  { value: "mechanism", label: "Mechanism", description: "Evidencia um mecanismo reutilizavel." },
-  { value: "internal_control", label: "InternalControl", description: "Suporta diretamente um controlo interno." },
-  { value: "governance_document", label: "GovernanceDocument", description: "Liga a politica, norma, procedimento ou runbook." },
-  { value: "runbook_step", label: "RunbookStep", description: "Prova a execucao de um passo operacional." },
-  { value: "framework_control", label: "FrameworkControl", description: "Evidencia diretamente um controlo externo." },
-  { value: "policy", label: "Policy", description: "Liga a uma politica legacy." },
-  { value: "risk", label: "Risk", description: "Justifica ou mitiga um risco." },
-  { value: "asset", label: "Asset", description: "Evidencia estado ou protecao de um ativo." },
-  { value: "vulnerability", label: "Vulnerability", description: "Liga a vulnerabilidade ou remediacao." },
-  { value: "finding", label: "Finding", description: "Suporta uma constatacao de auditoria." },
-  { value: "improvement_action", label: "ImprovementAction", description: "Prova progresso de uma acao." },
+  { value: "mechanism", label: "Mecanismo", description: "Evidencia um mecanismo reutilizável." },
+  { value: "internal_control", label: "Controlo interno", description: "Suporta diretamente um controlo interno." },
+  { value: "governance_document", label: "Documento de governação", description: "Liga a política, norma, procedimento ou runbook." },
+  { value: "runbook_step", label: "Passo de runbook", description: "Prova a execução de um passo operacional." },
+  { value: "framework_control", label: "Controlo externo", description: "Evidencia diretamente um controlo externo." },
+  { value: "policy", label: "Política", description: "Liga a uma política legada." },
+  { value: "risk", label: "Risco", description: "Justifica ou mitiga um risco." },
+  { value: "asset", label: "Ativo", description: "Evidencia estado ou proteção de um ativo." },
+  { value: "vulnerability", label: "Vulnerabilidade", description: "Liga a vulnerabilidade ou remediação." },
+  { value: "finding", label: "Constatação", description: "Suporta uma constatação de auditoria." },
+  { value: "improvement_action", label: "Ação de melhoria", description: "Prova progresso de uma ação." },
 ];
 
 const linkTypes: Array<{ value: LinkType; label: string }> = [
-  { value: "evidences", label: "Evidences" },
-  { value: "supports", label: "Supports" },
-  { value: "validates", label: "Validates" },
-  { value: "demonstrates", label: "Demonstrates" },
-  { value: "mitigates", label: "Mitigates" },
-  { value: "justifies", label: "Justifies" },
-  { value: "produced_by", label: "Produced by" },
-  { value: "required_by", label: "Required by" },
+  { value: "evidences", label: "Evidência" },
+  { value: "supports", label: "Suporta" },
+  { value: "validates", label: "Valida" },
+  { value: "demonstrates", label: "Demonstra" },
+  { value: "mitigates", label: "Mitiga" },
+  { value: "justifies", label: "Justifica" },
+  { value: "produced_by", label: "Produzida por" },
+  { value: "required_by", label: "Requerida por" },
 ];
 
 const traceabilityTargets = new Set<TargetType>(["mechanism", "internal_control", "governance_document", "framework_control", "policy"]);
@@ -224,7 +224,7 @@ function SearchPicker({
         if (!controller.signal.aborted) setOptions(results);
       } catch (err: any) {
         if (!controller.signal.aborted) {
-          setError(getApiErrorMessage(err, "Pesquisa ainda nao disponivel nesta interface."));
+          setError(getApiErrorMessage(err, "Pesquisa ainda não disponível nesta interface."));
           setOptions([]);
         }
       } finally {
@@ -259,7 +259,7 @@ function SearchPicker({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Pesquisar por codigo, titulo, nome ou descricao..."
+              placeholder="Pesquisar por código, título, nome ou descrição..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
             />
           </div>
@@ -279,7 +279,7 @@ function SearchPicker({
                 className="w-full rounded-xl border border-slate-100 bg-slate-50 p-3 text-left hover:border-indigo-200 hover:bg-indigo-50"
               >
                 <p className="truncate text-sm font-bold text-slate-950">{option.label}</p>
-                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{option.description || option.meta || "Sem descricao."}</p>
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{option.description || option.meta || "Sem descrição."}</p>
               </button>
             ))}
             {!loading && options.length === 0 && (
@@ -326,7 +326,7 @@ export default function EvidenceWizard() {
   const [createdLink, setCreatedLink] = useState<any | null>(null);
   const [queryPrefillApplied, setQueryPrefillApplied] = useState(false);
 
-  const steps = ["Dados", "Referencia", "Alvo", "Relacao", "Impacto", "Revisao"];
+  const steps = ["Dados", "Referência", "Alvo", "Relação", "Impacto", "Revisão"];
   const currentStepId = ["details", "reference", "target_type", "relation", "impact", "review"][currentStep];
 
   useEffect(() => {
@@ -373,10 +373,10 @@ export default function EvidenceWizard() {
 
   const warnings = useMemo(() => {
     const items: string[] = [];
-    if (!form.source.trim() && !form.external_reference.trim()) items.push("Source ou external_reference e recomendado para rastreabilidade.");
-    if (isExpired(form)) items.push("Esta evidencia esta expirada e nao contara para score official.");
-    if (form.status !== "valid") items.push("A EvidenceItem so conta para score official quando estiver com status valid e nao expirada.");
-    items.push("A EvidenceLink sera criada em draft e precisa de aprovacao no Mapping Review para contar oficialmente.");
+    if (!form.source.trim() && !form.external_reference.trim()) items.push("Fonte ou referência externa é recomendada para rastreabilidade.");
+    if (isExpired(form)) items.push("Esta evidência está expirada e não contará para o score oficial.");
+    if (form.status !== "valid") items.push("A evidência só conta para o score oficial quando estiver válida e não expirada.");
+    items.push("A ligação de evidência será criada em rascunho e precisa de aprovação na revisão de mapeamentos para contar oficialmente.");
     return items;
   }, [form]);
 
@@ -406,7 +406,7 @@ export default function EvidenceWizard() {
       }
       if (!traceabilityTargets.has(linkForm.target_type)) {
         setTraceability(null);
-        setImpactError("Traceability API ainda nao esta disponivel para este tipo de alvo nesta interface.");
+        setImpactError("A API de rastreabilidade ainda não está disponível para este tipo de alvo nesta interface.");
         return;
       }
       setImpactLoading(true);
@@ -422,7 +422,7 @@ export default function EvidenceWizard() {
         setTraceability(payload);
       } catch (err: any) {
         setTraceability(null);
-        setImpactError(getApiErrorMessage(err, "Nao foi possivel carregar impacto do alvo."));
+        setImpactError(getApiErrorMessage(err, "Não foi possível carregar impacto do alvo."));
       } finally {
         setImpactLoading(false);
       }
@@ -433,16 +433,16 @@ export default function EvidenceWizard() {
 
   const validateCurrentStep = (stepId: string) => {
     if (stepId === "details") {
-      if (!form.title.trim()) return "Indica o titulo da evidencia.";
-      if (!form.evidence_type) return "Seleciona o tipo de evidencia.";
-      if (form.confidence_level < 0 || form.confidence_level > 100) return "confidence_level tem de estar entre 0 e 100.";
+      if (!form.title.trim()) return "Indica o título da evidência.";
+      if (!form.evidence_type) return "Seleciona o tipo de evidência.";
+      if (form.confidence_level < 0 || form.confidence_level > 100) return "O nível de confiança tem de estar entre 0 e 100.";
     }
     if (stepId === "target_type" && !linkForm.target_type) return "Seleciona o tipo de alvo.";
     if (stepId === "relation") {
-      if (!linkForm.target) return "Seleciona o alvo da evidencia.";
+      if (!linkForm.target) return "Seleciona o alvo da evidência.";
       if (!linkForm.link_type) return "Seleciona o tipo de relacao.";
-      if (!linkForm.rationale.trim()) return "Rationale e obrigatorio.";
-      if (linkForm.confidence_score < 0 || linkForm.confidence_score > 100) return "confidence_score tem de estar entre 0 e 100.";
+      if (!linkForm.rationale.trim()) return "A justificação é obrigatória.";
+      if (linkForm.confidence_score < 0 || linkForm.confidence_score > 100) return "O nível de confiança da ligação tem de estar entre 0 e 100.";
     }
     return null;
   };
@@ -499,7 +499,7 @@ export default function EvidenceWizard() {
       setCreatedLink(link);
       setValidationError(null);
     } catch (err: any) {
-      setSaveError(getApiErrorMessage(err, "Nao foi possivel criar a evidencia."));
+      setSaveError(getApiErrorMessage(err, "Não foi possível criar a evidência."));
     } finally {
       setSaving(false);
     }
@@ -514,10 +514,10 @@ export default function EvidenceWizard() {
               <CheckCircle2 className="h-7 w-7" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Evidencia criada</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Evidência criada</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{createdEvidence.title || form.title}</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
-                A EvidenceItem foi criada e associada ao alvo selecionado. A EvidenceLink ficou em draft para validacao humana.
+                A evidência foi criada e associada ao alvo selecionado. A ligação ficou em rascunho para validação humana.
               </p>
               {createdLink && (
                 <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
@@ -527,16 +527,16 @@ export default function EvidenceWizard() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/governance/mapping-review" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
                   <GitBranch className="h-4 w-4" />
-                  Mapping Review
+                  Revisão de mapeamentos
                 </Link>
                 <a href={`/api/governance/traceability/evidence-item/${createdEvidence.id}/?include_scores=true&include_gaps=true&include_evidence=true`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-700 hover:text-indigo-700">
                   <Network className="h-4 w-4" />
-                  Traceability API
+                  API de rastreabilidade
                 </a>
                 {linkForm.target_type === "mechanism" && (
                   <Link to="/governance/mechanisms/wizard" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-700 hover:text-indigo-700">
                     <ShieldCheck className="h-4 w-4" />
-                    Mechanism Wizard
+                    Assistente de mecanismos
                   </Link>
                 )}
                 {linkForm.target_type === "governance_document" && linkForm.target && (
@@ -564,7 +564,7 @@ export default function EvidenceWizard() {
       <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <Link to="/governance/mapping-review" className="mb-5 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-indigo-700">
           <ArrowLeft className="h-4 w-4" />
-          Voltar a Mapping Review
+          Voltar à revisão de mapeamentos
         </Link>
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex items-start gap-4">
@@ -572,17 +572,17 @@ export default function EvidenceWizard() {
               <FileCheck2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Evidence Wizard</p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Criar evidencia reutilizavel</h1>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Assistente de evidências</p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Criar evidência reutilizável</h1>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-500">
-                Cria uma EvidenceItem e associa-a a mecanismos, controlos, documentos, policies ou outros alvos suportados.
+                Cria uma evidência reutilizável e associa-a a mecanismos, controlos, documentos, políticas ou outros alvos suportados.
               </p>
             </div>
           </div>
           <div className="grid min-w-[260px] grid-cols-3 gap-3 text-center">
             <div className="rounded-xl bg-slate-50 px-3 py-2">
               <p className="text-2xl font-bold text-slate-950">{form.confidence_level}%</p>
-              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Confidence</p>
+              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Confiança</p>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2">
               <p className="text-2xl font-bold text-slate-950">{impact.frameworks.length}</p>
@@ -611,8 +611,8 @@ export default function EvidenceWizard() {
         <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="grid gap-4 md:grid-cols-[1fr_240px_220px]">
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Titulo *</span>
-              <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Relatorio de execucao MFA" />
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Título *</span>
+              <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Relatório de execução MFA" />
             </label>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tipo *</span>
@@ -629,7 +629,7 @@ export default function EvidenceWizard() {
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Responsável</span>
               <input value={form.owner} onChange={(event) => setForm((current) => ({ ...current, owner: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
@@ -637,7 +637,7 @@ export default function EvidenceWizard() {
               <input type="datetime-local" value={form.collected_at} onChange={(event) => setForm((current) => ({ ...current, collected_at: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Valid until</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Válida até</span>
               <input type="date" value={form.valid_until} onChange={(event) => setForm((current) => ({ ...current, valid_until: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
           </div>
@@ -647,7 +647,7 @@ export default function EvidenceWizard() {
               <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="mt-2 min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Confidence level</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Nível de confiança</span>
               <input type="number" min={0} max={100} value={form.confidence_level} onChange={(event) => setForm((current) => ({ ...current, confidence_level: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </label>
           </div>
@@ -658,16 +658,16 @@ export default function EvidenceWizard() {
         <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Source</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Fonte</span>
               <input value={form.source} onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Sistema, equipa, auditoria, SIEM..." />
             </label>
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">External reference</span>
-              <input value={form.external_reference} onChange={(event) => setForm((current) => ({ ...current, external_reference: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="URL, ticket, caminho, referencia documental..." />
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Referência externa</span>
+              <input value={form.external_reference} onChange={(event) => setForm((current) => ({ ...current, external_reference: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="URL, ticket, caminho, referência documental..." />
             </label>
           </div>
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            Upload de ficheiro existe no modelo backend, mas este wizard usa a via segura por referencia manual porque o cliente atual desta app cria EvidenceItems por JSON.
+            O upload de ficheiro existe no modelo backend, mas este assistente usa a via segura por referência manual porque o cliente atual desta aplicação cria evidências por JSON.
           </div>
         </section>
       )}
@@ -702,19 +702,19 @@ export default function EvidenceWizard() {
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Link type *</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tipo de ligação *</span>
                 <select value={linkForm.link_type} onChange={(event) => setLinkForm((current) => ({ ...current, link_type: event.target.value as LinkType }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
                   {linkTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
                 </select>
               </label>
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Confidence score</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Nível de confiança</span>
                 <input type="number" min={0} max={100} value={linkForm.confidence_score} onChange={(event) => setLinkForm((current) => ({ ...current, confidence_score: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
               </label>
             </div>
             <label className="mt-4 block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Rationale *</span>
-              <textarea value={linkForm.rationale} onChange={(event) => setLinkForm((current) => ({ ...current, rationale: event.target.value }))} className="mt-2 min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Explica porque esta evidencia suporta, valida ou demonstra o alvo selecionado." />
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Justificação *</span>
+              <textarea value={linkForm.rationale} onChange={(event) => setLinkForm((current) => ({ ...current, rationale: event.target.value }))} className="mt-2 min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="Explica porque esta evidência suporta, valida ou demonstra o alvo selecionado." />
             </label>
           </section>
         </div>
@@ -727,19 +727,19 @@ export default function EvidenceWizard() {
               <Network className="h-5 w-5 text-indigo-700" />
               <div>
                 <h2 className="text-base font-bold text-slate-950">Impacto e rastreabilidade</h2>
-                <p className="text-xs font-semibold text-slate-500">Usa Traceability API quando o alvo tem rastreabilidade transversal.</p>
+                <p className="text-xs font-semibold text-slate-500">Usa a API de rastreabilidade quando o alvo tem rastreabilidade transversal.</p>
               </div>
             </div>
             {impactLoading && <div className="mt-5 flex items-center gap-2 text-sm font-bold text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> A carregar impacto...</div>}
             {impactError && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{impactError}</div>}
             {!impactLoading && !impactError && (
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <ImpactList title="InternalControls" items={impact.internalControls} />
-                <ImpactList title="Mechanisms" items={impact.mechanisms} />
-                <ImpactList title="Policies" items={impact.policies} />
-                <ImpactList title="GovernanceDocuments" items={impact.documents} />
+                <ImpactList title="Controlos internos" items={impact.internalControls} />
+                <ImpactList title="Mecanismos" items={impact.mechanisms} />
+                <ImpactList title="Políticas" items={impact.policies} />
+                <ImpactList title="Documentos de governação" items={impact.documents} />
                 <ImpactList title="Frameworks" items={impact.frameworks} />
-                <ImpactList title="FrameworkControls" items={impact.frameworkControls} />
+                <ImpactList title="Controlos externos" items={impact.frameworkControls} />
               </div>
             )}
           </section>
@@ -761,18 +761,18 @@ export default function EvidenceWizard() {
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-5 w-5 text-indigo-700" />
             <div>
-              <h2 className="text-base font-bold text-slate-950">Revisao final</h2>
-              <p className="text-xs font-semibold text-slate-500">Confirma a EvidenceItem, o alvo, a relacao e os impactos antes de criar.</p>
+              <h2 className="text-base font-bold text-slate-950">Revisão final</h2>
+              <p className="text-xs font-semibold text-slate-500">Confirma a evidência, o alvo, a relação e os impactos antes de criar.</p>
             </div>
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-4">
-            <SummaryTile label="EvidenceItem" value={form.title || "-"} />
+            <SummaryTile label="Evidência" value={form.title || "-"} />
             <SummaryTile label="Tipo" value={form.evidence_type} />
             <SummaryTile label="Alvo" value={linkForm.target?.label || "-"} />
-            <SummaryTile label="Confidence" value={`${form.confidence_level}%`} />
+            <SummaryTile label="Confiança" value={`${form.confidence_level}%`} />
           </div>
           <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Rationale</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Justificação</p>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">{linkForm.rationale || "-"}</p>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -804,7 +804,7 @@ export default function EvidenceWizard() {
             ) : (
               <button type="button" onClick={createAll} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Criar evidencia
+                Criar evidência
               </button>
             )}
           </div>

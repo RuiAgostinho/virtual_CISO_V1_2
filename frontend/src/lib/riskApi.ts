@@ -43,9 +43,9 @@ export type OperationResult = ApiRecord & {
 };
 
 export interface Software {
-    id: number;
+    id: string;
     name: string;
-    version: string;
+    version?: string | null;
     architecture?: string;
     vendor?: string;
     source?: string;
@@ -159,11 +159,16 @@ export interface Asset {
     business_owner?: string | number;
     business_owner_name?: string;
     technical_owner?: string | number;
+    technical_owner_name?: string;
+    org_unit?: string | number;
+    org_unit_name?: string;
     owner?: string;
     status: string;
     source?: string;
     location?: string | number;
+    location_name?: string;
     environment?: string | number;
+    environment_name?: string;
     deployment_type?: string | number;
     parent?: string | null;
     parent_details?: ApiRecord | null;
@@ -547,8 +552,11 @@ export type CisoRiskPanelPayload = {
 
 export type SoftwareStats = ApiRecord & {
     total?: number;
+    total_software?: number;
     vulnerable?: number;
     critical?: number;
+    critical_cves?: number;
+    total_assets?: number;
 };
 
 export type SyncStatusItem = ApiRecord & {
@@ -616,6 +624,13 @@ export const riskApi = {
         return await request<Asset>(`/api/risk/assets/${id}/`, {
             method: "PATCH",
             body: JSON.stringify(payload)
+        });
+    },
+
+    async promoteAssetToInventory(id: EntityId): Promise<OperationResult & { id?: EntityId; source?: string }> {
+        return await request<OperationResult & { id?: EntityId; source?: string }>(`/api/risk/assets/${id}/promote_to_inventory/`, {
+            method: "POST",
+            body: JSON.stringify({})
         });
     },
 

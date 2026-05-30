@@ -81,6 +81,82 @@ class AskCISOView(APIView):
         return Response(resp_serializer.data, status=status.HTTP_200_OK)
 
 
+class OnboardingHelpView(APIView):
+    """
+    Ajuda curta para o onboarding institucional.
+
+    Este endpoint evita o pipeline RAG/orquestrador completo porque o ecrã de
+    onboarding só precisa de orientação operacional sobre dados já preenchidos.
+    O router principal continua intacto para perguntas gerais do assistente.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChatRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_query = serializer.validated_data["query"]
+        started = time.monotonic()
+        model = getattr(
+            settings,
+            "OLLAMA_ONBOARDING_HELP_MODEL",
+            getattr(settings, "OLLAMA_POLICY_ADVICE_MODEL", getattr(settings, "OLLAMA_MODEL", "qwen2.5:7b-instruct")),
+        )
+        system_prompt = (
+            "Es um assistente de apoio a um CISO em Portugal. "
+            "Ajudas a preencher o onboarding institucional com base no DL 125/2025/NIS2, "
+            "sem dar parecer juridico definitivo. Responde em portugues de Portugal, "
+            "de forma curta, pratica e auditavel. Nao inventes dados."
+        )
+        response_text = OllamaClient.call(
+            model=model,
+            prompt=user_query,
+            system=system_prompt,
+            options=QueryOrchestrator._generation_options(
+                "general_qa",
+                {
+                    "num_predict": getattr(settings, "OLLAMA_ONBOARDING_HELP_NUM_PREDICT", 260),
+                    "temperature": 0.15,
+                },
+            ),
+            timeout_seconds=getattr(settings, "OLLAMA_ONBOARDING_HELP_TIMEOUT_SECONDS", 360),
+        )
+        duration_seconds = round(time.monotonic() - started, 2)
+
+        result = {
+            "task_type": "institutional_onboarding",
+            "confidence": 1.0,
+            "used_rag": False,
+            "model_used": model,
+            "sources": [],
+            "response": response_text,
+            "duration_seconds": duration_seconds,
+        }
+
+        resp_serializer = ChatResponseSerializer(data=result)
+        resp_serializer.is_valid(raise_exception=True)
+
+        user = request.user if request.user.is_authenticated else None
+        AssistantRecommendation.objects.create(
+            question="Apoio IA ao onboarding institucional",
+            answer=resp_serializer.validated_data["response"],
+            task_type=resp_serializer.validated_data.get("task_type", ""),
+            model_used=resp_serializer.validated_data.get("model_used", ""),
+            used_rag=False,
+            confidence=resp_serializer.validated_data.get("confidence"),
+            duration_seconds=duration_seconds,
+            sources_json=[],
+            history_json=[],
+            filters_json={"context": "institutional_onboarding"},
+            created_by=user,
+            created_by_label=user.get_username() if user else "",
+        )
+
+        return Response(resp_serializer.data, status=status.HTTP_200_OK)
+
+
 class PolicyAdviceView(APIView):
     """
     Endpoint de aconselhamento CISO para uma politica em edicao.

@@ -1,4 +1,4 @@
-from .framework import Framework, FrameworkSection, FrameworkProfile
+from .framework import Framework, FrameworkLevel, FrameworkSection, FrameworkProfile
 
 from .control import Control, ControlMapping
 

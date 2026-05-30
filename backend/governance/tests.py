@@ -41,6 +41,8 @@ from governance.models import (
     CompliancePropagationResult,
 )
 from governance.services.compliance_propagation_engine import CompliancePropagationEngine
+from governance.services.action_plan_service import GovernanceActionPlanService
+from company.models import CompanyProfile
 from risk.services.risk_engine import RiskEngineService
 from risk.models import Asset, Risk, Vulnerability
 
@@ -1777,6 +1779,105 @@ class EvidenceMigrationCommandTests(GovernanceTestDataMixin, TestCase):
         self.assertEqual(EvidenceLink.objects.filter(target_type=EvidenceLink.TargetType.FRAMEWORK_CONTROL).count(), 1)
         self.assertEqual(EvidenceLink.objects.filter(target_type=EvidenceLink.TargetType.INTERNAL_CONTROL).count(), 1)
         self.assertIn("FrameworkControl EvidenceLink já existentes: 1", second_output.getvalue())
+
+
+class GovernanceActionOnboardingTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="onboarding-action-tester",
+            password="change-me",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.profile = CompanyProfile.objects.create(
+            legal_name="Municipio Teste",
+            onboarding_answers={
+                "entity_category": "Important",
+                "cybersecurity_responsible_name": "CISO Teste",
+                "dl125_obligations_snapshot": [
+                    "Responsavel de ciberseguranca e ponto de contacto permanente.",
+                    "Processo de notificacao de incidentes significativos.",
+                ],
+            },
+            onboarding_recommended_actions=[
+                {
+                    "id": "responsible_contact",
+                    "title": "Designar responsavel e ponto de contacto",
+                    "detail": "Formalizar responsavel de ciberseguranca e contacto permanente.",
+                    "path": "/governance/responsibilities",
+                    "priority": "high",
+                },
+                {
+                    "id": "evidence_register",
+                    "title": "Recolher evidencias reais",
+                    "detail": "Associar evidencias reais a mecanismos e controlos.",
+                    "path": "/governance/evidence",
+                    "priority": "medium",
+                },
+                {
+                    "id": "workbench",
+                    "title": "Abrir Governance Workbench",
+                    "detail": "Acompanhar gaps.",
+                    "path": "/governance/workbench",
+                    "priority": "medium",
+                },
+            ],
+        )
+
+    def test_generate_from_onboarding_creates_formal_actions(self):
+        result = GovernanceActionPlanService.generate_from_onboarding(
+            self.profile,
+            user=self.user,
+        )
+
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(GovernanceAction.objects.count(), 2)
+        action = GovernanceAction.objects.get(source_key="institutional_onboarding:responsible_contact")
+        self.assertEqual(action.source_type, GovernanceAction.SourceType.ONBOARDING)
+        self.assertEqual(action.owner, "CISO Teste")
+        self.assertEqual(action.priority, GovernanceAction.Priority.HIGH)
+        self.assertEqual(action.target_type, "institutional_onboarding")
+        self.assertTrue(action.evidence_required)
+        self.assertIn("Onboarding institucional", action.notes)
+
+    def test_generate_from_onboarding_is_idempotent(self):
+        GovernanceActionPlanService.generate_from_onboarding(self.profile, user=self.user)
+        second = GovernanceActionPlanService.generate_from_onboarding(self.profile, user=self.user)
+
+        self.assertEqual(second["created"], 0)
+        self.assertEqual(second["updated"], 2)
+        self.assertEqual(GovernanceAction.objects.count(), 2)
+
+    def test_generate_from_onboarding_respects_selected_action_ids(self):
+        result = GovernanceActionPlanService.generate_from_onboarding(
+            self.profile,
+            user=self.user,
+            selected_action_ids=["evidence_register"],
+        )
+
+        self.assertEqual(result["created"], 1)
+        self.assertEqual(result["skipped"], 2)
+        self.assertTrue(
+            GovernanceAction.objects.filter(source_key="institutional_onboarding:evidence_register").exists()
+        )
+        self.assertFalse(
+            GovernanceAction.objects.filter(source_key="institutional_onboarding:responsible_contact").exists()
+        )
+
+    def test_generate_from_onboarding_endpoint(self):
+        response = self.client.post(
+            "/api/governance/governance-actions/generate-from-onboarding/",
+            {"owner": "Responsavel designado", "action_ids": ["evidence_register"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["created"], 1)
+        action = GovernanceAction.objects.get(source_key="institutional_onboarding:evidence_register")
+        self.assertEqual(action.source_type, GovernanceAction.SourceType.ONBOARDING)
+        self.assertEqual(action.action_type, GovernanceAction.ActionType.COLLECT_EVIDENCE)
+        self.assertEqual(action.owner, "Responsavel designado")
 
 
 class GovernanceRiskLinkApiTests(GovernanceTestDataMixin, TestCase):

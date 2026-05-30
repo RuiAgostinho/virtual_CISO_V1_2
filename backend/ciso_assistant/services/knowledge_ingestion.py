@@ -31,7 +31,7 @@ class KnowledgeIngestionService:
 
     @staticmethod
     def label(value):
-        return str(value) if value not in (None, "") else "Nao definido"
+        return str(value) if value not in (None, "") else "Não definido"
 
     @staticmethod
     def expected_dimensions():
@@ -343,14 +343,14 @@ class KnowledgeIngestionService:
             for link in evidence.links.all()[:15]
         ]
         text = (
-            f"Evidencia reutilizavel: {evidence.title}. "
+            f"Evidência reutilizável: {evidence.title}. "
             f"Tipo: {evidence.evidence_type}. Estado: {evidence.status}. "
             f"Owner: {cls.label(evidence.owner)}. Fonte: {cls.label(evidence.source)}. "
-            f"Referencia externa: {cls.label(evidence.external_reference)}. "
-            f"Recolhida em: {cls.label(evidence.collected_at)}. Valida ate: {cls.label(evidence.valid_until)}. "
-            f"Nivel de confianca: {evidence.confidence_level}. Expirada: {'sim' if evidence.is_expired else 'nao'}. "
-            f"Descricao: {cls.label(evidence.description)}. "
-            f"Ligacoes: {'; '.join(links) if links else 'Nao definido'}."
+            f"Referência externa: {cls.label(evidence.external_reference)}. "
+            f"Recolhida em: {cls.label(evidence.collected_at)}. Válida até: {cls.label(evidence.valid_until)}. "
+            f"Nível de confiança: {evidence.confidence_level}. Expirada: {'sim' if evidence.is_expired else 'não'}. "
+            f"Descrição: {cls.label(evidence.description)}. "
+            f"Ligações: {'; '.join(links) if links else 'Não definido'}."
         )
         metadata = {
             "evidence_item_id": str(evidence.id),
@@ -1039,9 +1039,9 @@ class KnowledgeIngestionService:
         return (
             f"Controlo: {control.code} - {control.title}. "
             f"Framework: {framework}. "
-            f"Descricao: {control.description}. "
-            f"Orientacao de implementacao: {cls.label(control.implementation_guidance)}. "
-            f"Obrigatorio: {'sim' if control.is_mandatory else 'nao'}."
+            f"Descrição: {control.description}. "
+            f"Orientação de implementação: {cls.label(control.implementation_guidance)}. "
+            f"Obrigatório: {'sim' if control.is_mandatory else 'não'}."
         )
 
     @classmethod

@@ -485,6 +485,14 @@ class AssetSerializer(serializers.ModelSerializer):
     controls_count = serializers.IntegerField(source='controls.count', read_only=True)
 
     vulnerabilities_count = serializers.IntegerField(source='vulnerability_occurrences.count', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    type_name = serializers.CharField(source='asset_type.name', read_only=True)
+    business_owner_name = serializers.CharField(source='business_owner.name', read_only=True)
+    technical_owner_name = serializers.CharField(source='technical_owner.name', read_only=True)
+    org_unit_name = serializers.CharField(source='org_unit.name', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    environment_name = serializers.CharField(source='environment.name', read_only=True)
+    deployment_type_name = serializers.CharField(source='deployment_type.name', read_only=True)
 
     vulnerability_occurrences = AssetVulnerabilityListSerializer(many=True, read_only=True)
 
@@ -505,6 +513,12 @@ class AssetSerializer(serializers.ModelSerializer):
     org_unit_details = OrgUnitSerializer(source='org_unit', read_only=True)
 
     type_details = AssetTypeSerializer(source='asset_type', read_only=True)
+
+    location_details = AssetLocationSerializer(source='location', read_only=True)
+
+    environment_details = AssetEnvironmentSerializer(source='environment', read_only=True)
+
+    deployment_type_details = AssetInfrastructureSerializer(source='deployment_type', read_only=True)
 
     dependent_assets_details = AssetTinySerializer(source='dependent_assets', many=True, read_only=True)
 
@@ -541,6 +555,9 @@ class AssetSerializer(serializers.ModelSerializer):
             'category', 'asset_type', 'org_unit', 'location', 
 
             'environment', 'deployment_type', 'business_owner', 'technical_owner', 
+            'category_name', 'type_name',
+            'business_owner_name', 'technical_owner_name', 'org_unit_name',
+            'location_name', 'environment_name', 'deployment_type_name',
 
             'criticality', 'confidentiality', 'integrity', 'availability', 'exposure', 
 
@@ -555,6 +572,7 @@ class AssetSerializer(serializers.ModelSerializer):
             'history', 'parent_details', 'children_details', 'category_details', 'type_details',
 
             'business_owner_details', 'technical_owner_details', 'org_unit_details', 
+            'location_details', 'environment_details', 'deployment_type_details',
 
             'dependent_assets_details', 'external_service_assets_details', 'integration_assets_details',
 

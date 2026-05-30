@@ -20,6 +20,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { mappingReviewApi, type MappingRecord, type SearchOption } from "@/lib/mappingReviewApi";
+import { companyApi, type ListResponse, type Person } from "@/lib/companyApi";
 
 type DocumentType = "policy" | "standard" | "procedure" | "guideline" | "technical_regulation" | "runbook";
 type DocumentStatus = "draft" | "under_review" | "approved" | "published" | "deprecated" | "archived";
@@ -186,6 +187,10 @@ function getApiErrorMessage(err: any, fallback: string) {
   if (typeof err?.message === "string" && err.message) return err.message;
   if (typeof err?.detail === "string") return err.detail;
   return fallback;
+}
+
+function unwrapList<T>(data: ListResponse<T>): T[] {
+  return Array.isArray(data) ? data : data.results || [];
 }
 
 function isInactiveMapping(mapping: MappingRecord) {
@@ -386,6 +391,7 @@ export default function GovernanceDocumentWizard() {
     review_date: "",
   });
   const [selectedControls, setSelectedControls] = useState<SelectedControl[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [runbookSteps, setRunbookSteps] = useState<RunbookStepDraft[]>([]);
   const [evidenceInput, setEvidenceInput] = useState("");
   const [expectedEvidence, setExpectedEvidence] = useState<string[]>(["Relatorio de execucao", "Ticket de aprovacao"]);
@@ -397,6 +403,13 @@ export default function GovernanceDocumentWizard() {
   const parentDocumentParam = searchParams.get("parentDocument");
   const documentTypeParam = searchParams.get("documentType");
   const policyParam = searchParams.get("policy");
+
+  useEffect(() => {
+    companyApi
+      .listPeople({ page_size: 1000 })
+      .then((data) => setPeople(unwrapList(data)))
+      .catch(() => setPeople([]));
+  }, []);
 
   const wizardStepDefs = useMemo(() => {
     const base = [
@@ -1033,10 +1046,30 @@ export default function GovernanceDocumentWizard() {
             </label>
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <label className="block">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner</span>
-              <input value={form.owner} onChange={(event) => setForm((current) => ({ ...current, owner: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
-            </label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner</span>
+                <Link to="/governance/responsibilities" className="text-[10px] font-bold uppercase tracking-wide text-indigo-700 hover:underline">
+                  Pessoas
+                </Link>
+              </div>
+              <select
+                value=""
+                onChange={(event) => {
+                  const person = people.find((item) => String(item.id) === event.target.value);
+                  if (person) setForm((current) => ({ ...current, owner: person.name }));
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="">Escolher pessoa do catálogo</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} {person.role ? `- ${person.role}` : person.email ? `- ${person.email}` : ""}
+                  </option>
+                ))}
+              </select>
+              <input value={form.owner} onChange={(event) => setForm((current) => ({ ...current, owner: event.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
+            </div>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Data de aprovacao</span>
               <input type="date" value={form.approval_date} onChange={(event) => setForm((current) => ({ ...current, approval_date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />

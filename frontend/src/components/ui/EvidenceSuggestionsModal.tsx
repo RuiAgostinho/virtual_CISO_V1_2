@@ -62,7 +62,7 @@ export function EvidenceSuggestionsModal({
       setData(response);
     } catch (err: unknown) {
       console.error(err);
-      setError(getErrorMessage(err, "Nao foi possivel obter sugestoes de evidencia."));
+      setError(getErrorMessage(err, "Não foi possível obter sugestões de evidência."));
     } finally {
       setLoading(false);
     }
@@ -90,12 +90,12 @@ export function EvidenceSuggestionsModal({
 
     try {
       await controlsApi.applyEvidenceSuggestion(controlMechanism.id, suggestion.id);
-      setSuccessMessage("Evidencia associada ao mecanismo com validacao do CISO.");
+      setSuccessMessage("Evidência associada ao mecanismo com validação do CISO.");
       onApplied();
       await loadSuggestions();
     } catch (err: unknown) {
       console.error(err);
-      setError(getErrorMessage(err, "Nao foi possivel associar esta evidencia."));
+      setError(getErrorMessage(err, "Não foi possível associar esta evidência."));
     } finally {
       setApplyingId(null);
     }
@@ -117,7 +117,7 @@ export function EvidenceSuggestionsModal({
               <Sparkles className="h-3.5 w-3.5" />
               Sugestoes automaticas
             </div>
-            <h2 className="mt-3 text-xl font-bold text-slate-950">Atribuir evidencias ao mecanismo</h2>
+            <h2 className="mt-3 text-xl font-bold text-slate-950">Atribuir evidências ao mecanismo</h2>
             <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">
               {controlMechanism.mechanism_title || "Mecanismo"} em {controlMechanism.control_code || "--"}.
               As sugestoes so sao associadas depois de aprovadas.
@@ -150,14 +150,14 @@ export function EvidenceSuggestionsModal({
           {loading ? (
             <div className="flex min-h-64 flex-col items-center justify-center text-slate-400">
               <Loader2 className="mb-3 h-9 w-9 animate-spin" />
-              <p className="text-xs font-bold uppercase tracking-wide">A procurar evidencias candidatas...</p>
+              <p className="text-xs font-bold uppercase tracking-wide">A procurar evidências candidatas...</p>
             </div>
           ) : suggestions.length === 0 ? (
             <div className="rounded-2xl border border-slate-100 bg-slate-50 p-8 text-center">
               <FileCheck2 className="mx-auto h-11 w-11 text-slate-300" />
               <h3 className="mt-4 text-lg font-bold text-slate-950">Sem sugestoes automaticas</h3>
               <p className="mt-2 text-sm font-semibold text-slate-500">
-                Nao foram encontrados documentos, inventario, telemetria ou historico operacional suficientes para este mecanismo.
+                Não foram encontrados documentos, inventário, telemetria ou histórico operacional suficientes para este mecanismo.
               </p>
             </div>
           ) : (
@@ -220,7 +220,7 @@ export function EvidenceSuggestionsModal({
 
         <footer className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold text-slate-500">
-            A criacao da evidencia fica registada como sugestao automatica validada pelo CISO.
+            A criação da evidência fica registada como sugestão automática validada pelo CISO.
           </p>
           <button
             type="button"

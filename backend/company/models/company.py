@@ -300,6 +300,8 @@ class CompanyProfile(TimeStampedModel):
 
     onboarding_recommended_actions = models.JSONField(default=list, blank=True)
 
+    institutional_onboarding_required = models.BooleanField(default=True)
+
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
     notes = models.TextField(blank=True)

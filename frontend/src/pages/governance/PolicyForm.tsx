@@ -786,10 +786,31 @@ export default function PolicyForm() {
             </label>
           </div>
 
+          <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Pessoas e ownership</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Usa pessoas reais do catálogo para owner e accountable da política.</p>
+            </div>
+            <Link to="/governance/responsibilities" className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-200 hover:text-indigo-700">
+              Adicionar/editar pessoas
+            </Link>
+          </div>
+
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Owner pessoa</span>
-              <select value={form.owner_person} onChange={(event) => setForm((current) => ({ ...current, owner_person: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100">
+              <select
+                value={form.owner_person}
+                onChange={(event) => {
+                  const person = people.find((item) => String(item.id) === event.target.value);
+                  setForm((current) => ({
+                    ...current,
+                    owner_person: event.target.value,
+                    owner: person?.name || current.owner,
+                  }));
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              >
                 <option value="">Sem owner pessoa</option>
                 {people.map((person) => (
                   <option key={person.id} value={person.id}>{person.name}</option>

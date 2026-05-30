@@ -5,6 +5,7 @@ from .views import (
     AssistantRecommendationDetailView,
     AssistantRecommendationHistoryView,
     ConvertAssistantRecommendationView,
+    OnboardingHelpView,
     PolicyAdviceView,
     RagOverviewView,
     RagReindexView,
@@ -13,6 +14,7 @@ from .views import (
 
 urlpatterns = [
     path("ask/", AskCISOView.as_view(), name="ciso-assistant-ask"),
+    path("onboarding-help/", OnboardingHelpView.as_view(), name="ciso-onboarding-help"),
     path("policy-advice/", PolicyAdviceView.as_view(), name="ciso-policy-advice"),
     path("history/", AssistantRecommendationHistoryView.as_view(), name="ciso-assistant-history"),
     path("history/<uuid:recommendation_id>/", AssistantRecommendationDetailView.as_view(), name="ciso-assistant-history-detail"),

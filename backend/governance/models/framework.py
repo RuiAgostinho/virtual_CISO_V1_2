@@ -18,7 +18,15 @@ class Framework(TimeStampedModel):
 
         ISO27001 = "ISO27001", "ISO/IEC 27001"
 
+        ISO27002 = "ISO27002", "ISO/IEC 27002"
+
+        ISO27005 = "ISO27005", "ISO/IEC 27005"
+
         NISTCSF = "NISTCSF", "NIST CSF"
+
+        NIS2 = "NIS2", "NIS2"
+
+        DL125 = "DL125", "DL 125/2025"
 
         QNRC = "QNRC", "QNRC"
 
@@ -253,7 +261,6 @@ class FrameworkProfile(TimeStampedModel):
     def __str__(self):
 
         return f"{self.framework.code}:{self.name} (max={self.max_level})"
-
 
 
 

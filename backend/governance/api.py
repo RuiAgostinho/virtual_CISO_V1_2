@@ -7,7 +7,7 @@ from django.db.models import Case, Count, IntegerField, Q, When
 from django.utils import timezone
 
 from .models import (
-    Framework, Control, ControlMapping, Mechanism, ControlMechanism, MechanismEvidence,
+    Framework, FrameworkSection, Control, ControlMapping, Mechanism, ControlMechanism, MechanismEvidence,
     InternalControl, InternalControlFrameworkMapping,
     InternalControlMechanism,
     Policy, PolicyControl, ImplementationMechanism, PolicyEvidence, PolicyAssessment, PolicySection,
@@ -112,15 +112,55 @@ class FrameworkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Framework.objects.all().order_by("name")
     serializer_class = FrameworkSerializer
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ["name", "code", "slug"]
-    ordering_fields = ["name", "code"]
+    search_fields = ["name", "code", "version", "publisher", "description"]
+    ordering_fields = ["name", "code", "version", "published_at"]
+
+    @action(detail=True, methods=["get"])
+    def sections(self, request, pk=None):
+        sections = (
+            FrameworkSection.objects
+            .filter(framework_id=pk)
+            .select_related("parent")
+            .order_by("level", "sort_order", "code")
+        )
+        return Response([
+            {
+                "id": section.id,
+                "code": section.code,
+                "name": section.name,
+                "level": section.level,
+                "parent": section.parent_id,
+                "sort_order": section.sort_order,
+            }
+            for section in sections
+        ])
 
 
 class ControlViewSet(viewsets.ModelViewSet):
     queryset = (
         Control.objects
-        .select_related("framework")
-        .annotate(mechanisms_count=Count("mechanisms"))
+        .select_related("framework", "section")
+        .annotate(
+            mechanisms_count=Count("mechanisms", distinct=True),
+            internal_mappings_count=Count(
+                "internal_control_mappings",
+                filter=~Q(
+                    internal_control_mappings__validation_status__in=[
+                        InternalControlFrameworkMapping.ValidationStatus.REJECTED,
+                        InternalControlFrameworkMapping.ValidationStatus.DEPRECATED,
+                    ]
+                ),
+                distinct=True,
+            ),
+            approved_internal_mappings_count=Count(
+                "internal_control_mappings",
+                filter=Q(
+                    internal_control_mappings__validation_status=
+                    InternalControlFrameworkMapping.ValidationStatus.APPROVED
+                ),
+                distinct=True,
+            ),
+        )
         .all()
         .order_by("framework__name", "code")
     )
@@ -128,11 +168,27 @@ class ControlViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = {
         "framework": ["exact"],
+        "section": ["exact"],
         "status": ["exact"],
         "is_mandatory": ["exact"],
     }
-    search_fields = ["code", "title"]
-    ordering_fields = ["code", "title", "status", "is_mandatory", "framework__name"]
+    search_fields = [
+        "code",
+        "title",
+        "description",
+        "framework__code",
+        "framework__name",
+        "section__code",
+        "section__name",
+    ]
+    ordering_fields = [
+        "code",
+        "title",
+        "status",
+        "is_mandatory",
+        "framework__name",
+        "section__code",
+    ]
 
     @action(detail=True, methods=["get"])
     def evidence(self, request, pk=None):
@@ -2090,6 +2146,28 @@ class GovernanceActionViewSet(viewsets.ModelViewSet):
         result = GovernanceActionPlanService.generate_from_workbench(
             owner=request.data.get("owner") or None,
             user=request_user_or_none(request),
+        )
+        serializer = self.get_serializer(result["actions"], many=True)
+        return Response(
+            {
+                "created": result["created"],
+                "updated": result["updated"],
+                "skipped": result["skipped"],
+                "total": result["total"],
+                "actions": serializer.data,
+            }
+        )
+
+    @action(detail=False, methods=["post"], url_path="generate-from-onboarding")
+    def generate_from_onboarding(self, request):
+        profile = CompanyProfile.objects.order_by("created_at").first()
+        if not profile:
+            profile = CompanyProfile.objects.create(legal_name="A sua Instituicao")
+        result = GovernanceActionPlanService.generate_from_onboarding(
+            profile=profile,
+            owner=request.data.get("owner") or None,
+            user=request_user_or_none(request),
+            selected_action_ids=request.data.get("action_ids", None),
         )
         serializer = self.get_serializer(result["actions"], many=True)
         return Response(

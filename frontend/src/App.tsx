@@ -1,8 +1,9 @@
 import React, { Suspense } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import Login from "@/pages/Login";
 import { AuthProvider, useAuth } from "@/auth/AuthProvider";
+import { companyApi } from "@/lib/companyApi";
 
 import AppShell from "@/components/ui/AppShell";
 
@@ -13,6 +14,7 @@ const Maturity = React.lazy(() => import("@/pages/Maturity"));
 const Vulnerabilities = React.lazy(() => import("@/pages/Vulnerabilities"));
 const Controls = React.lazy(() => import("@/pages/Controls"));
 const FrameworkView = React.lazy(() => import("@/pages/FrameworkView"));
+const FrameworkControlsCatalog = React.lazy(() => import("@/pages/catalogs/FrameworkControlsCatalog"));
 const Institution = React.lazy(() => import("@/pages/admin/Institution"));
 const AdminUsers = React.lazy(() => import("@/pages/admin/Users"));
 const AdminRoles = React.lazy(() => import("@/pages/admin/Roles"));
@@ -23,6 +25,7 @@ const AdminRagKnowledgeBase = React.lazy(() => import("@/pages/admin/RagKnowledg
 
 const Inventory = React.lazy(() => import("@/pages/assets/Inventory"));
 const AssetDetail = React.lazy(() => import("@/pages/assets/AssetDetail"));
+const AssetOnboarding = React.lazy(() => import("@/pages/assets/AssetOnboarding"));
 const Classification = React.lazy(() => import("@/pages/assets/Classification"));
 const ClassificationModel = React.lazy(() => import("@/pages/assets/ClassificationModel"));
 const Discovery = React.lazy(() => import("@/pages/assets/Discovery"));
@@ -84,9 +87,52 @@ const RecommendationHistory = React.lazy(() => import("@/pages/decision/Recommen
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const [onboardingRequired, setOnboardingRequired] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    if (!user) {
+      setOnboardingRequired(null);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    setOnboardingRequired(null);
+    companyApi
+      .getProfile()
+      .then((profile) => {
+        if (mounted) setOnboardingRequired(Boolean(profile.institutional_onboarding_required));
+      })
+      .catch(() => {
+        if (mounted) setOnboardingRequired(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  React.useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ required?: boolean }>).detail;
+      setOnboardingRequired(Boolean(detail?.required));
+    };
+
+    window.addEventListener("institutional-onboarding-required-changed", handler as EventListener);
+    return () => {
+      window.removeEventListener("institutional-onboarding-required-changed", handler as EventListener);
+    };
+  }, []);
 
   if (loading) return <div className="p-6">A carregar…</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (onboardingRequired === null) return <div className="p-6">A preparar contexto institucional…</div>;
+  if (onboardingRequired && location.pathname !== "/onboarding" && location.pathname !== "/admin/settings") {
+    return <Navigate to="/onboarding" replace state={{ from: location }} />;
+  }
 
   return (
     <AppShell>
@@ -124,11 +170,14 @@ export default function App() {
             <Route path="/recommendation-history" element={<RecommendationHistory />} />
             <Route path="/vulnerabilities" element={<Vulnerabilities />} />
             <Route path="/compliance" element={<FrameworkView />} />
+            <Route path="/catalogs/frameworks" element={<FrameworkView />} />
+            <Route path="/catalogs/frameworks/:id" element={<FrameworkControlsCatalog />} />
             <Route path="/compliance-mapping" element={<ControlMappings />} />
             <Route path="/compliance-gaps" element={<ComplianceGaps />} />
             <Route path="/templates" element={<Navigate to="/controls" replace />} />
             <Route path="/controls" element={<Controls />} />
             <Route path="/assets" element={<Navigate to="/assets/inventory" replace />} />
+            <Route path="/assets/onboarding" element={<AssetOnboarding />} />
             <Route path="/assets/inventory" element={<Inventory />} />
             <Route path="/assets/inventory/:id" element={<AssetDetail />} />
             <Route path="/assets/classification" element={<Classification />} />

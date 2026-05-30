@@ -212,7 +212,7 @@ function normalize(kind: MappingKind, item: any): MappingRecord {
       targetType: "framework_control",
       targetLabel: item.framework_control_code
         ? externalControlLabel(item.framework_code, item.framework_control_code, item.framework_control_title)
-        : item.framework_control || "Framework control",
+        : item.framework_control || "Controlo externo",
       validation_status: item.validation_status,
       mapping_source: item.mapping_source,
       rationale: item.rationale,
@@ -610,7 +610,7 @@ export const mappingReviewApi = {
         item,
         joinLabel([item.runbook_title, item.step_number ? `Step ${item.step_number}` : "", item.title]),
         item.description || item.expected_output,
-        item.evidence_required ? "Evidence required" : "No evidence required"
+        item.evidence_required ? "Evidência obrigatória" : "Sem evidência obrigatória"
       )
     );
   },
