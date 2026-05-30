@@ -7,12 +7,15 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  FileText,
   FileCheck2,
   GitBranch,
   Loader2,
   Network,
   Search,
   ShieldCheck,
+  UploadCloud,
+  X,
 } from "lucide-react";
 import { GovernanceBadge } from "@/components/governance/GovernancePrimitives";
 import { mappingReviewApi, type SearchOption, type TraceabilityPayload } from "@/lib/mappingReviewApi";
@@ -150,6 +153,13 @@ function isExpired(form: EvidenceForm) {
   if (form.status === "expired") return true;
   if (!form.valid_until) return false;
   return new Date(form.valid_until) < new Date(new Date().toDateString());
+}
+
+function formatFileSize(bytes?: number) {
+  if (!bytes) return "-";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function targetTraceabilityType(targetType: TargetType) {
@@ -324,6 +334,7 @@ export default function EvidenceWizard() {
   const [saving, setSaving] = useState(false);
   const [createdEvidence, setCreatedEvidence] = useState<any | null>(null);
   const [createdLink, setCreatedLink] = useState<any | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [queryPrefillApplied, setQueryPrefillApplied] = useState(false);
 
   const steps = ["Dados", "Referência", "Alvo", "Relação", "Impacto", "Revisão"];
@@ -373,12 +384,13 @@ export default function EvidenceWizard() {
 
   const warnings = useMemo(() => {
     const items: string[] = [];
-    if (!form.source.trim() && !form.external_reference.trim()) items.push("Fonte ou referência externa é recomendada para rastreabilidade.");
+    if (!form.source.trim() && !form.external_reference.trim() && !selectedFile) items.push("Fonte, referência externa ou ficheiro é recomendado para rastreabilidade.");
     if (isExpired(form)) items.push("Esta evidência está expirada e não contará para o score oficial.");
     if (form.status !== "valid") items.push("A evidência só conta para o score oficial quando estiver válida e não expirada.");
+    if (selectedFile) items.push("O backend vai guardar o ficheiro físico e calcular o hash SHA-256 para prova de integridade.");
     items.push("A ligação de evidência será criada em rascunho e precisa de aprovação na revisão de mapeamentos para contar oficialmente.");
     return items;
-  }, [form]);
+  }, [form, selectedFile]);
 
   const impact = useMemo(() => {
     const relationships = traceability?.relationships || {};
@@ -472,19 +484,38 @@ export default function EvidenceWizard() {
     setSaving(true);
     setSaveError(null);
     try {
-      const evidence = await mappingReviewApi.createEvidenceItem({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        evidence_type: form.evidence_type,
-        source: form.source.trim(),
-        external_reference: form.external_reference.trim(),
-        collected_at: form.collected_at || null,
-        valid_until: form.valid_until || null,
-        confidence_level: form.confidence_level,
-        status: form.status,
-        owner: form.owner.trim(),
-        is_active: true,
-      });
+      const evidencePayload = selectedFile
+        ? new FormData()
+        : {
+            title: form.title.trim(),
+            description: form.description.trim(),
+            evidence_type: form.evidence_type,
+            source: form.source.trim(),
+            external_reference: form.external_reference.trim(),
+            collected_at: form.collected_at || null,
+            valid_until: form.valid_until || null,
+            confidence_level: form.confidence_level,
+            status: form.status,
+            owner: form.owner.trim(),
+            is_active: true,
+          };
+
+      if (selectedFile && evidencePayload instanceof FormData) {
+        evidencePayload.append("title", form.title.trim());
+        evidencePayload.append("description", form.description.trim());
+        evidencePayload.append("evidence_type", form.evidence_type);
+        evidencePayload.append("source", form.source.trim());
+        evidencePayload.append("external_reference", form.external_reference.trim());
+        if (form.collected_at) evidencePayload.append("collected_at", form.collected_at);
+        if (form.valid_until) evidencePayload.append("valid_until", form.valid_until);
+        evidencePayload.append("confidence_level", String(form.confidence_level));
+        evidencePayload.append("status", form.status);
+        evidencePayload.append("owner", form.owner.trim());
+        evidencePayload.append("is_active", "true");
+        evidencePayload.append("file", selectedFile);
+      }
+
+      const evidence = await mappingReviewApi.createEvidenceItem(evidencePayload);
 
       const link = await mappingReviewApi.createEvidenceLink({
         evidence_item: evidence.id,
@@ -522,6 +553,16 @@ export default function EvidenceWizard() {
               {createdLink && (
                 <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
                   Link criado: {createdLink.target_label || linkForm.target?.label || linkForm.target_type}
+                </div>
+              )}
+              {createdEvidence.file && (
+                <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900">
+                  Ficheiro guardado: {createdEvidence.original_filename || selectedFile?.name || "ficheiro"}.
+                  {createdEvidence.sha256_hash && (
+                    <span className="mt-1 block break-all text-xs font-bold text-indigo-700">
+                      SHA-256: {createdEvidence.sha256_hash}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="mt-6 flex flex-wrap gap-3">
@@ -666,8 +707,52 @@ export default function EvidenceWizard() {
               <input value={form.external_reference} onChange={(event) => setForm((current) => ({ ...current, external_reference: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="URL, ticket, caminho, referência documental..." />
             </label>
           </div>
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            O upload de ficheiro existe no modelo backend, mas este assistente usa a via segura por referência manual porque o cliente atual desta aplicação cria evidências por JSON.
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Ficheiro da evidência</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  O ficheiro é guardado em storage local e recebe metadados auditáveis, incluindo hash SHA-256.
+                </p>
+              </div>
+              <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
+                <UploadCloud className="h-4 w-4" />
+                Selecionar ficheiro
+                <input
+                  type="file"
+                  className="sr-only"
+                  onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                />
+              </label>
+            </div>
+
+            {selectedFile ? (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-indigo-100 bg-white p-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-700">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950">{selectedFile.name}</p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {selectedFile.type || "Tipo desconhecido"} · {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFile(null)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-red-700"
+                >
+                  <X className="h-4 w-4" />
+                  Remover
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                Sem ficheiro selecionado. Podes manter apenas fonte/referência externa, mas o upload físico é mais forte para a defesa.
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -765,9 +850,10 @@ export default function EvidenceWizard() {
               <p className="text-xs font-semibold text-slate-500">Confirma a evidência, o alvo, a relação e os impactos antes de criar.</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-4 lg:grid-cols-4">
+          <div className="mt-5 grid gap-4 lg:grid-cols-5">
             <SummaryTile label="Evidência" value={form.title || "-"} />
             <SummaryTile label="Tipo" value={form.evidence_type} />
+            <SummaryTile label="Ficheiro" value={selectedFile ? selectedFile.name : "Sem ficheiro"} />
             <SummaryTile label="Alvo" value={linkForm.target?.label || "-"} />
             <SummaryTile label="Confiança" value={`${form.confidence_level}%`} />
           </div>

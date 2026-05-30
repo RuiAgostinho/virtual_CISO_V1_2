@@ -40,11 +40,11 @@ export interface NavItem {
   icon?: React.ElementType;
   roles?: Role[];
   children?: NavItem[];
-  badge?: string;       // small label, e.g. "Em breve"
-  disabled?: boolean;   // renders as non-clickable
-  accent?: boolean;     // visual emphasis (Mecanismos — destaque central da tese)
-  header?: boolean;     // renders as a non-interactive section label, not a link
-  exact?: boolean;      // active only on the exact URL, useful when sibling items share the same base route
+  badge?: string;
+  disabled?: boolean;
+  accent?: boolean;
+  header?: boolean;
+  exact?: boolean;
 }
 
 export interface NavGroup {
@@ -55,28 +55,14 @@ export interface NavGroup {
 }
 
 export const sidebarData: NavGroup[] = [
-  // 1. Painel - visão transversal e decisão diária do CISO.
   {
     title: "Painel",
     icon: Rocket,
     items: [
-      {
-        title: "Mission Control",
-        icon: LayoutDashboard,
-        accent: true,
-        children: [
-          { title: "Visão executiva", path: "/mission-control?mode=executive" },
-          { title: "Visão operacional", path: "/mission-control?mode=operational" },
-        ],
-      },
-      { title: "Governance Workbench", path: "/governance/workbench", icon: ClipboardCheck },
-      { title: "Saúde da governação", path: "/governance/health", icon: Activity },
-      { title: "Drift de conformidade", path: "/governance/drift", icon: TrendingDown },
-      { title: "Assistente CISO", path: "/ciso-assistant", icon: Bot },
+      { title: "Mission Control", path: "/mission-control?mode=executive", icon: LayoutDashboard, accent: true },
       { title: "Configuração inicial", path: "/onboarding", icon: Rocket },
     ],
   },
-  // 2. Dados da Organização - contexto que alimenta risco, governação, compliance e IA.
   {
     title: "Dados da Organização",
     icon: Building2,
@@ -90,7 +76,6 @@ export const sidebarData: NavGroup[] = [
       { title: "Contexto regulatório", path: "/governance/regulatory", icon: Scale },
     ],
   },
-  // 3. Ativos - inventário, classificação e descoberta técnica.
   {
     title: "Ativos",
     icon: Database,
@@ -98,7 +83,6 @@ export const sidebarData: NavGroup[] = [
       { title: "Entrada de ativos", path: "/assets/onboarding", icon: ClipboardCheck, accent: true },
       { title: "Inventário de ativos", path: "/assets/inventory", icon: Database },
       { title: "Modelo de classificação", path: "/assets/model", icon: Sliders },
-      { title: "Tipos de ativo", path: "/admin/asset-types", icon: Sliders },
       { title: "Software instalado", path: "/assets/software", icon: Database },
       { title: "Ambientes", path: "/assets/environments", icon: Blocks },
       { title: "Infraestruturas", path: "/assets/infrastructures", icon: Network },
@@ -113,39 +97,31 @@ export const sidebarData: NavGroup[] = [
       },
     ],
   },
-  // 4. Gestão de Risco - análise, priorização e vulnerabilidades.
   {
     title: "Gestão de Risco",
     icon: ShieldAlert,
     items: [
-      { title: "Painel CISO de risco", path: "/risks/dashboard", icon: LayoutDashboard },
+      { title: "Prioridade de risco", path: "/risks/dashboard", icon: LayoutDashboard },
       { title: "Registo de riscos", path: "/risks/inventory", icon: AlertTriangle },
       { title: "Matriz de risco", path: "/risks/matrix", icon: Sliders },
       { title: "Priorização contextual", path: "/risks/prioritization", icon: Target },
       { title: "Vulnerabilidades", path: "/vulnerabilities", icon: ShieldAlert },
-      { title: "EPSS", path: "/admin/integrations/epss", icon: TrendingDown },
       { title: "Aceitação de risco", path: "/governance/exceptions", icon: ShieldAlert },
     ],
   },
-  // 5. Governação - políticas, documentos, decisões, exceções e execução.
   {
     title: "Governação",
     icon: Scale,
     items: [
-      { title: "Dashboard de governação", path: "/governance", icon: LayoutDashboard },
-      { title: "Políticas", path: "/governance/policies", icon: FileText },
-      { title: "Documentos", path: "/governance/documents", icon: BookOpen },
+      { title: "Políticas", path: "/governance/policies", icon: FileText, accent: true },
       { title: "Tarefas", path: "/governance/tasks", icon: ClipboardList },
       { title: "Decisões", path: "/decision-records", icon: FileCheck },
-      { title: "Exceções e risco aceite", path: "/governance/exceptions", icon: ShieldAlert },
       { title: "Plano de ações", path: "/governance/action-plan", icon: ClipboardCheck },
       {
-        title: "Criar e redigir",
+        title: "Criar políticas",
         icon: ClipboardCheck,
-        accent: true,
         children: [
           { title: "Criar política", path: "/governance/policies/wizard" },
-          { title: "Criar documento", path: "/governance/documents/wizard" },
           { title: "Gerar políticas base", path: "/governance/wizard" },
         ],
       },
@@ -153,34 +129,22 @@ export const sidebarData: NavGroup[] = [
       { title: "Procedimentos", path: "/governance/procedures", icon: ClipboardCheck },
     ],
   },
-  // 6. Compliance - estado, avaliação, gaps e auditoria. As frameworks externas ficam nos catálogos.
   {
     title: "Compliance",
     icon: ClipboardCheck,
     items: [
+      { title: "Frameworks e postura", path: "/catalogs/frameworks", icon: Book, accent: true },
+      { title: "Rastreabilidade", path: "/governance/traceability", icon: GitBranch },
+      { title: "Score multi-framework", path: "/compliance-mapping", icon: Target },
       { title: "Avaliações de controlos", path: "/maturity", icon: FileCheck },
-      { title: "Score e mapeamentos", path: "/compliance-mapping", icon: Target },
       { title: "Gaps / findings", path: "/compliance-gaps", icon: TrendingDown },
       { title: "Drift de conformidade", path: "/governance/drift", icon: TrendingDown },
-      { title: "Dossier de auditoria", path: "/governance/policies", icon: FileCheck },
     ],
   },
-  // 7. Catálogos e Mappings - ontologia interna e ligações entre entidades.
   {
     title: "Catálogos e Mappings",
     icon: GitBranch,
     items: [
-      {
-        title: "Frameworks externas",
-        icon: Book,
-        children: [
-          { title: "Catálogo completo", path: "/catalogs/frameworks" },
-          { title: "ISO/IEC 27001", path: "/catalogs/frameworks?search=ISO27001" },
-          { title: "NIST CSF", path: "/catalogs/frameworks?search=NISTCSF" },
-          { title: "NIS2 / DL 125/2025", path: "/catalogs/frameworks?search=NIS2" },
-          { title: "QNRC/CNCS", path: "/catalogs/frameworks?search=QNRC" },
-        ],
-      },
       { title: "Controlos externos", path: "/controls", icon: CheckCircle },
       { title: "Mecanismos", path: "/governance/mechanisms", icon: Wrench },
       { title: "Evidências", path: "/governance/evidence", icon: FileCheck },
@@ -188,7 +152,6 @@ export const sidebarData: NavGroup[] = [
       { title: "Risco residual", path: "/governance/residual-risk-mappings", icon: ShieldAlert },
       { title: "Revisão de mapeamentos", path: "/governance/mapping-review", icon: GitBranch, accent: true },
       { title: "Mapear frameworks", path: "/governance/framework-mapping/wizard", icon: Network },
-      { title: "Mapeamento legacy", path: "/compliance-mapping", icon: Network },
       {
         title: "Criar catálogo",
         icon: ClipboardCheck,
@@ -200,19 +163,15 @@ export const sidebarData: NavGroup[] = [
       },
     ],
   },
-  // 8. IA do Virtual CISO - recomendações, histórico, base RAG e avaliação.
   {
     title: "IA do Virtual CISO",
     icon: Brain,
     items: [
-      { title: "Assistente", path: "/ciso-assistant", icon: Bot },
+      { title: "Assistente CISO", path: "/ciso-assistant", icon: Bot, accent: true },
       { title: "Histórico de recomendações", path: "/recommendation-history", icon: History },
-      { title: "Decisões registadas", path: "/decision-records", icon: FileCheck },
-      { title: "Base de conhecimento RAG", path: "/admin/rag", icon: Database },
       { title: "Avaliação da dissertação", path: "/governance/evaluation", icon: Activity },
     ],
   },
-  // 9. Integrações - ligação a fontes técnicas e externas.
   {
     title: "Integrações",
     icon: Blocks,
@@ -221,10 +180,8 @@ export const sidebarData: NavGroup[] = [
       { title: "NIST NVD", path: "/admin/integrations/nist", icon: Database },
       { title: "EPSS", path: "/admin/integrations/epss", icon: TrendingDown },
       { title: "Nmap", path: "/admin/integrations/nmap", icon: Network },
-      { title: "Sincronizações", path: "/admin/integrations", icon: Activity },
     ],
   },
-  // 10. Administração - parametrização e operação interna da plataforma.
   {
     title: "Administração",
     icon: Settings,
@@ -437,8 +394,8 @@ const SidebarGroup: React.FC<{
           active
             ? "bg-slate-100 text-slate-950 ring-1 ring-slate-200"
             : isOpen
-            ? "bg-slate-100 text-slate-950"
-            : "text-slate-500 hover:bg-slate-50 hover:text-slate-950"
+              ? "bg-slate-100 text-slate-950"
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-950"
         }`}
       >
         <div className="flex min-w-0 items-center gap-2">

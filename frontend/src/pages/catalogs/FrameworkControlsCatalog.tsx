@@ -1,17 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  Activity,
+  AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   BookOpen,
-  CheckCircle2,
   ExternalLink,
+  FileCheck,
   FileSearch,
   GitBranch,
-  Layers,
+  Loader2,
   RefreshCw,
   Search,
   ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import {
   governanceApi,
@@ -20,7 +25,7 @@ import {
   type FrameworkSectionRecord,
   type PaginatedResponse,
 } from "@/lib/governanceApi";
-import { mappingReviewApi } from "@/lib/mappingReviewApi";
+import { mappingReviewApi, type TraceabilityPayload } from "@/lib/mappingReviewApi";
 
 type FrameworkScorePayload = {
   score?: number;
@@ -31,7 +36,10 @@ type FrameworkScorePayload = {
     evaluated_controls?: number;
     total_controls?: number;
   };
+  gaps?: any[];
 };
+
+type AnyRecord = Record<string, any>;
 
 function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
@@ -45,10 +53,21 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function asArray<T = AnyRecord>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function formatPercent(value: unknown) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "-";
   return `${Math.round(numeric)}%`;
+}
+
+function scoreTone(score: unknown) {
+  const numeric = Number(score);
+  if (numeric >= 80) return "text-emerald-600";
+  if (numeric >= 50) return "text-amber-600";
+  return "text-red-600";
 }
 
 function statusLabel(status?: string) {
@@ -57,8 +76,8 @@ function statusLabel(status?: string) {
   return status || "Sem estado";
 }
 
-function controlLabel(control: FrameworkControlRecord) {
-  return [control.framework_code, control.code].filter(Boolean).join(":");
+function controlLabel(control: FrameworkControlRecord | AnyRecord) {
+  return [control.framework_code, control.code].filter(Boolean).join(":") || control.code || "-";
 }
 
 function sectionLabel(section: FrameworkSectionRecord) {
@@ -70,12 +89,52 @@ function mappingCount(value: unknown) {
   return Number.isFinite(count) ? count : 0;
 }
 
+function displayLabel(item: AnyRecord | null | undefined) {
+  if (!item) return "-";
+  return [item.code || item.framework_code, item.title || item.name || item.label].filter(Boolean).join(" - ") || item.id || "-";
+}
+
+function getChains(traceability: TraceabilityPayload | null) {
+  const active = traceability?.active_mappings || {};
+  const evidence = traceability?.evidence || {};
+  const frameworkMappings = asArray(active.framework_mappings);
+  const mechanismLinks = asArray(active.internal_control_mechanisms);
+  const evidenceLinks = asArray(evidence.links);
+
+  return frameworkMappings.slice(0, 16).map((mapping) => {
+    const internalControl = mapping.internal_control;
+    const externalControl = mapping.framework_control;
+    const internalControlId = String(internalControl?.id || "");
+    const mechanisms = mechanismLinks
+      .filter((link) => String(link.internal_control?.id || "") === internalControlId)
+      .map((link) => ({ ...link.mechanism, implementation_status: link.implementation_status, mandatory: link.mandatory }));
+    const mechanismIds = new Set(mechanisms.map((item) => String(item.id)));
+    const chainEvidence = evidenceLinks
+      .filter((link) => {
+        const targetId = String(link.target_id || "");
+        return targetId === internalControlId || mechanismIds.has(targetId);
+      })
+      .map((link) => link.evidence_item);
+
+    return {
+      id: mapping.id,
+      externalControl,
+      internalControl,
+      mechanisms,
+      evidence: chainEvidence,
+      coverage: mapping.coverage_percentage,
+      relationshipType: mapping.relationship_type,
+    };
+  });
+}
+
 export default function FrameworkControlsCatalog() {
   const { id } = useParams<{ id: string }>();
   const [framework, setFramework] = useState<FrameworkRecord | null>(null);
   const [controls, setControls] = useState<FrameworkControlRecord[]>([]);
   const [sections, setSections] = useState<FrameworkSectionRecord[]>([]);
   const [score, setScore] = useState<FrameworkScorePayload | null>(null);
+  const [traceability, setTraceability] = useState<TraceabilityPayload | null>(null);
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -92,14 +151,23 @@ export default function FrameworkControlsCatalog() {
     setLoadingContext(true);
     setError(null);
     try {
-      const [frameworkData, sectionsData, scoreData] = await Promise.all([
+      const [frameworkData, sectionsData, scoreData, traceabilityData] = await Promise.all([
         governanceApi.getFramework(id),
         governanceApi.getFrameworkSections(id),
-        mappingReviewApi.getFrameworkScore(id, { mode: "official", include_details: true }).catch(() => null),
+        mappingReviewApi.getFrameworkScore(id, { mode: "official", include_details: true, include_gaps: true }).catch(() => null),
+        mappingReviewApi.getFrameworkTraceability(id, {
+          mode: "official",
+          include_inactive: true,
+          include_evidence: true,
+          include_scores: true,
+          include_gaps: true,
+          max_depth: 3,
+        }).catch(() => null),
       ]);
       setFramework(frameworkData);
       setSections(sectionsData);
       setScore(scoreData as FrameworkScorePayload | null);
+      setTraceability(traceabilityData);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Não foi possível carregar a framework."));
     } finally {
@@ -140,15 +208,26 @@ export default function FrameworkControlsCatalog() {
     void loadControls();
   }, [loadControls]);
 
+  const relationships = traceability?.relationships || {};
+  const activeMappings = traceability?.active_mappings || {};
+  const officialScore = (traceability?.scores?.official as AnyRecord | undefined) || score;
+  const simulationScore = traceability?.scores?.simulation as AnyRecord | undefined;
+  const chains = useMemo(() => getChains(traceability), [traceability]);
+
   const metrics = useMemo(() => {
+    const approvedFrameworkMappings = asArray(activeMappings.framework_mappings);
     return {
       total: totalControls,
       active: controls.filter((control) => control.status === "active").length,
       mandatory: controls.filter((control) => control.is_mandatory).length,
       mapped: controls.filter((control) => mappingCount(control.internal_mappings_count) > 0).length,
-      sections: sections.length,
+      internalControls: asArray(relationships.internal_controls).length,
+      mechanisms: asArray(relationships.mechanisms).length,
+      evidence: asArray(traceability?.evidence?.items).length,
+      gaps: asArray(traceability?.gaps).length,
+      approvedMappings: approvedFrameworkMappings.length,
     };
-  }, [controls, sections.length, totalControls]);
+  }, [activeMappings.framework_mappings, controls, relationships.internal_controls, relationships.mechanisms, totalControls, traceability]);
 
   const totalPages = Math.max(1, Math.ceil(totalControls / pageSize));
   const loading = loadingContext || loadingControls;
@@ -165,24 +244,23 @@ export default function FrameworkControlsCatalog() {
               className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-indigo-700"
             >
               <ArrowLeft className="h-4 w-4" />
-              Voltar ao catálogo
+              Voltar às frameworks
             </Link>
-            <p className="mt-5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">Catálogo externo</p>
+            <p className="mt-5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">Framework viva</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-              {framework ? `${framework.code} ${framework.version || ""}` : "Controlos da framework"}
+              {framework ? `${framework.code} ${framework.version || ""}` : "Postura da framework"}
             </h1>
             <p className="mt-2 max-w-4xl text-sm font-semibold leading-relaxed text-slate-500">
-              {framework?.name || "Lista de controlos externos importados."} Estes controlos são uma camada de
-              referência: a implementação continua centrada nos controlos internos e nos respetivos mapeamentos.
+              {framework?.name || "Framework externa"} ligada aos controlos internos, mecanismos, evidências, gaps e score oficial da organização.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              to={`/governance/mapping-review?framework=${id || ""}`}
+              to={`/governance/traceability?type=framework&id=${id || ""}`}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100"
             >
               <GitBranch className="h-4 w-4" />
-              Ver mapeamentos
+              Abrir rastreabilidade
             </Link>
             <button
               type="button"
@@ -205,19 +283,71 @@ export default function FrameworkControlsCatalog() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <MetricCard icon={FileSearch} label="Score oficial" value={formatPercent(officialScore?.score ?? officialScore?.coverage)} tone={scoreTone(officialScore?.score ?? officialScore?.coverage)} />
+        <MetricCard icon={Activity} label="Score simulação" value={formatPercent(simulationScore?.score ?? simulationScore?.coverage)} tone="text-indigo-700" />
         <MetricCard icon={BookOpen} label="Controlos" value={metrics.total} />
-        <MetricCard icon={CheckCircle2} label="Ativos nesta página" value={metrics.active} tone="text-emerald-600" />
-        <MetricCard icon={ShieldCheck} label="Obrigatórios nesta página" value={metrics.mandatory} tone="text-amber-600" />
-        <MetricCard icon={Layers} label="Secções" value={metrics.sections} tone="text-sky-600" />
-        <MetricCard icon={GitBranch} label="Com mapping nesta página" value={metrics.mapped} tone="text-indigo-700" />
-        <MetricCard
-          icon={FileSearch}
-          label="Score oficial"
-          value={formatPercent(score?.score ?? score?.details?.coverage)}
-          tone="text-slate-900"
-        />
+        <MetricCard icon={GitBranch} label="Mappings aprovados" value={metrics.approvedMappings} tone="text-emerald-600" />
+        <MetricCard icon={ShieldCheck} label="Controlos internos" value={metrics.internalControls} tone="text-indigo-700" />
+        <MetricCard icon={Wrench} label="Mecanismos" value={metrics.mechanisms} tone="text-amber-600" />
+        <MetricCard icon={FileCheck} label="Evidências" value={metrics.evidence} tone="text-sky-600" />
       </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Cadeia de conformidade</p>
+            <h2 className="text-lg font-bold text-slate-950">Controlo externo para controlo interno para mecanismo para evidência</h2>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            {metrics.gaps} gap(s)
+          </span>
+        </div>
+
+        {loadingContext ? (
+          <div className="flex items-center justify-center gap-2 p-10 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            A carregar rastreabilidade...
+          </div>
+        ) : chains.length === 0 ? (
+          <div className="p-8 text-sm font-semibold text-slate-500">
+            Esta framework ainda não tem mapeamentos aprovados para desenhar a cadeia de impacto.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {chains.map((chain) => (
+              <article key={chain.id || `${chain.externalControl?.id}-${chain.internalControl?.id}`} className="p-5">
+                <div className="grid gap-3 xl:grid-cols-[1.2fr_40px_1.2fr_40px_1fr_40px_1fr] xl:items-stretch">
+                  <TraceNode title="Controlo externo" href={`/governance/traceability?type=framework_control&id=${chain.externalControl?.id || ""}`} label={displayLabel(chain.externalControl)} badge={chain.relationshipType} />
+                  <FlowArrow />
+                  <TraceNode title="Controlo interno" href={`/governance/mapping-review?internalControl=${chain.internalControl?.id || ""}`} label={displayLabel(chain.internalControl)} badge={`${Number(chain.coverage || 0).toFixed(0)}% cobertura`} />
+                  <FlowArrow />
+                  <TraceCollection title="Mecanismos" items={chain.mechanisms} pathPrefix="/governance/mechanisms" empty="Sem mecanismo ligado." />
+                  <FlowArrow />
+                  <TraceCollection title="Evidências" items={chain.evidence} pathPrefix="/governance/evidence" empty="Sem evidência ligada." />
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {asArray(traceability?.gaps).length > 0 && (
+        <section className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-red-700">
+            <AlertTriangle className="h-5 w-5" />
+            <h2 className="text-sm font-bold uppercase tracking-wide">Lacunas prioritárias nesta framework</h2>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {asArray(traceability?.gaps).slice(0, 6).map((gap, index) => (
+              <div key={`${gap.type || "gap"}-${gap.target_id || index}`} className="rounded-xl border border-red-100 bg-white/70 p-4 text-sm font-semibold text-red-800">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">{gap.type || "gap"} - {gap.severity || "sem severidade"}</p>
+                <p className="mt-1">{gap.message || gap.recommendation || "Gap sem descrição."}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
         <div className="grid gap-3 lg:grid-cols-[1fr_240px_180px_180px]">
@@ -280,8 +410,7 @@ export default function FrameworkControlsCatalog() {
             <h2 className="text-lg font-bold text-slate-950">{totalControls} controlos encontrados</h2>
           </div>
           <p className="max-w-2xl text-xs font-semibold text-slate-500">
-            Usa esta página para consultar o catálogo da framework. Para demonstrar conformidade, valida os mapeamentos
-            para controlos internos.
+            Cada controlo externo deve chegar a controlos internos, mecanismos e evidência validada.
           </p>
         </div>
 
@@ -304,11 +433,11 @@ export default function FrameworkControlsCatalog() {
               const totalMappings = mappingCount(control.internal_mappings_count);
               const nonApprovedMappings = Math.max(0, totalMappings - approvedMappings);
               return (
-                <article key={String(control.id)} className="grid gap-4 p-5 hover:bg-slate-50/70 xl:grid-cols-[1fr_280px]">
+                <article key={String(control.id)} className="grid gap-4 p-5 hover:bg-slate-50/70 xl:grid-cols-[1fr_300px]">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-bold text-white">
-                        {controlLabel(control) || control.code || "Sem código"}
+                        {controlLabel(control)}
                       </span>
                       <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700 ring-1 ring-indigo-100">
                         Controlo externo
@@ -329,12 +458,6 @@ export default function FrameworkControlsCatalog() {
                     <p className="mt-2 max-w-5xl text-sm font-medium leading-relaxed text-slate-600">
                       {control.description || "Sem descrição registada."}
                     </p>
-                    {control.implementation_guidance && (
-                      <div className="mt-3 rounded-xl border border-slate-100 bg-white p-3 text-xs font-semibold leading-relaxed text-slate-500">
-                        <span className="font-bold uppercase tracking-wide text-slate-400">Orientação: </span>
-                        {control.implementation_guidance}
-                      </div>
-                    )}
                   </div>
 
                   <div className="rounded-xl border border-slate-100 bg-white p-4">
@@ -359,18 +482,18 @@ export default function FrameworkControlsCatalog() {
                     </div>
                     <div className="mt-4 grid gap-2">
                       <Link
-                        to={`/governance/mapping-review?frameworkControl=${control.id}`}
+                        to={`/governance/traceability?type=framework_control&id=${control.id}`}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700"
                       >
                         <GitBranch className="h-4 w-4" />
-                        Rever mappings
+                        Ver cadeia
                       </Link>
                       <Link
-                        to="/governance/framework-mapping/wizard"
+                        to={`/governance/mapping-review?frameworkControl=${control.id}`}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700"
                       >
                         <ExternalLink className="h-4 w-4" />
-                        Criar mapping
+                        Rever mappings
                       </Link>
                     </div>
                   </div>
@@ -413,6 +536,57 @@ function MetricCard({
       <Icon className={`h-5 w-5 ${tone}`} />
       <p className="mt-3 text-3xl font-bold text-slate-950">{value}</p>
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+function FlowArrow() {
+  return (
+    <div className="hidden items-center justify-center xl:flex">
+      <ArrowRight className="h-5 w-5 text-slate-300" />
+    </div>
+  );
+}
+
+function TraceNode({ title, label, href, badge }: { title: string; label: string; href?: string; badge?: string }) {
+  const content = (
+    <div className="min-h-28 rounded-xl border border-slate-100 bg-slate-50 p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{title}</span>
+        {badge && (
+          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            {badge}
+          </span>
+        )}
+      </div>
+      <p className="text-sm font-bold leading-snug text-slate-950">{label}</p>
+    </div>
+  );
+  return href ? <Link to={href}>{content}</Link> : content;
+}
+
+function TraceCollection({ title, items, pathPrefix, empty }: { title: string; items: AnyRecord[]; pathPrefix: string; empty: string }) {
+  return (
+    <div className="min-h-28 rounded-xl border border-slate-100 bg-white p-4">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{title}</p>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm font-semibold text-slate-400">{empty}</p>
+      ) : (
+        <div className="mt-3 flex flex-col gap-2">
+          {items.slice(0, 4).map((item) => (
+            <Link
+              key={item.id || displayLabel(item)}
+              to={`${pathPrefix}/${item.id}`}
+              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700"
+            >
+              <span className="line-clamp-2">{displayLabel(item)}</span>
+            </Link>
+          ))}
+          {items.length > 4 && (
+            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">+{items.length - 4} adicionais</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

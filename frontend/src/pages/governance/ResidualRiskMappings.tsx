@@ -673,10 +673,10 @@ export default function ResidualRiskMappings() {
               Atualizar
             </button>
             <Link
-              to="/governance/workbench"
+              to="/mission-control?mode=operational"
               className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-red-800"
             >
-              Workbench <ArrowRight className="h-4 w-4" />
+              Mission Control <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

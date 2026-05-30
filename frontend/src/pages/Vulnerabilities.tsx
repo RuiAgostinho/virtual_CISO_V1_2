@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -31,6 +32,18 @@ type IntelFilter =
 
 type SyncKind = "epss" | "nvd" | "kev";
 
+type AffectedAsset = {
+  occurrence_id?: string;
+  asset_id?: string;
+  asset_name?: string;
+  asset_status?: string;
+  asset_source?: string;
+  asset_ip?: string;
+  status?: string;
+  software_name?: string;
+  software_version?: string;
+};
+
 function unwrap<T>(data: T[] | PaginatedResponse<T> | null | undefined): T[] {
   return Array.isArray(data) ? data : data?.results || [];
 }
@@ -42,6 +55,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 function asNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function affectedAssets(vulnerability: Vulnerability) {
+  return (vulnerability.affected_assets || []) as AffectedAsset[];
 }
 
 function percent(part = 0, total = 0) {
@@ -358,52 +375,81 @@ export default function Vulnerabilities() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredVulns.map((vulnerability) => (
-                  <tr key={vulnerability.id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-6 py-4">
-                      <a
-                        href={`https://nvd.nist.gov/vuln/detail/${vulnerability.cve_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 font-bold text-slate-950 underline decoration-indigo-200 underline-offset-4 transition-colors hover:text-indigo-700"
-                      >
-                        {vulnerability.cve_id}
-                        <ExternalLink className="h-3 w-3 text-slate-300" />
-                      </a>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase ${getSeverityStyle(vulnerability.severity)}`}>
-                          {vulnerability.severity}
-                        </span>
-                        <span className="font-bold text-slate-900">{vulnerability.cvss_score || "0.0"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs leading-relaxed text-slate-500" title={vulnerability.description}>
-                      <p className="line-clamp-2">{vulnerability.description || "Sem descrição disponível."}</p>
-                      {!vulnerability.has_mitigation && (
-                        <p className="mt-2 font-bold text-amber-700">Sem mitigação registada.</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <QualityBadge label="CVSS" ok={Boolean(vulnerability.has_cvss)} />
-                        <QualityBadge label="EPSS" ok={Boolean(vulnerability.has_epss)} />
-                        <QualityBadge label="NVD" ok={Boolean(vulnerability.has_nvd)} />
-                        <QualityBadge label={vulnerability.is_in_kev ? "KEV" : "KEV check"} ok={Boolean(vulnerability.has_kev_check)} emphatic={Boolean(vulnerability.is_in_kev)} />
-                        <QualityBadge label="Mitigação" ok={Boolean(vulnerability.has_mitigation)} />
-                      </div>
-                      <div className="mt-2 text-[11px] font-semibold text-slate-500">
-                        EPSS: {(asNumber(vulnerability.epss_score) * 100).toFixed(1)}%
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-900 shadow-sm">
-                        {vulnerability.affected_assets_count || 0}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filteredVulns.map((vulnerability) => {
+                  const assets = affectedAssets(vulnerability);
+                  return (
+                    <tr key={vulnerability.id} className="transition-colors hover:bg-slate-50">
+                      <td className="px-6 py-4">
+                        <a
+                          href={`https://nvd.nist.gov/vuln/detail/${vulnerability.cve_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 font-bold text-slate-950 underline decoration-indigo-200 underline-offset-4 transition-colors hover:text-indigo-700"
+                        >
+                          {vulnerability.cve_id}
+                          <ExternalLink className="h-3 w-3 text-slate-300" />
+                        </a>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase ${getSeverityStyle(vulnerability.severity)}`}>
+                            {vulnerability.severity}
+                          </span>
+                          <span className="font-bold text-slate-900">{vulnerability.cvss_score || "0.0"}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-xs leading-relaxed text-slate-500" title={vulnerability.description}>
+                        <p className="line-clamp-2">{vulnerability.description || "Sem descrição disponível."}</p>
+                        {!vulnerability.has_mitigation && (
+                          <p className="mt-2 font-bold text-amber-700">Sem mitigação registada.</p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <QualityBadge label="CVSS" ok={Boolean(vulnerability.has_cvss)} />
+                          <QualityBadge label="EPSS" ok={Boolean(vulnerability.has_epss)} />
+                          <QualityBadge label="NVD" ok={Boolean(vulnerability.has_nvd)} />
+                          <QualityBadge label={vulnerability.is_in_kev ? "KEV" : "KEV check"} ok={Boolean(vulnerability.has_kev_check)} emphatic={Boolean(vulnerability.is_in_kev)} />
+                          <QualityBadge label="Mitigação" ok={Boolean(vulnerability.has_mitigation)} />
+                        </div>
+                        <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                          EPSS: {(asNumber(vulnerability.epss_score) * 100).toFixed(1)}%
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-2 text-xs font-bold text-slate-900 shadow-sm">
+                            {vulnerability.affected_assets_count || assets.length || 0}
+                          </span>
+                          {assets.length > 0 ? (
+                            <div className="max-w-[240px] space-y-1">
+                              {assets.slice(0, 2).map((asset) => (
+                                <Link
+                                  key={asset.occurrence_id || asset.asset_id}
+                                  to={`/assets/inventory/${asset.asset_id}`}
+                                  className="block rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700"
+                                  title={[asset.asset_ip, asset.status, asset.software_name].filter(Boolean).join(" · ")}
+                                >
+                                  <span className="block truncate">{asset.asset_name || "Ativo"}</span>
+                                  <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                    {[asset.asset_ip, asset.status].filter(Boolean).join(" · ") || "Ocorrência registada"}
+                                  </span>
+                                </Link>
+                              ))}
+                              {assets.length > 2 ? (
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                  +{assets.length - 2} ativos
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-slate-400">Sem ativos</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

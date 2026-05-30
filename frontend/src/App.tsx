@@ -44,10 +44,9 @@ const Assistant = React.lazy(() => import("@/pages/Assistant"));
 const ComplianceGaps = React.lazy(() => import("@/pages/ComplianceGaps"));
 const ControlMappings = React.lazy(() => import("@/pages/ControlMappings"));
 const GovernanceDashboard = React.lazy(() => import("@/pages/governance/GovernanceDashboard"));
-const GovernanceWorkbench = React.lazy(() => import("@/pages/governance/GovernanceWorkbench"));
-const GovernanceHealth = React.lazy(() => import("@/pages/governance/GovernanceHealth"));
 const GovernanceEvaluation = React.lazy(() => import("@/pages/governance/GovernanceEvaluation"));
 const ComplianceDrift = React.lazy(() => import("@/pages/governance/ComplianceDrift"));
+const TraceabilityExplorer = React.lazy(() => import("@/pages/governance/TraceabilityExplorer"));
 const GovernanceExceptions = React.lazy(() => import("@/pages/governance/GovernanceExceptions"));
 const ResidualRiskMappings = React.lazy(() => import("@/pages/governance/ResidualRiskMappings"));
 const GovernanceActionPlan = React.lazy(() => import("@/pages/governance/GovernanceActionPlan"));
@@ -169,7 +168,7 @@ export default function App() {
             <Route path="/decision-records" element={<DecisionRecords />} />
             <Route path="/recommendation-history" element={<RecommendationHistory />} />
             <Route path="/vulnerabilities" element={<Vulnerabilities />} />
-            <Route path="/compliance" element={<FrameworkView />} />
+            <Route path="/compliance" element={<Navigate to="/catalogs/frameworks" replace />} />
             <Route path="/catalogs/frameworks" element={<FrameworkView />} />
             <Route path="/catalogs/frameworks/:id" element={<FrameworkControlsCatalog />} />
             <Route path="/compliance-mapping" element={<ControlMappings />} />
@@ -194,10 +193,11 @@ export default function App() {
 
             {/* Governance Routes */}
             <Route path="/governance" element={<GovernanceDashboard />} />
-            <Route path="/governance/workbench" element={<GovernanceWorkbench />} />
-            <Route path="/governance/health" element={<GovernanceHealth />} />
+            <Route path="/governance/workbench" element={<Navigate to="/mission-control?mode=operational" replace />} />
+            <Route path="/governance/health" element={<Navigate to="/catalogs/frameworks" replace />} />
             <Route path="/governance/evaluation" element={<GovernanceEvaluation />} />
             <Route path="/governance/drift" element={<ComplianceDrift />} />
+            <Route path="/governance/traceability" element={<TraceabilityExplorer />} />
             <Route path="/governance/exceptions" element={<GovernanceExceptions />} />
             <Route path="/governance/residual-risk-mappings" element={<ResidualRiskMappings />} />
             <Route path="/governance/action-plan" element={<GovernanceActionPlan />} />

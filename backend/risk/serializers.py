@@ -387,6 +387,8 @@ class VulnerabilitySerializer(serializers.ModelSerializer):
 
     open_assets_count = serializers.IntegerField(read_only=True)
 
+    affected_assets = serializers.SerializerMethodField()
+
     
 
     class Meta:
@@ -394,6 +396,28 @@ class VulnerabilitySerializer(serializers.ModelSerializer):
         model = Vulnerability
 
         fields = '__all__'
+
+    def get_affected_assets(self, obj):
+        occurrences = (
+            obj.occurrences.select_related('asset', 'software')
+            .exclude(status__in=['False positive'])
+            .order_by('asset__name', '-last_seen')[:20]
+        )
+        return [
+            {
+                'occurrence_id': str(occurrence.id),
+                'asset_id': str(occurrence.asset_id),
+                'asset_name': occurrence.asset.name,
+                'asset_status': occurrence.asset.status,
+                'asset_source': occurrence.asset.source,
+                'asset_ip': occurrence.asset.wazuh_ip,
+                'status': occurrence.status,
+                'software_name': occurrence.software.name if occurrence.software_id else None,
+                'software_version': occurrence.software_version,
+                'last_seen': occurrence.last_seen.isoformat() if occurrence.last_seen else None,
+            }
+            for occurrence in occurrences
+        ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

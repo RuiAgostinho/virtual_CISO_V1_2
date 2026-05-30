@@ -1162,7 +1162,16 @@ export default function EvidenceItemsList() {
                   <td className="px-5 py-4">
                     <GovernanceBadge className={statusTone(item.status)}>{statusLabel(item.status)}</GovernanceBadge>
                   </td>
-                  <td className="px-5 py-4 font-semibold text-slate-600">{item.source || item.external_reference || "-"}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-600">
+                    <div className="flex flex-col gap-1">
+                      <span className="line-clamp-1">{item.file ? (item.original_filename || "Ficheiro anexado") : (item.source || item.external_reference || "-")}</span>
+                      {item.file && (
+                        <GovernanceBadge className="w-fit border-indigo-100 bg-indigo-50 text-indigo-700">
+                          Ficheiro auditável
+                        </GovernanceBadge>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col gap-1">
                       <GovernanceBadge className={validityTone(item)}>{validityLabel(item)}</GovernanceBadge>

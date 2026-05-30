@@ -935,6 +935,7 @@ class RunbookStepSerializer(serializers.ModelSerializer):
 
 class EvidenceItemSerializer(serializers.ModelSerializer):
     legacy_evidence_title = serializers.CharField(source="legacy_evidence.title", read_only=True)
+    uploaded_by_username = serializers.SerializerMethodField()
     links_count = serializers.IntegerField(source="links.count", read_only=True)
     active_links_count = serializers.SerializerMethodField()
     is_expired = serializers.BooleanField(read_only=True)
@@ -949,6 +950,13 @@ class EvidenceItemSerializer(serializers.ModelSerializer):
             "evidence_type",
             "source",
             "file",
+            "original_filename",
+            "file_size",
+            "mime_type",
+            "sha256_hash",
+            "uploaded_by",
+            "uploaded_by_username",
+            "uploaded_at",
             "external_reference",
             "collected_at",
             "valid_until",
@@ -968,6 +976,13 @@ class EvidenceItemSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "created_at",
             "updated_at",
+            "original_filename",
+            "file_size",
+            "mime_type",
+            "sha256_hash",
+            "uploaded_by",
+            "uploaded_by_username",
+            "uploaded_at",
             "legacy_evidence_title",
             "is_expired",
             "is_score_eligible",
@@ -987,6 +1002,11 @@ class EvidenceItemSerializer(serializers.ModelSerializer):
                 EvidenceLink.ValidationStatus.DEPRECATED,
             ]
         ).count()
+
+    def get_uploaded_by_username(self, obj):
+        if not obj.uploaded_by_id:
+            return ""
+        return obj.uploaded_by.get_username()
 
 
 class EvidenceLinkSerializer(serializers.ModelSerializer):

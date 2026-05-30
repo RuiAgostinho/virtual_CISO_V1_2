@@ -17,7 +17,7 @@ function resolveApiBase() {
     }
 }
 
-const API_BASE = resolveApiBase();
+export const API_BASE = resolveApiBase();
 
 
 

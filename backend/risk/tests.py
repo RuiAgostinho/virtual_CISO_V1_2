@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
@@ -170,6 +172,56 @@ class VulnerabilityIntelApiTests(TestCase):
         self.assertFalse(other.is_in_kev)
         self.assertIsNotNone(kev.kev_last_updated)
         self.assertIn("CISA", kev.mitigation)
+
+
+class WazuhSyncCommandTests(TestCase):
+    @patch("risk.management.commands.sync_wazuh_assets.WazuhService")
+    def test_wazuh_asset_sync_creates_onboarding_asset(self, service_cls):
+        service = service_cls.return_value
+        service.get_agents.return_value = [
+            {
+                "id": "001",
+                "name": "srv-core-01",
+                "ip": "10.0.0.10",
+                "os": {"name": "Ubuntu", "version": "22.04"},
+                "node_name": "wazuh-node",
+            }
+        ]
+        service.get_agent_hardware.return_value = {"cpu": {"cores": 4}}
+        service.get_agent_packages.return_value = []
+
+        call_command("sync_wazuh_assets", verbosity=0)
+
+        asset = Asset.objects.get(wazuh_agent_id="001")
+        self.assertEqual(asset.name, "srv-core-01")
+        self.assertEqual(asset.source, "wazuh")
+        self.assertEqual(asset.status, "New")
+        self.assertEqual(asset.wazuh_ip, "10.0.0.10")
+
+    @patch("risk.management.commands.sync_wazuh_vulns.WazuhService")
+    def test_wazuh_vulnerability_sync_links_cve_to_asset(self, service_cls):
+        asset = Asset.objects.create(name="srv-core-01", source="wazuh", status="New", wazuh_agent_id="001")
+        service = service_cls.return_value
+        service.get_vulnerabilities.return_value = [
+            {
+                "agent": {"id": "001"},
+                "vulnerability": {
+                    "id": "CVE-2026-9999",
+                    "severity": "High",
+                    "score": {"base": "8.8"},
+                    "description": "OpenSSL vulnerable package.",
+                    "package": {"name": "openssl", "version": "1.1.1"},
+                },
+            }
+        ]
+
+        call_command("sync_wazuh_vulns", verbosity=0)
+
+        vulnerability = Vulnerability.objects.get(cve_id="CVE-2026-9999")
+        occurrence = AssetVulnerability.objects.get(asset=asset, vulnerability=vulnerability)
+        self.assertEqual(occurrence.status, "Open")
+        self.assertEqual(occurrence.software.name, "openssl")
+        self.assertEqual(asset.vulnerability_occurrences.count(), 1)
 
 
 class VulnerabilityPrioritizationApiTests(TestCase):

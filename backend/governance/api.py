@@ -1,5 +1,6 @@
 from rest_framework import status, viewsets
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -809,6 +810,7 @@ class InternalControlMechanismViewSet(viewsets.ModelViewSet):
 
 class EvidenceItemViewSet(viewsets.ModelViewSet):
     serializer_class = EvidenceItemSerializer
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = {
         "evidence_type": ["exact"],
@@ -818,7 +820,15 @@ class EvidenceItemViewSet(viewsets.ModelViewSet):
         "is_active": ["exact"],
         "legacy_evidence": ["exact"],
     }
-    search_fields = ["title", "description", "source", "external_reference", "owner"]
+    search_fields = [
+        "title",
+        "description",
+        "source",
+        "external_reference",
+        "owner",
+        "original_filename",
+        "sha256_hash",
+    ]
     ordering_fields = [
         "title",
         "evidence_type",
@@ -827,6 +837,8 @@ class EvidenceItemViewSet(viewsets.ModelViewSet):
         "collected_at",
         "valid_until",
         "confidence_level",
+        "uploaded_at",
+        "file_size",
         "is_active",
         "created_at",
         "updated_at",
@@ -836,11 +848,25 @@ class EvidenceItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return (
             EvidenceItem.objects
-            .select_related("legacy_evidence")
+            .select_related("legacy_evidence", "uploaded_by")
             .prefetch_related("links")
             .annotate(links_count=Count("links"))
             .all()
         )
+
+    def perform_create(self, serializer):
+        uploaded_file = self.request.FILES.get("file")
+        if uploaded_file:
+            serializer.save(uploaded_by=request_user_or_none(self.request), uploaded_at=timezone.now())
+            return
+        serializer.save()
+
+    def perform_update(self, serializer):
+        uploaded_file = self.request.FILES.get("file")
+        if uploaded_file:
+            serializer.save(uploaded_by=request_user_or_none(self.request), uploaded_at=timezone.now())
+            return
+        serializer.save()
 
     @action(detail=True, methods=["get"])
     def links(self, request, pk=None):

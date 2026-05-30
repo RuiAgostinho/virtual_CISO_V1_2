@@ -19,8 +19,36 @@ import {
 import { riskApi, type Asset, type AssetVulnerability, type PrioritizedVulnerability } from "@/lib/riskApi";
 import { governanceApi, type ComplianceSummary, type DecisionRecord, type GovernanceAction } from "@/lib/governanceApi";
 import { chatApi, type AssistantHistoryEntry } from "@/lib/chatApi";
+import { request } from "@/lib/api";
 import CisoDecisionFlow from "@/components/ui/CisoDecisionFlow";
 import { buildVulnerabilityOccurrenceUrl } from "@/lib/cisoNavigation";
+
+type WorkbenchSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+type WorkbenchItem = {
+  id: string;
+  category: string;
+  severity: WorkbenchSeverity;
+  title: string;
+  description: string;
+  count: number;
+  href: string;
+  action_label: string;
+};
+
+type WorkbenchPayload = {
+  generated_at: string;
+  metrics: {
+    total_attention: number;
+    critical_categories: number;
+    high_categories: number;
+    pending_review: number;
+    controls_without_mechanisms: number;
+    expired_evidence: number;
+    active_exceptions: number;
+  };
+  work_items: WorkbenchItem[];
+};
 
 type LoadState = {
   assets: Asset[];
@@ -32,6 +60,28 @@ type LoadState = {
   recommendations: AssistantHistoryEntry[];
   policyAdviceRecommendations: AssistantHistoryEntry[];
   residualRisk: Record<string, unknown> | null;
+  governanceWorkbench: WorkbenchPayload | null;
+};
+
+type MissionMetrics = {
+  active: AssetVulnerability[];
+  critical: number;
+  high: number;
+  acceptedOrClosed: number;
+  topPriority?: PrioritizedVulnerability;
+  complianceScore: number;
+  missingControls: number;
+  assistantDecisions: DecisionRecord[];
+  pendingRecommendations: number;
+  pendingPolicyAdvice: number;
+  generalRecommendations: AssistantHistoryEntry[];
+  openMechanismActions: GovernanceAction[];
+  overdueMechanismActions: GovernanceAction[];
+  dueSoonMechanismActions: GovernanceAction[];
+  blockedMechanismActions: GovernanceAction[];
+  residualRiskLinks: number;
+  residualRiskOfficialLinks: number;
+  residualRiskPending: number;
 };
 
 const emptyState: LoadState = {
@@ -44,6 +94,7 @@ const emptyState: LoadState = {
   recommendations: [],
   policyAdviceRecommendations: [],
   residualRisk: null,
+  governanceWorkbench: null,
 };
 
 const severityLabel: Record<string, string> = {
@@ -101,6 +152,22 @@ const residualSourceLabel: Record<string, string> = {
   governance_document: "Documentos",
 };
 
+const workbenchSeverityLabel: Record<WorkbenchSeverity, string> = {
+  critical: "Critico",
+  high: "Alto",
+  medium: "Medio",
+  low: "Baixo",
+  info: "Info",
+};
+
+const workbenchSeverityTone: Record<WorkbenchSeverity, string> = {
+  critical: "border-red-100 bg-red-50 text-red-700",
+  high: "border-orange-100 bg-orange-50 text-orange-700",
+  medium: "border-amber-100 bg-amber-50 text-amber-700",
+  low: "border-sky-100 bg-sky-50 text-sky-700",
+  info: "border-slate-200 bg-white text-slate-600",
+};
+
 function asCount(value: unknown) {
   const numberValue = Number(value || 0);
   return Number.isFinite(numberValue) ? numberValue : 0;
@@ -133,7 +200,7 @@ function dueLabel(value?: string | null) {
   if (days === null) return "Sem prazo";
   if (days < 0) return `${Math.abs(days)} dia(s) em atraso`;
   if (days === 0) return "Hoje";
-  if (days === 1) return "Amanha";
+  if (days === 1) return "Amanhã";
   return `Daqui a ${days} dias`;
 }
 
@@ -198,6 +265,10 @@ function scoreTone(value: number) {
   if (value >= 60) return "text-orange-600";
   if (value >= 40) return "text-amber-600";
   return "text-emerald-600";
+}
+
+function formatCount(value?: number) {
+  return new Intl.NumberFormat("pt-PT").format(Number(value || 0));
 }
 
 function KpiCard({
@@ -330,6 +401,93 @@ function ResidualRiskOverviewPanel({ overview }: { overview: Record<string, unkn
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GovernanceAttentionQueue({ payload }: { payload: WorkbenchPayload | null }) {
+  const items = payload?.work_items || [];
+  const orderedItems = items.slice().sort((a, b) => {
+    const severityWeight: Record<WorkbenchSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+    return (severityWeight[a.severity] ?? 5) - (severityWeight[b.severity] ?? 5);
+  });
+
+  return (
+    <section className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+            <ClipboardCheck className="h-3.5 w-3.5" />
+            Dashboard de decisao GRC
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-slate-950">Fila de atencao do CISO</h2>
+          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
+            Lacunas calculadas diretamente da BD: mappings por validar, controlos sem mecanismos, evidencias vencidas,
+            excecoes e documentos que afetam a rastreabilidade da postura.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Atencao</p>
+            <p className="mt-1 text-2xl font-bold text-slate-950">{formatCount(payload?.metrics.total_attention)}</p>
+          </div>
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-orange-600">Por validar</p>
+            <p className="mt-1 text-2xl font-bold text-orange-700">{formatCount(payload?.metrics.pending_review)}</p>
+          </div>
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Sem mecanismo</p>
+            <p className="mt-1 text-2xl font-bold text-amber-700">{formatCount(payload?.metrics.controls_without_mechanisms)}</p>
+          </div>
+          <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-red-600">Evid. vencidas</p>
+            <p className="mt-1 text-2xl font-bold text-red-700">{formatCount(payload?.metrics.expired_evidence)}</p>
+          </div>
+        </div>
+      </div>
+
+      {!payload ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm font-semibold text-slate-500">
+          A fila de governação não ficou disponível nesta leitura. O restante Mission Control continua operacional.
+        </div>
+      ) : orderedItems.length === 0 ? (
+        <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm font-bold text-emerald-800">
+          Sem lacunas operacionais relevantes para decisão neste momento.
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          {orderedItems.slice(0, 8).map((item) => (
+            <Link
+              key={item.id}
+              to={item.href}
+              className="group flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-indigo-200 hover:bg-indigo-50/60 md:flex-row md:items-center md:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${workbenchSeverityTone[item.severity]}`}>
+                    {workbenchSeverityLabel[item.severity] || item.severity}
+                  </span>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    {item.category}
+                  </span>
+                </div>
+                <h3 className="mt-3 line-clamp-1 text-sm font-bold text-slate-950">{item.title}</h3>
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{item.description}</p>
+              </div>
+              <div className="flex shrink-0 items-center justify-between gap-4 md:min-w-44">
+                <div>
+                  <p className="text-2xl font-bold text-slate-950">{formatCount(item.count)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">registos</p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-indigo-600 group-hover:text-indigo-800">
+                  {item.action_label}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
     </section>
@@ -568,6 +726,138 @@ function MechanismActionList({
   );
 }
 
+function DecisionSupportSidebar({
+  data,
+  metrics,
+  mode,
+}: {
+  data: LoadState;
+  metrics: MissionMetrics;
+  mode: "executive" | "operational";
+}) {
+  const compact = mode === "operational";
+  const titleClass = compact ? "text-lg" : "text-xl";
+  const cardHeaderClass = compact
+    ? "flex items-center justify-between gap-3"
+    : "flex items-center justify-between gap-3 border-b border-slate-100 pb-5";
+  const cardBodyClass = compact ? "mt-5 space-y-3" : "mt-5 space-y-3";
+
+  return (
+    <aside className="space-y-6">
+      {compact && (
+        <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-950">Acoes rapidas</h2>
+          <div className="mt-5 grid gap-3">
+            <Link to={buildVulnerabilityOccurrenceUrl({ status: "Open" })} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+              Ocorrencias abertas <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link to="/compliance-gaps" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+              Desvios de conformidade <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link to="/ciso-assistant" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+              Assistente Virtual CISO <Bot className="h-4 w-4" />
+            </Link>
+            <Link to="/onboarding" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+              Configuracao inicial <Rocket className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-[2rem] border border-violet-100 bg-violet-50 p-6 shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-violet-100 pb-5">
+          <div>
+            {!compact && <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Politicas</p>}
+            <h2 className={`${titleClass} font-bold text-slate-950`}>Gaps IA por validar</h2>
+          </div>
+          <Sparkles className="h-5 w-5 text-violet-500" />
+        </div>
+        <div className={cardBodyClass}>
+          <RecommendationList
+            items={data.policyAdviceRecommendations}
+            emptyMessage="Nao existem analises IA de politicas pendentes."
+          />
+        </div>
+        <Link
+          to="/recommendation-history?context=policy_advice"
+          className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 hover:text-violet-900"
+        >
+          {compact ? "Ver historico" : "Ver historico de analises"} <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+
+      <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+        <div className={cardHeaderClass}>
+          <div>
+            {!compact && <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Assistente</p>}
+            <h2 className={`${titleClass} font-bold text-slate-950`}>Recomendacoes por converter</h2>
+          </div>
+          <Bot className="h-5 w-5 text-slate-300" />
+        </div>
+        <div className={cardBodyClass}>
+          <RecommendationList
+            items={metrics.generalRecommendations}
+            emptyMessage={compact ? "Nao existem recomendacoes pendentes neste momento." : "Nao existem recomendacoes pendentes para validacao humana."}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+        <div className={cardHeaderClass}>
+          <div>
+            {!compact && <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>}
+            <h2 className={`${titleClass} font-bold text-slate-950`}>Decisoes vindas do assistente</h2>
+          </div>
+          <FileCheck2 className="h-5 w-5 text-slate-300" />
+        </div>
+        <div className={cardBodyClass}>
+          <AssistantDecisionList
+            items={metrics.assistantDecisions}
+            emptyMessage={compact ? "Ainda nao ha decisoes convertidas a partir de recomendacoes." : "Ainda nao existem decisoes formalizadas a partir do assistente."}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+        <div className={cardHeaderClass}>
+          <div>
+            {!compact && <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>}
+            <h2 className={`${titleClass} font-bold text-slate-950`}>Ultimas decisoes</h2>
+          </div>
+          <FileCheck2 className="h-5 w-5 text-slate-300" />
+        </div>
+        <div className={cardBodyClass}>
+          <LatestDecisionList items={data.decisions} />
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function GovernanceRiskPanels({
+  data,
+  metrics,
+  generatingMechanismTasks,
+  onGenerateMechanismTasks,
+}: {
+  data: LoadState;
+  metrics: MissionMetrics;
+  generatingMechanismTasks: boolean;
+  onGenerateMechanismTasks: () => void;
+}) {
+  return (
+    <>
+      <ResidualRiskOverviewPanel overview={data.residualRisk} />
+      <GovernanceAttentionQueue payload={data.governanceWorkbench} />
+      <MechanismActionList
+        items={metrics.openMechanismActions}
+        generating={generatingMechanismTasks}
+        onGenerate={onGenerateMechanismTasks}
+      />
+    </>
+  );
+}
+
 export default function MissionControl() {
   const [searchParams] = useSearchParams();
   const [data, setData] = useState<LoadState>(emptyState);
@@ -581,15 +871,30 @@ export default function MissionControl() {
   const dashboardMode =
     requestedMode === "executive" || requestedMode === "operational"
       ? requestedMode
-      : savedMode === "executive"
-        ? "executive"
-        : "operational";
+      : savedMode === "operational"
+        ? "operational"
+        : "executive";
+
+  useEffect(() => {
+    localStorage.setItem("view_mode", dashboardMode);
+  }, [dashboardMode]);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [assetsRes, occRes, prioritiesRes, complianceRes, decisionsRes, mechanismActionsRes, recommendationsRes, policyAdviceRes, residualRiskRes] = await Promise.allSettled([
+      const [
+        assetsRes,
+        occRes,
+        prioritiesRes,
+        complianceRes,
+        decisionsRes,
+        mechanismActionsRes,
+        recommendationsRes,
+        policyAdviceRes,
+        residualRiskRes,
+        workbenchRes,
+      ] = await Promise.allSettled([
         riskApi.listAssets({ page_size: 10000 }),
         riskApi.listVulnerabilityOccurrences({ page_size: 100000 }),
         riskApi.listPrioritizedVulnerabilities({ limit: 6 }),
@@ -599,6 +904,7 @@ export default function MissionControl() {
         chatApi.listHistory({ page_size: 10, converted: false }),
         chatApi.listHistory({ page_size: 5, converted: false, context: "policy_advice" }),
         governanceApi.getResidualRiskOverview("official"),
+        request<WorkbenchPayload>("/api/governance/workbench/overview/"),
       ]);
 
       setData({
@@ -611,6 +917,7 @@ export default function MissionControl() {
         recommendations: recommendationsRes.status === "fulfilled" ? recommendationsRes.value.results || [] : [],
         policyAdviceRecommendations: policyAdviceRes.status === "fulfilled" ? policyAdviceRes.value.results || [] : [],
         residualRisk: residualRiskRes.status === "fulfilled" ? (residualRiskRes.value as Record<string, unknown>) : null,
+        governanceWorkbench: workbenchRes.status === "fulfilled" ? workbenchRes.value : null,
       });
       setLastUpdated(new Date());
     } catch (err: unknown) {
@@ -641,7 +948,7 @@ export default function MissionControl() {
     loadData();
   }, []);
 
-  const metrics = useMemo(() => {
+  const metrics = useMemo<MissionMetrics>(() => {
     const active = data.occurrences.filter((item) => item.status === "Open" || item.status === "In remediation");
     const critical = active.filter((item) => item.severity === "Critical").length;
     const high = active.filter((item) => item.severity === "High").length;
@@ -725,13 +1032,13 @@ export default function MissionControl() {
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-100">
                 <LayoutDashboard className="h-3.5 w-3.5" />
-                Dashboard executivo
+                Densidade executiva
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Postura de ciberseguranca</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Postura de cibersegurança</h1>
                 <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-300">
-                  Visao sintetica para decisao estrategica: risco atual, conformidade, exposicao e decisoes que exigem
-                  atencao do CISO.
+                  Visão sintética para decisão estratégica: risco atual, conformidade, exposição e decisões que exigem
+                  atenção do CISO.
                 </p>
               </div>
             </div>
@@ -740,7 +1047,7 @@ export default function MissionControl() {
                 to="/mission-control?mode=operational"
                 className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-950 transition-all hover:bg-indigo-50"
               >
-                Ver painel operacional <ArrowRight className="h-4 w-4" />
+                Densidade operacional <ArrowRight className="h-4 w-4" />
               </Link>
               <button
                 onClick={loadData}
@@ -753,7 +1060,7 @@ export default function MissionControl() {
           </div>
           {lastUpdated && (
             <p className="mt-5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-              Ultima atualizacao: {lastUpdated.toLocaleString("pt-PT")}
+              Última atualização: {lastUpdated.toLocaleString("pt-PT")}
             </p>
           )}
         </header>
@@ -809,12 +1116,11 @@ export default function MissionControl() {
           />
         </section>
 
-        <ResidualRiskOverviewPanel overview={data.residualRisk} />
-
-        <MechanismActionList
-          items={metrics.openMechanismActions}
-          generating={generatingMechanismTasks}
-          onGenerate={generateMechanismTasks}
+        <GovernanceRiskPanels
+          data={data}
+          metrics={metrics}
+          generatingMechanismTasks={generatingMechanismTasks}
+          onGenerateMechanismTasks={generateMechanismTasks}
         />
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -878,74 +1184,7 @@ export default function MissionControl() {
             </div>
           </div>
 
-          <aside className="space-y-6">
-            <div className="rounded-[2rem] border border-violet-100 bg-violet-50 p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-violet-100 pb-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Politicas</p>
-                  <h2 className="text-xl font-bold text-slate-950">Gaps IA por validar</h2>
-                </div>
-                <Sparkles className="h-5 w-5 text-violet-500" />
-              </div>
-              <div className="mt-5 space-y-3">
-                <RecommendationList
-                  items={data.policyAdviceRecommendations}
-                  emptyMessage="Nao existem analises IA de politicas pendentes."
-                />
-              </div>
-              <Link
-                to="/recommendation-history?context=policy_advice"
-                className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 hover:text-violet-900"
-              >
-                Ver historico de analises <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Assistente</p>
-                  <h2 className="text-xl font-bold text-slate-950">Recomendacoes por converter</h2>
-                </div>
-                <Bot className="h-5 w-5 text-slate-300" />
-              </div>
-              <div className="mt-5 space-y-3">
-                <RecommendationList
-                  items={metrics.generalRecommendations}
-                  emptyMessage="Nao existem recomendacoes pendentes para validacao humana."
-                />
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>
-                  <h2 className="text-xl font-bold text-slate-950">Decisoes vindas do assistente</h2>
-                </div>
-                <FileCheck2 className="h-5 w-5 text-slate-300" />
-              </div>
-              <div className="mt-5 space-y-3">
-                <AssistantDecisionList
-                  items={metrics.assistantDecisions}
-                  emptyMessage="Ainda nao existem decisoes formalizadas a partir do assistente."
-                />
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Governacao</p>
-                  <h2 className="text-xl font-bold text-slate-950">Ultimas decisoes</h2>
-                </div>
-                <FileCheck2 className="h-5 w-5 text-slate-300" />
-              </div>
-              <div className="mt-5 space-y-3">
-                <LatestDecisionList items={data.decisions} />
-              </div>
-            </div>
-          </aside>
+          <DecisionSupportSidebar data={data} metrics={metrics} mode="executive" />
         </section>
       </div>
     );
@@ -961,9 +1200,9 @@ export default function MissionControl() {
               Dashboard operacional
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Decisoes prioritarias de hoje</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">Decisões prioritárias de hoje</h1>
               <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
-                Visao consolidada de risco, vulnerabilidades, conformidade e decisoes humanas registadas.
+                Visão consolidada de risco, vulnerabilidades, conformidade e decisões humanas registadas.
               </p>
             </div>
           </div>
@@ -978,13 +1217,13 @@ export default function MissionControl() {
               to={buildVulnerabilityOccurrenceUrl({ status: "Open" })}
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-indigo-200 hover:text-indigo-700"
             >
-              Ocorrencias abertas
+              Ocorrências abertas
             </Link>
             <Link
               to="/mission-control?mode=executive"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-all hover:border-slate-300 hover:text-slate-950"
             >
-              Visao executiva
+              Densidade executiva
             </Link>
             <button
               onClick={loadData}
@@ -997,7 +1236,7 @@ export default function MissionControl() {
         </div>
         {lastUpdated && (
           <p className="mt-4 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-            Ultima atualizacao: {lastUpdated.toLocaleString("pt-PT")}
+            Última atualização: {lastUpdated.toLocaleString("pt-PT")}
           </p>
         )}
       </header>
@@ -1055,12 +1294,11 @@ export default function MissionControl() {
         />
       </section>
 
-      <ResidualRiskOverviewPanel overview={data.residualRisk} />
-
-      <MechanismActionList
-        items={metrics.openMechanismActions}
-        generating={generatingMechanismTasks}
-        onGenerate={generateMechanismTasks}
+      <GovernanceRiskPanels
+        data={data}
+        metrics={metrics}
+        generatingMechanismTasks={generatingMechanismTasks}
+        onGenerateMechanismTasks={generateMechanismTasks}
       />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -1130,80 +1368,7 @@ export default function MissionControl() {
           </div>
         </div>
 
-        <aside className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-950">Acoes rapidas</h2>
-            <div className="mt-5 grid gap-3">
-              <Link to={buildVulnerabilityOccurrenceUrl({ status: "Open" })} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Ocorrencias abertas <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link to="/compliance-gaps" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Desvios de conformidade <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link to="/ciso-assistant" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Assistente Virtual CISO <Bot className="h-4 w-4" />
-              </Link>
-              <Link to="/onboarding" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
-                Configuracao inicial <Rocket className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-950">Gaps IA de politicas</h2>
-              <Sparkles className="h-5 w-5 text-violet-500" />
-            </div>
-            <div className="mt-5 space-y-3">
-              <RecommendationList
-                items={data.policyAdviceRecommendations}
-                emptyMessage="Nao existem analises IA de politicas pendentes."
-              />
-            </div>
-            <Link
-              to="/recommendation-history?context=policy_advice"
-              className="mt-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 hover:text-violet-900"
-            >
-              Ver historico <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-950">Recomendacoes por converter</h2>
-              <Bot className="h-5 w-5 text-slate-300" />
-            </div>
-            <div className="mt-5 space-y-3">
-              <RecommendationList
-                items={metrics.generalRecommendations}
-                emptyMessage="Nao existem recomendacoes pendentes neste momento."
-              />
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-950">Decisoes vindas do assistente</h2>
-              <FileCheck2 className="h-5 w-5 text-slate-300" />
-            </div>
-            <div className="mt-5 space-y-3">
-              <AssistantDecisionList
-                items={metrics.assistantDecisions}
-                emptyMessage="Ainda nao ha decisoes convertidas a partir de recomendacoes."
-              />
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-950">Ultimas decisoes</h2>
-              <FileCheck2 className="h-5 w-5 text-slate-300" />
-            </div>
-            <div className="mt-5 space-y-3">
-              <LatestDecisionList items={data.decisions} />
-            </div>
-          </div>
-        </aside>
+        <DecisionSupportSidebar data={data} metrics={metrics} mode="operational" />
       </section>
 
       {metrics.topPriority && (

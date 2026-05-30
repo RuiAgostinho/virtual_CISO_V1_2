@@ -362,10 +362,10 @@ export default function MissionObjectives() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/governance/workbench"
+              to="/mission-control?mode=operational"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-700"
             >
-              Governance Workbench
+              Mission Control
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

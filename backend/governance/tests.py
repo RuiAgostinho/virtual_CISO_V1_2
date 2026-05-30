@@ -1,8 +1,11 @@
+import hashlib
+import tempfile
 from decimal import Decimal
 from datetime import timedelta
 from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -1394,6 +1397,43 @@ class EvidenceItemApiTests(GovernanceTestDataMixin, TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertTrue(EvidenceItem.objects.filter(title="Quarterly audit report").exists())
+
+    def test_upload_evidence_item_stores_auditable_file_metadata(self):
+        content = b"mfa enabled for all privileged accounts\n"
+        upload = SimpleUploadedFile(
+            "mfa-audit.txt",
+            content,
+            content_type="text/plain",
+        )
+
+        with tempfile.TemporaryDirectory() as media_root:
+            with self.settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    "/api/governance/evidence-items/",
+                    {
+                        "title": "MFA audit export",
+                        "description": "Audit artefact with physical evidence.",
+                        "evidence_type": EvidenceItem.EvidenceType.CONFIGURATION_EXPORT,
+                        "source": "IAM",
+                        "confidence_level": "95.00",
+                        "status": EvidenceItem.Status.VALID,
+                        "owner": "Security team",
+                        "file": upload,
+                    },
+                    format="multipart",
+                )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("/media/evidence_items/", response.data["file"])
+        self.assertEqual(response.data["original_filename"], "mfa-audit.txt")
+        self.assertEqual(response.data["file_size"], len(content))
+        self.assertEqual(response.data["mime_type"], "text/plain")
+        self.assertEqual(response.data["sha256_hash"], hashlib.sha256(content).hexdigest())
+        self.assertEqual(response.data["uploaded_by"], self.user.id)
+        self.assertEqual(response.data["uploaded_by_username"], self.user.get_username())
+
+        evidence = EvidenceItem.objects.get(title="MFA audit export")
+        self.assertTrue(evidence.file.name.startswith("evidence_items/"))
 
     def test_evidence_item_confidence_level_must_be_between_zero_and_one_hundred(self):
         response = self.client.post(

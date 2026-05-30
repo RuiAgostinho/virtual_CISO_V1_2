@@ -1,4 +1,7 @@
+import hashlib
+import mimetypes
 import uuid
+from pathlib import Path
 
 from django.apps import apps
 from django.conf import settings
@@ -42,6 +45,18 @@ class EvidenceItem(TimeStampedModel):
     evidence_type = models.CharField(max_length=30, choices=EvidenceType.choices, default=EvidenceType.OTHER)
     source = models.CharField(max_length=255, blank=True)
     file = models.FileField(upload_to="evidence_items/", blank=True, null=True)
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=255, blank=True)
+    sha256_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_evidence_items",
+    )
+    uploaded_at = models.DateTimeField(null=True, blank=True)
     external_reference = models.CharField(max_length=2048, blank=True)
     collected_at = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateField(null=True, blank=True)
@@ -89,6 +104,77 @@ class EvidenceItem(TimeStampedModel):
     @property
     def is_score_eligible(self):
         return self.is_active and self.status == self.Status.VALID and not self.is_expired
+
+    def _file_needs_metadata_refresh(self):
+        if not self.file:
+            return False
+        if not self.pk:
+            return True
+        if not self.original_filename or not self.sha256_hash:
+            return True
+        try:
+            previous = type(self).objects.only("file").get(pk=self.pk)
+        except type(self).DoesNotExist:
+            return True
+        return previous.file.name != self.file.name
+
+    def _calculate_sha256(self):
+        if not self.file:
+            return ""
+
+        current_position = None
+        try:
+            current_position = self.file.tell()
+        except Exception:
+            current_position = None
+
+        try:
+            self.file.seek(0)
+        except Exception:
+            pass
+
+        digest = hashlib.sha256()
+        try:
+            for chunk in self.file.chunks():
+                digest.update(chunk)
+        except Exception:
+            return ""
+        finally:
+            try:
+                self.file.seek(current_position or 0)
+            except Exception:
+                pass
+
+        return digest.hexdigest()
+
+    def refresh_file_metadata(self):
+        if not self.file:
+            self.original_filename = ""
+            self.file_size = None
+            self.mime_type = ""
+            self.sha256_hash = ""
+            return
+
+        self.original_filename = Path(self.file.name).name
+        try:
+            self.file_size = self.file.size
+        except Exception:
+            self.file_size = None
+
+        uploaded_file = getattr(self.file, "file", None)
+        content_type = getattr(uploaded_file, "content_type", "") or ""
+        guessed_type, _encoding = mimetypes.guess_type(self.file.name)
+        self.mime_type = content_type or guessed_type or ""
+        self.sha256_hash = self._calculate_sha256()
+        if not self.uploaded_at:
+            self.uploaded_at = timezone.now()
+
+    def save(self, *args, **kwargs):
+        if self._file_needs_metadata_refresh():
+            self.refresh_file_metadata()
+        elif not self.file:
+            self.refresh_file_metadata()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

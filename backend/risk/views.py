@@ -1,4 +1,7 @@
 import re
+import subprocess
+import sys
+from pathlib import Path
 
 from rest_framework import viewsets, filters, status
 
@@ -7,6 +10,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from django_filters.rest_framework import DjangoFilterBackend
+
+from django.conf import settings
 
 from django.utils import timezone
 
@@ -79,6 +84,16 @@ from .services.risk_engine import RiskEngineService
 
 from .services.prioritization import VulnerabilityPrioritizationService
 from .services.ciso_risk_panel import CisoRiskPanelService
+
+
+def _start_management_command(command_name):
+    manage_py = Path(settings.BASE_DIR) / "manage.py"
+    subprocess.Popen([sys.executable, str(manage_py), command_name], cwd=str(settings.BASE_DIR))
+
+
+def _start_wazuh_sync():
+    _start_management_command("sync_wazuh_assets")
+    _start_management_command("sync_wazuh_vulns")
 
 
 
@@ -287,18 +302,7 @@ class VulnerabilityViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
 
     def sync_wazuh(self, request):
-
-        import subprocess
-
-        import sys
-
-        
-
-        # Inicia a sincronização de background via subprocesses
-
-        subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_assets'])
-
-        subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_vulns'])
+        _start_wazuh_sync()
 
         
 
@@ -1248,20 +1252,7 @@ class AssetViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
 
     def sync_wazuh(self, request):
-
-        import subprocess
-
-        import sys
-
-        
-
-        # Inicia a sincronização de background via subprocesses
-
-        # para não bloquear a chamada da API do frontend.
-
-        subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_assets'])
-
-        subprocess.Popen([sys.executable, 'manage.py', 'sync_wazuh_vulns'])
+        _start_wazuh_sync()
 
         
 

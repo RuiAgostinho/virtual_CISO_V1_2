@@ -136,6 +136,7 @@ export interface Vulnerability {
     remediation_status?: string;
     detected_at?: string;
     affected_assets_count?: number;
+    affected_assets?: ApiRecord[];
     open_assets_count?: number;
     last_seen_date?: string;
 }

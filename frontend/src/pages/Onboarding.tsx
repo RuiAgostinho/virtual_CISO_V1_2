@@ -597,9 +597,9 @@ function buildRecommendedActions(form: InstitutionalOnboardingForm): OnboardingA
 
   add({
     id: "workbench",
-    title: "Abrir Governance Workbench",
-    detail: "Acompanhar gaps, mapeamentos, tarefas e evidências numa fila de trabalho única.",
-    path: "/governance/workbench",
+    title: "Abrir Mission Control",
+    detail: "Acompanhar gaps, mapeamentos, tarefas e evidências na fila operacional consolidada.",
+    path: "/mission-control?mode=operational",
     priority: "medium",
   });
 

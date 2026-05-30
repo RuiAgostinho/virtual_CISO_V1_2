@@ -26,6 +26,7 @@ import {
   GovernanceInfoCard as InfoCard,
   GovernanceSectionCard as SectionCard,
 } from "@/components/governance/GovernancePrimitives";
+import { API_BASE } from "@/lib/api";
 
 type EvidenceRecord = Record<string, any>;
 type EvidenceWorkspaceTab = "overview" | "links" | "impact" | "scoring" | "audit";
@@ -48,6 +49,25 @@ function formatDateTime(value?: string | null) {
 
 function compactText(value?: string | null, fallback = "-") {
   return value && value.trim() ? value : fallback;
+}
+
+function absoluteFileUrl(value?: string | null) {
+  if (!value) return "";
+  if (/^(https?:|blob:|data:)/i.test(value)) return value;
+  return `${API_BASE}${value.startsWith("/") ? value : `/${value}`}`;
+}
+
+function formatBytes(value?: number | string | null) {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "-";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function shortHash(value?: string | null) {
+  if (!value) return "-";
+  return value.length > 18 ? `${value.slice(0, 12)}...${value.slice(-8)}` : value;
 }
 
 function evidenceTypeLabel(type?: string) {
@@ -468,6 +488,8 @@ export default function EvidenceItemDetail() {
     );
   }
 
+  const fileUrl = absoluteFileUrl(evidence.file);
+
   const workspaceTabs: Array<{
     id: EvidenceWorkspaceTab;
     label: string;
@@ -640,10 +662,32 @@ export default function EvidenceItemDetail() {
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Ficheiro</p>
               {evidence.file ? (
-                <a href={evidence.file} className="mt-1 inline-flex items-center gap-2 text-sm font-bold text-indigo-700 hover:text-indigo-900">
-                  <ExternalLink className="h-4 w-4" />
-                  Abrir referência do ficheiro
-                </a>
+                <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+                  <div className="min-w-0 space-y-2">
+                    <p className="break-all text-sm font-bold text-slate-950">
+                      {evidence.original_filename || evidence.file}
+                    </p>
+                    <div className="grid gap-2 text-xs font-semibold text-slate-500 md:grid-cols-3">
+                      <span>Tamanho: {formatBytes(evidence.file_size)}</span>
+                      <span>MIME: {evidence.mime_type || "-"}</span>
+                      <span>Upload: {formatDateTime(evidence.uploaded_at)}</span>
+                    </div>
+                    {evidence.sha256_hash && (
+                      <p className="break-all rounded-lg border border-indigo-100 bg-white px-3 py-2 text-xs font-bold text-indigo-700">
+                        SHA-256: {evidence.sha256_hash}
+                      </p>
+                    )}
+                  </div>
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir ficheiro
+                  </a>
+                </div>
               ) : (
                 <p className="mt-1 text-sm font-semibold text-slate-500">Sem ficheiro associado. A evidência usa fonte ou referência externa.</p>
               )}
@@ -712,6 +756,22 @@ export default function EvidenceItemDetail() {
                 <span>Updated</span>
                 <strong className="text-right text-slate-950">{formatDateTime(evidence.updated_at)}</strong>
               </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Ficheiro original</span>
+                <strong className="max-w-[220px] truncate text-right text-slate-950">{evidence.original_filename || "-"}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Tamanho</span>
+                <strong className="text-right text-slate-950">{formatBytes(evidence.file_size)}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Hash SHA-256</span>
+                <strong className="text-right text-slate-950" title={evidence.sha256_hash || ""}>{shortHash(evidence.sha256_hash)}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Carregado por</span>
+                <strong className="text-right text-slate-950">{evidence.uploaded_by_username || "-"}</strong>
+              </div>
             </div>
           </SectionCard>
         </div>
@@ -735,6 +795,12 @@ export default function EvidenceItemDetail() {
 
           <SectionCard title="Links rapidos" icon={ExternalLink}>
             <div className="space-y-3">
+              {evidence.file && (
+                <a href={fileUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
+                  Abrir ficheiro físico
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
               <a href={`/api/governance/evidence-items/${evidence.id}/links/`} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
                 API de ligações de evidência
                 <ExternalLink className="h-4 w-4" />
