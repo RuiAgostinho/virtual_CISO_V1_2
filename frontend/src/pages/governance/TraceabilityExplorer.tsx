@@ -201,8 +201,14 @@ export default function TraceabilityExplorer() {
   useEffect(() => {
     const queryType = searchParams.get("type") as ExplorerEntityType | null;
     const queryId = searchParams.get("id");
-    if (!queryType || !queryId || !entityTypes.some((item) => item.value === queryType)) return;
+    if (!queryType || !entityTypes.some((item) => item.value === queryType)) return;
     if (entityType !== queryType) setEntityType(queryType);
+    if (!queryId) {
+      setSelected(null);
+      setTraceability(null);
+      setResidualRisk(null);
+      return;
+    }
     setSelected((current) => (
       current?.id === queryId
         ? current

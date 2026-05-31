@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   Bot,
@@ -29,7 +30,7 @@ import AssetFormModal from "@/components/ui/AssetFormModal";
 
 type IntakeTab = "findings" | "assets";
 type WizardStep = "origin" | "context" | "classification" | "ai" | "finish";
-type QuickFilter = "no-owner" | "unclassified";
+type QuickFilter = "no-owner" | "no-type" | "unclassified";
 type OnboardingMetrics = {
   pendingFindings: number;
   onboardingAssets: number;
@@ -223,6 +224,18 @@ function assetWithoutOwner(asset: Asset) {
 
 function assetUnclassified(asset: Asset) {
   return asset.classification_status !== "validated";
+}
+
+function assetWithoutType(asset: Asset) {
+  return !asset.asset_type && !asset.type_name;
+}
+
+function quickFilterFromQuery(value: string | null): QuickFilter | null {
+  const normalized = (value || "").toLowerCase();
+  if (["no-owner", "sem-owner", "sem-responsavel", "sem-responsável"].includes(normalized)) return "no-owner";
+  if (["no-type", "sem-tipo", "sem-tipificacao", "sem-tipificação"].includes(normalized)) return "no-type";
+  if (["unclassified", "sem-classificacao", "sem-classificação"].includes(normalized)) return "unclassified";
+  return null;
 }
 
 function onboardingPriority(asset: Asset) {
@@ -1154,6 +1167,7 @@ function OnboardingWizard({
 }
 
 export default function AssetOnboarding() {
+  const [searchParams] = useSearchParams();
   const [findings, setFindings] = useState<AssetDiscoveryFinding[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1224,6 +1238,7 @@ export default function AssetOnboarding() {
     const lower = search.trim().toLowerCase();
     return assets.filter((asset) => {
       if (quickFilter === "no-owner" && !assetWithoutOwner(asset)) return false;
+      if (quickFilter === "no-type" && !assetWithoutType(asset)) return false;
       if (quickFilter === "unclassified" && !assetUnclassified(asset)) return false;
       if (!lower) return true;
       return [asset.name, asset.wazuh_ip, asset.type_name, asset.category_name, asset.owner, asset.business_owner_name].some((value) => String(value || "").toLowerCase().includes(lower));
@@ -1292,6 +1307,22 @@ export default function AssetOnboarding() {
   const nextAssets = useMemo(() => sortOnboardingBacklog(assets), [assets]);
   const visibleAssetIds = useMemo(() => new Set(visibleAssets.map((asset) => asset.id)), [visibleAssets]);
   const allVisibleSelected = visibleAssets.length > 0 && visibleAssets.every((asset) => selectedIds.has(asset.id));
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    const requestedFilter = quickFilterFromQuery(searchParams.get("filtro") || searchParams.get("filter"));
+    if (requestedTab === "findings") {
+      setTabTouched(true);
+      setQuickFilter(null);
+      setTab("findings");
+      return;
+    }
+    if (requestedTab === "assets" || requestedFilter) {
+      setTabTouched(true);
+      setTab("assets");
+      setQuickFilter(requestedFilter);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (loading || tabTouched) return;

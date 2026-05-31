@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -99,9 +99,10 @@ function progressWidth(count: number, total: number) {
 }
 
 export default function Maturity() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [frameworkScores, setFrameworkScores] = useState<FrameworkScore[]>([]);
-  const [selectedFramework, setSelectedFramework] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedFramework, setSelectedFramework] = useState(() => searchParams.get("framework") || "");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("implementation_status") || "");
   const [gapFilter, setGapFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -342,7 +343,17 @@ export default function Maturity() {
             <select
               value={selectedFramework}
               onChange={(event) => {
-                setSelectedFramework(event.target.value);
+                const nextFramework = event.target.value;
+                setSelectedFramework(nextFramework);
+                setSearchParams((current) => {
+                  const next = new URLSearchParams(current);
+                  if (nextFramework) {
+                    next.set("framework", nextFramework);
+                  } else {
+                    next.delete("framework");
+                  }
+                  return next;
+                });
                 setPage(1);
               }}
               className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -357,7 +368,20 @@ export default function Maturity() {
             <select
               value={statusFilter}
               onChange={(event) => {
-                setStatusFilter(event.target.value);
+                const nextStatus = event.target.value;
+                setStatusFilter(nextStatus);
+                setSearchParams((current) => {
+                  const next = new URLSearchParams(current);
+                  if (selectedFramework) {
+                    next.set("framework", selectedFramework);
+                  }
+                  if (nextStatus) {
+                    next.set("implementation_status", nextStatus);
+                  } else {
+                    next.delete("implementation_status");
+                  }
+                  return next;
+                });
                 setPage(1);
               }}
               className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"

@@ -36,6 +36,19 @@ type WorkbenchItem = {
   action_label: string;
 };
 
+type ProgramWorkItem = WorkbenchItem & {
+  stage: string;
+  stage_label: string;
+  stage_order: number;
+  decision_rationale?: string;
+  traceability_target?: {
+    type: string;
+    id: string;
+    label?: string;
+  } | null;
+  traceability_href?: string;
+};
+
 type WorkbenchPayload = {
   generated_at: string;
   metrics: {
@@ -50,6 +63,92 @@ type WorkbenchPayload = {
   work_items: WorkbenchItem[];
 };
 
+type ProgramStageStatus = "not_started" | "in_progress" | "attention" | "complete";
+
+type ProgramStage = {
+  id: string;
+  order: number;
+  label: string;
+  summary: string;
+  href: string;
+  threshold: number;
+  completeness: number;
+  status: ProgramStageStatus;
+  attention_count: number;
+  severity: WorkbenchSeverity;
+  blocking: boolean;
+  work_item_ids: string[];
+  primary_href: string;
+  primary_action_label: string;
+};
+
+type ProgramFrameworkRef = {
+  id: string;
+  code: string;
+  name: string;
+  version?: string | null;
+};
+
+type ProgramFrameworkMaturity = {
+  framework: ProgramFrameworkRef;
+  total_controls: number;
+  total_assessments: number;
+  controls_without_assessment: number;
+  implemented: number;
+  partial: number;
+  planned: number;
+  not_started: number;
+  score: number;
+  completeness: number;
+  attention_count: number;
+  has_attention: boolean;
+};
+
+type ProgramOverview = {
+  generated_at: string;
+  risk_appetite: string;
+  current_focus: ProgramStage | null;
+  next_action: ProgramWorkItem | null;
+  next_actions: ProgramWorkItem[];
+  stages: ProgramStage[];
+  work_items: ProgramWorkItem[];
+  signals: {
+    assets?: {
+      total_assets?: number;
+      official_assets?: number;
+      onboarding_assets?: number;
+      pending_findings?: number;
+      without_owner?: number;
+      without_type?: number;
+      without_valid_classification?: number;
+    };
+    risk?: {
+      active_occurrences?: number;
+      critical_high?: number;
+      critical?: number;
+      high?: number;
+    };
+    maturity?: {
+      total_controls?: number;
+      total_assessments?: number;
+      controls_without_assessment?: number;
+      not_started?: number;
+      score?: number;
+      frameworks?: ProgramFrameworkMaturity[];
+      frameworks_with_attention?: number;
+      worst_framework?: ProgramFrameworkMaturity | null;
+    };
+    drift?: {
+      total_events?: number;
+      critical?: number;
+      high?: number;
+      control_regressions?: number;
+      asset_exposure_regressions?: number;
+      new_vulnerabilities?: number;
+    };
+  };
+};
+
 type LoadState = {
   assets: Asset[];
   occurrences: AssetVulnerability[];
@@ -61,6 +160,7 @@ type LoadState = {
   policyAdviceRecommendations: AssistantHistoryEntry[];
   residualRisk: Record<string, unknown> | null;
   governanceWorkbench: WorkbenchPayload | null;
+  programOverview: ProgramOverview | null;
 };
 
 type MissionMetrics = {
@@ -95,6 +195,7 @@ const emptyState: LoadState = {
   policyAdviceRecommendations: [],
   residualRisk: null,
   governanceWorkbench: null,
+  programOverview: null,
 };
 
 const severityLabel: Record<string, string> = {
@@ -166,6 +267,20 @@ const workbenchSeverityTone: Record<WorkbenchSeverity, string> = {
   medium: "border-amber-100 bg-amber-50 text-amber-700",
   low: "border-sky-100 bg-sky-50 text-sky-700",
   info: "border-slate-200 bg-white text-slate-600",
+};
+
+const programStatusLabel: Record<ProgramStageStatus, string> = {
+  not_started: "Por iniciar",
+  in_progress: "Em curso",
+  attention: "Atenção",
+  complete: "Concluída",
+};
+
+const programStatusTone: Record<ProgramStageStatus, string> = {
+  not_started: "border-slate-200 bg-slate-50 text-slate-600",
+  in_progress: "border-sky-100 bg-sky-50 text-sky-700",
+  attention: "border-amber-100 bg-amber-50 text-amber-700",
+  complete: "border-emerald-100 bg-emerald-50 text-emerald-700",
 };
 
 function asCount(value: unknown) {
@@ -269,6 +384,10 @@ function scoreTone(value: number) {
 
 function formatCount(value?: number) {
   return new Intl.NumberFormat("pt-PT").format(Number(value || 0));
+}
+
+function formatPercent(value?: number) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
 function KpiCard({
@@ -401,6 +520,314 @@ function ResidualRiskOverviewPanel({ overview }: { overview: Record<string, unkn
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FrameworkMaturityStrip({ maturity }: { maturity?: ProgramOverview["signals"]["maturity"] }) {
+  const frameworks = (maturity?.frameworks || [])
+    .filter((item) => item.total_controls > 0)
+    .sort((a, b) => b.attention_count - a.attention_count || a.score - b.score)
+    .slice(0, 4);
+
+  return (
+    <section className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-[10px] font-bold uppercase text-sky-700">
+            <FileCheck2 className="h-3.5 w-3.5" />
+            Avaliação transversal
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-slate-950">Postura por framework</h2>
+          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
+            A etapa Avaliar olha para todas as frameworks em âmbito e prioriza as que ainda têm controlos por avaliar,
+            avaliações por iniciar ou score abaixo do limiar saudável.
+          </p>
+        </div>
+        <Link
+          to="/maturity"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase text-slate-600 hover:border-sky-200 hover:text-sky-700"
+        >
+          Abrir maturidade <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+
+      {frameworks.length === 0 ? (
+        <p className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+          Ainda não existem frameworks com controlos ativos para avaliar.
+        </p>
+      ) : (
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {frameworks.map((item) => {
+            const score = Math.round(Number(item.score || 0));
+            const scoreTone =
+              score >= 80
+                ? "text-emerald-700"
+                : score >= 50
+                  ? "text-amber-700"
+                  : "text-red-700";
+            return (
+              <Link
+                key={item.framework.id}
+                to={`/maturity?framework=${item.framework.id}`}
+                className="rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-sky-200 hover:bg-sky-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950">
+                      {item.framework.code} {item.framework.version || ""}
+                    </p>
+                    <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{item.framework.name}</p>
+                  </div>
+                  <span className={`text-2xl font-bold ${scoreTone}`}>{score}%</span>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+                  <div
+                    className={score >= 80 ? "h-full bg-emerald-500" : score >= 50 ? "h-full bg-amber-500" : "h-full bg-red-500"}
+                    style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
+                  <span>{formatCount(item.total_controls)} controlos</span>
+                  <span>{formatCount(item.controls_without_assessment)} sem avaliação</span>
+                  <span>{formatCount(item.not_started)} por iniciar</span>
+                  <span>{formatCount(item.attention_count)} em atenção</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProgramStageRibbon({
+  payload,
+  selectedStageId,
+  onSelectStage,
+}: {
+  payload: ProgramOverview | null;
+  selectedStageId: string | null;
+  onSelectStage: (stageId: string) => void;
+}) {
+  if (!payload) {
+    return (
+      <section className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500">
+        A espinha de programa ainda não ficou disponível nesta leitura. A vista operacional continua acessível.
+      </section>
+    );
+  }
+
+  const focusId = payload.current_focus?.id;
+
+  return (
+    <section className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase text-indigo-700">
+            <Rocket className="h-3.5 w-3.5" />
+            Ciclo de programa do CISO
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-slate-950">Fio condutor de trabalho</h2>
+          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
+            Cada etapa é calculada a partir dos dados reais: entrada de ativos, postura por framework, risco, evidência,
+            exceções e decisões. A etapa destacada é a próxima melhor área de foco.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <p className="text-[10px] font-bold uppercase text-slate-400">Foco atual</p>
+          <p className="mt-1 text-lg font-bold text-slate-950">{payload.current_focus?.label || "Programa controlado"}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            {payload.next_action ? payload.next_action.title : "Sem ações pendentes com prioridade."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {payload.stages.map((stage) => {
+          const isFocus = stage.id === focusId;
+          const isSelected = stage.id === selectedStageId;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => onSelectStage(stage.id)}
+              className={`group block rounded-2xl border p-4 text-left transition-all ${
+                isSelected
+                  ? "border-indigo-200 bg-indigo-50 shadow-sm"
+                  : isFocus
+                    ? "border-amber-200 bg-amber-50 shadow-sm"
+                  : stage.status === "complete"
+                    ? "border-emerald-100 bg-white hover:border-emerald-200"
+                    : "border-slate-100 bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50/60"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Etapa {stage.order}</p>
+                  <h3 className="mt-1 text-sm font-bold text-slate-950">{stage.label}</h3>
+                </div>
+                {isSelected ? (
+                  <Target className="h-5 w-5 text-indigo-600" />
+                ) : stage.status === "complete" ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                ) : isFocus ? (
+                  <Target className="h-5 w-5 text-amber-600" />
+                ) : (
+                  <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${programStatusTone[stage.status]}`}>
+                    {programStatusLabel[stage.status]}
+                  </span>
+                )}
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+                <div
+                  className={`h-full rounded-full ${
+                    isSelected ? "bg-indigo-600" : stage.status === "complete" ? "bg-emerald-500" : isFocus ? "bg-amber-500" : "bg-amber-500"
+                  }`}
+                  style={{ width: formatPercent(stage.completeness) }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-slate-700">{formatPercent(stage.completeness)}</span>
+                <span className="text-xs font-semibold text-slate-500">
+                  {stage.attention_count > 0 ? `${formatCount(stage.attention_count)} item(ns)` : "Sem bloqueios"}
+                </span>
+              </div>
+              <p className="mt-3 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{stage.summary}</p>
+              {(isSelected || isFocus) && (
+                <div className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-indigo-700">
+                  {isSelected ? "Ações filtradas abaixo" : stage.primary_action_label}
+                  {isFocus && !isSelected && <ArrowRight className="h-3.5 w-3.5" />}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ProgramActionQueue({
+  payload,
+  selectedStageId,
+  onClearStage,
+}: {
+  payload: ProgramOverview | null;
+  selectedStageId: string | null;
+  onClearStage: () => void;
+}) {
+  const allActions = payload?.next_actions || [];
+  const selectedStage = payload?.stages.find((stage) => stage.id === selectedStageId) || null;
+  const actions = selectedStageId ? allActions.filter((item) => item.stage === selectedStageId) : allActions;
+  const nextAction = actions[0] || (selectedStageId ? null : payload?.next_action);
+
+  return (
+    <section className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase text-amber-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            Próxima melhor ação
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-slate-950">Sequência de trabalho</h2>
+          <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-slate-500">
+            {selectedStage
+              ? `A mostrar ações da etapa ${selectedStage.label}.`
+              : "A lista é ordenada por etapa bloqueante, severidade e volume. Cada ação abre a página certa já no ponto de trabalho."}
+          </p>
+        </div>
+        {(nextAction || selectedStage) && (
+          <div className="flex flex-wrap gap-2">
+            {selectedStage && (
+              <button
+                type="button"
+                onClick={onClearStage}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+              >
+                Ver todas
+              </button>
+            )}
+            {nextAction && (
+              <Link
+                to={nextAction.href}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase text-white hover:bg-indigo-700"
+              >
+                Começar pelo mais crítico <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
+      {!payload ? (
+        <p className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm font-semibold text-slate-500">
+          A sequência de programa não ficou disponível nesta leitura.
+        </p>
+      ) : actions.length === 0 ? (
+        <p className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm font-bold text-emerald-800">
+          {selectedStage
+            ? `A etapa ${selectedStage.label} não tem ações bloqueantes neste momento.`
+            : "Sem ações bloqueantes neste momento. Mantém a vigilância em drift e evidências."}
+        </p>
+      ) : (
+        <div className="mt-5 space-y-3">
+          {actions.slice(0, 6).map((item) => (
+            <div
+              key={item.id}
+              className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-indigo-200 hover:bg-indigo-50/60 md:flex-row md:items-center md:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">
+                    {item.stage_label}
+                  </span>
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${workbenchSeverityTone[item.severity]}`}>
+                    {workbenchSeverityLabel[item.severity] || item.severity}
+                  </span>
+                </div>
+                <h3 className="mt-3 line-clamp-1 text-sm font-bold text-slate-950">{item.title}</h3>
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">{item.description}</p>
+                {item.decision_rationale && (
+                  <p className="mt-3 rounded-xl border border-white bg-white px-3 py-2 text-xs font-semibold leading-relaxed text-slate-600">
+                    <span className="font-bold text-slate-900">Porquê: </span>
+                    {item.decision_rationale}
+                    {item.traceability_target?.label && (
+                      <span className="mt-2 block text-[11px] font-bold text-indigo-700">
+                        Exemplo rastreável: {item.traceability_target.label}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-col gap-3 md:min-w-48">
+                <div>
+                  <p className="text-2xl font-bold text-slate-950">{formatCount(item.count)}</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">registos</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to={item.href}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-indigo-700"
+                  >
+                    {item.action_label}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                  {item.traceability_href && (
+                    <Link
+                      to={item.traceability_href}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+                    >
+                      {item.traceability_target ? "Ver cadeia" : "Ver porquê"}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>
@@ -866,14 +1293,12 @@ export default function MissionControl() {
   const [taskMessage, setTaskMessage] = useState<string | null>(null);
   const [generatingMechanismTasks, setGeneratingMechanismTasks] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [selectedProgramStage, setSelectedProgramStage] = useState<string | null>(null);
   const requestedMode = searchParams.get("mode");
-  const savedMode = localStorage.getItem("view_mode");
   const dashboardMode =
-    requestedMode === "executive" || requestedMode === "operational"
+    requestedMode === "program" || requestedMode === "executive" || requestedMode === "operational"
       ? requestedMode
-      : savedMode === "operational"
-        ? "operational"
-        : "executive";
+      : "program";
 
   useEffect(() => {
     localStorage.setItem("view_mode", dashboardMode);
@@ -894,6 +1319,7 @@ export default function MissionControl() {
         policyAdviceRes,
         residualRiskRes,
         workbenchRes,
+        programRes,
       ] = await Promise.allSettled([
         riskApi.listAssets({ page_size: 10000 }),
         riskApi.listVulnerabilityOccurrences({ page_size: 100000 }),
@@ -905,6 +1331,7 @@ export default function MissionControl() {
         chatApi.listHistory({ page_size: 5, converted: false, context: "policy_advice" }),
         governanceApi.getResidualRiskOverview("official"),
         request<WorkbenchPayload>("/api/governance/workbench/overview/"),
+        request<ProgramOverview>("/api/governance/program/overview/"),
       ]);
 
       setData({
@@ -918,6 +1345,7 @@ export default function MissionControl() {
         policyAdviceRecommendations: policyAdviceRes.status === "fulfilled" ? policyAdviceRes.value.results || [] : [],
         residualRisk: residualRiskRes.status === "fulfilled" ? (residualRiskRes.value as Record<string, unknown>) : null,
         governanceWorkbench: workbenchRes.status === "fulfilled" ? workbenchRes.value : null,
+        programOverview: programRes.status === "fulfilled" ? programRes.value : null,
       });
       setLastUpdated(new Date());
     } catch (err: unknown) {
@@ -1001,6 +1429,15 @@ export default function MissionControl() {
     };
   }, [data]);
 
+  useEffect(() => {
+    if (!data.programOverview) return;
+    if (selectedProgramStage === "all") return;
+    const selectedStillExists = data.programOverview.stages.some((stage) => stage.id === selectedProgramStage);
+    if (!selectedStillExists) {
+      setSelectedProgramStage(data.programOverview.current_focus?.id || null);
+    }
+  }, [data.programOverview, selectedProgramStage]);
+
   if (loading) return <LoadingPanel />;
 
   if (error) {
@@ -1016,6 +1453,147 @@ export default function MissionControl() {
             Tentar novamente
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (dashboardMode === "program") {
+    const program = data.programOverview;
+    const completedStages = program?.stages.filter((stage) => stage.status === "complete").length || 0;
+    const stageCount = program?.stages.length || 8;
+    const assetSignal = program?.signals.assets;
+    const riskSignal = program?.signals.risk;
+    const maturitySignal = program?.signals.maturity;
+    const driftSignal = program?.signals.drift;
+    const activeProgramStage = selectedProgramStage === "all" ? null : selectedProgramStage;
+    const worstFramework = maturitySignal?.worst_framework || null;
+    const frameworksWithAttention = maturitySignal?.frameworks_with_attention || 0;
+    const maturityDetail = worstFramework
+      ? `${frameworksWithAttention} frameworks com atenção. Pior foco: ${worstFramework.framework.code} ${worstFramework.framework.version || ""} com ${Math.round(worstFramework.score || 0)}%.`
+      : `${maturitySignal?.controls_without_assessment || 0} controlos sem avaliação e ${maturitySignal?.not_started || 0} por iniciar.`;
+
+    return (
+      <div className="mx-auto max-w-[1400px] space-y-8 pb-16">
+        <header className="overflow-hidden rounded-[2rem] border border-slate-100 bg-slate-950 p-7 text-white shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase text-indigo-100">
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                Home do programa
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Fio condutor do CISO</h1>
+                <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-300">
+                  A app deixa de ser um conjunto de salas soltas: calcula a etapa atual, a ação seguinte e o motivo
+                  operacional com base nos dados reais da organização.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/mission-control?mode=executive"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-bold uppercase text-slate-950 transition-all hover:bg-indigo-50"
+              >
+                Lente executiva <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/mission-control?mode=operational"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold uppercase text-white transition-all hover:bg-white/10"
+              >
+                Lente operacional
+              </Link>
+              <button
+                onClick={loadData}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold uppercase text-white transition-all hover:bg-white/10"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Atualizar
+              </button>
+            </div>
+          </div>
+          {lastUpdated && (
+            <p className="mt-5 text-[10px] font-bold uppercase text-slate-400">
+              Última atualização: {lastUpdated.toLocaleString("pt-PT")}
+            </p>
+          )}
+        </header>
+
+        {taskMessage && (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+            {taskMessage}
+          </div>
+        )}
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <KpiCard
+            label="Foco atual"
+            value={program?.current_focus?.label || "A calcular"}
+            detail={program?.next_action?.title || "Sem ação bloqueante neste momento."}
+            tone={program?.current_focus?.status === "attention" ? "amber" : "indigo"}
+            icon={Target}
+          />
+          <KpiCard
+            label="Etapas concluídas"
+            value={`${completedStages}/${stageCount}`}
+            detail="Progresso da rubrica do programa, não apenas KPIs isolados."
+            tone={completedStages === stageCount ? "emerald" : "slate"}
+            icon={CheckCircle2}
+          />
+          <KpiCard
+            label="Ativos por integrar"
+            value={assetSignal?.onboarding_assets || 0}
+            detail={`${assetSignal?.without_owner || 0} sem responsável, ${assetSignal?.without_type || 0} sem tipo e ${assetSignal?.without_valid_classification || 0} sem classificação validada.`}
+            tone={(assetSignal?.onboarding_assets || 0) > 0 ? "amber" : "emerald"}
+            icon={Gauge}
+          />
+          <KpiCard
+            label="Risco a priorizar"
+            value={riskSignal?.critical_high || 0}
+            detail={`${riskSignal?.critical || 0} críticas e ${riskSignal?.high || 0} altas em aberto ou remediação.`}
+            tone={(riskSignal?.critical || 0) > 0 ? "red" : (riskSignal?.high || 0) > 0 ? "amber" : "emerald"}
+            icon={ShieldAlert}
+          />
+          <KpiCard
+            label="Maturidade"
+            value={`${Math.round(maturitySignal?.score || 0)}%`}
+            detail={maturityDetail}
+            tone={frameworksWithAttention > 0 ? "amber" : (maturitySignal?.score || 0) >= 80 ? "emerald" : "slate"}
+            icon={FileCheck2}
+          />
+          <KpiCard
+            label="Drift"
+            value={driftSignal?.total_events || 0}
+            detail={`${driftSignal?.control_regressions || 0} regressões de controlo, ${driftSignal?.new_vulnerabilities || 0} vulnerabilidades novas.`}
+            tone={(driftSignal?.critical || 0) > 0 ? "red" : (driftSignal?.high || 0) > 0 ? "amber" : (driftSignal?.total_events || 0) > 0 ? "slate" : "emerald"}
+            icon={AlertTriangle}
+          />
+        </section>
+
+        <FrameworkMaturityStrip maturity={maturitySignal} />
+
+        <ProgramStageRibbon
+          payload={program}
+          selectedStageId={activeProgramStage}
+          onSelectStage={setSelectedProgramStage}
+        />
+
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <ProgramActionQueue
+              payload={program}
+              selectedStageId={activeProgramStage}
+              onClearStage={() => setSelectedProgramStage("all")}
+            />
+          </div>
+          <DecisionSupportSidebar data={data} metrics={metrics} mode="operational" />
+        </section>
+
+        <GovernanceRiskPanels
+          data={data}
+          metrics={metrics}
+          generatingMechanismTasks={generatingMechanismTasks}
+          onGenerateMechanismTasks={generateMechanismTasks}
+        />
       </div>
     );
   }

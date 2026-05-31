@@ -154,7 +154,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Navigate to="/mission-control?mode=executive" replace />} />
+            <Route path="/" element={<Navigate to="/mission-control?mode=program" replace />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/mission-control" element={<MissionControl />} />
             <Route path="/maturity" element={<Maturity />} />
@@ -193,7 +193,7 @@ export default function App() {
 
             {/* Governance Routes */}
             <Route path="/governance" element={<GovernanceDashboard />} />
-            <Route path="/governance/workbench" element={<Navigate to="/mission-control?mode=operational" replace />} />
+            <Route path="/governance/workbench" element={<Navigate to="/mission-control?mode=program" replace />} />
             <Route path="/governance/health" element={<Navigate to="/catalogs/frameworks" replace />} />
             <Route path="/governance/evaluation" element={<GovernanceEvaluation />} />
             <Route path="/governance/drift" element={<ComplianceDrift />} />
@@ -246,7 +246,7 @@ export default function App() {
 
           </Route>
 
-          <Route path="*" element={<Navigate to="/mission-control?mode=executive" replace />} />
+          <Route path="*" element={<Navigate to="/mission-control?mode=program" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -59,7 +59,7 @@ export const sidebarData: NavGroup[] = [
     title: "Painel",
     icon: Rocket,
     items: [
-      { title: "Mission Control", path: "/mission-control?mode=executive", icon: LayoutDashboard, accent: true },
+      { title: "Mission Control", path: "/mission-control?mode=program", icon: LayoutDashboard, accent: true },
       { title: "Configuração inicial", path: "/onboarding", icon: Rocket },
     ],
   },

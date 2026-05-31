@@ -44,6 +44,7 @@ from .views_traceability import (
     traceability_policy,
 )
 from .views_workbench import workbench_overview
+from .views_program import program_overview
 from .views_drift import drift_demo_regression, drift_overview, drift_snapshot_current
 from .views_governance_health import governance_health_overview
 from .views_evidence_overview import mechanism_evidence_overview
@@ -104,6 +105,11 @@ urlpatterns = [
         "workbench/overview/",
         workbench_overview,
         name="workbench-overview",
+    ),
+    path(
+        "program/overview/",
+        program_overview,
+        name="program-overview",
     ),
     path(
         "drift/overview/",
