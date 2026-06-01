@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from governance.models import (
+    DecisionRecord,
     EvidenceItem,
     EvidenceLink,
     GovernanceRiskLink,
@@ -15,7 +16,14 @@ from governance.models import (
     Mechanism,
 )
 from governance.services.residual_risk_service import GovernanceResidualRiskService
-from risk.models import Asset, AssetClassificationReview, AssetVulnerability, Vulnerability
+from risk.models import (
+    Asset,
+    AssetClassificationReview,
+    AssetVulnerability,
+    PriorityFeatureSnapshot,
+    PriorityModelConfig,
+    Vulnerability,
+)
 from risk.models import Risk
 from risk.services.intel_service import IntelService
 from risk.services.prioritization import VulnerabilityPrioritizationService
@@ -260,6 +268,10 @@ class VulnerabilityPrioritizationApiTests(TestCase):
         self.assertTrue(item["contribution_breakdown"])
         self.assertTrue(item["recommended_action"])
         self.assertIn("has_epss", item["data_quality"])
+        snapshot = PriorityFeatureSnapshot.objects.get()
+        self.assertEqual(snapshot.estimator_key, "weighted_v1")
+        self.assertIn("epss", snapshot.feature_vector)
+        self.assertEqual(snapshot.outcome_label, "open")
 
     def test_prioritized_endpoint_marks_xgboost_as_experimental(self):
         asset = Asset.objects.create(name="Servidor QA")
@@ -279,6 +291,88 @@ class VulnerabilityPrioritizationApiTests(TestCase):
         self.assertEqual(response.data[0]["model_mode"], "xgboost_experimental")
         self.assertFalse(response.data[0]["experimental_model"]["enabled"])
         self.assertEqual(response.data[0]["experimental_model"]["current_ml_signal"], "EPSS")
+
+    def test_prioritized_endpoint_accepts_xgboost_shap_but_falls_back_until_ready(self):
+        asset = Asset.objects.create(name="Servidor aplicacional")
+        vulnerability = Vulnerability.objects.create(
+            cve_id="CVE-2026-1002",
+            severity="High",
+            cvss_score="8.0",
+            epss_score="0.1000",
+        )
+        AssetVulnerability.objects.create(asset=asset, vulnerability=vulnerability)
+
+        response = self.client.get("/api/risk/vulnerability-occurrences/prioritized/?mode=xgboost_shap")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]["model_mode"], "explainable_weighted")
+        self.assertFalse(response.data[0]["experimental_model"]["enabled"])
+        self.assertIn("readiness", response.data[0]["experimental_model"])
+
+    def test_priority_model_config_reports_xgboost_readiness_gate(self):
+        response = self.client.get("/api/risk/priority-model-config/current/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["mode"], PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED)
+        self.assertFalse(response.data["readiness"]["ready"])
+        self.assertEqual(response.data["readiness"]["current_ml_signal"], "EPSS")
+        self.assertIn("xgboost_shap", [item["value"] for item in response.data["supported_modes"]])
+
+    def test_priority_model_config_blocks_xgboost_activation_without_history(self):
+        config = PriorityModelConfig.get_config()
+
+        response = self.client.patch(
+            f"/api/risk/priority-model-config/{config.id}/",
+            {"mode": PriorityModelConfig.Mode.XGBOOST_SHAP},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("mode", response.data)
+
+    def test_priority_model_mode_change_creates_decision_record(self):
+        config = PriorityModelConfig.get_config()
+        PriorityModelConfig.objects.filter(pk=config.pk).update(
+            mode=PriorityModelConfig.Mode.XGBOOST_SHAP,
+            active_model_version="xgb-test",
+            artifact_path="/tmp/xgb-test.joblib",
+            holdout_auc="0.800",
+            holdout_brier="0.120",
+        )
+
+        response = self.client.patch(
+            f"/api/risk/priority-model-config/{config.id}/",
+            {"mode": PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        decision = DecisionRecord.objects.get(target_type="priority_model_config", target_id=str(config.id))
+        self.assertEqual(decision.decision_type, DecisionRecord.DecisionType.RISK)
+        self.assertEqual(decision.decision, DecisionRecord.Decision.ACCEPTED)
+        self.assertIn("Desativação", decision.title)
+        self.assertEqual(decision.score_snapshot["previous_mode"], PriorityModelConfig.Mode.XGBOOST_SHAP)
+        self.assertEqual(decision.score_snapshot["current_mode"], PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED)
+
+    def test_model_explanation_endpoint_returns_auditable_payload(self):
+        asset = Asset.objects.create(name="Portal auditavel")
+        vulnerability = Vulnerability.objects.create(
+            cve_id="CVE-2026-1003",
+            severity="Critical",
+            cvss_score="9.0",
+            epss_score="0.4000",
+        )
+        occurrence = AssetVulnerability.objects.create(asset=asset, vulnerability=vulnerability)
+
+        response = self.client.get(
+            f"/api/risk/vulnerability-occurrences/{occurrence.id}/model-explanation/?mode=xgboost_shap"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["audit"]["target_id"], str(occurrence.id))
+        self.assertEqual(response.data["model"]["requested_mode"], "xgboost_shap")
+        self.assertEqual(response.data["model"]["served_mode"], "explainable_weighted")
+        self.assertTrue(response.data["contribution_breakdown"])
 
     def test_use_case1_demo_seed_prioritizes_critical_exposed_asset_over_qa(self):
         call_command("seed_use_case1_demo", verbosity=0)

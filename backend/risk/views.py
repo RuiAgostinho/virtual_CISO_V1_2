@@ -1,4 +1,5 @@
 import re
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +37,8 @@ from .models.risk import Risk, RiskFactor, RiskAssessment, RiskTreatment
 
 from .models.network_range import NetworkRange
 
+from .models.priority_model import PriorityModelConfig
+
 from .models.asset_lookups import AssetLocation, AssetEnvironment, AssetInfrastructure
 
 from .serializers import (
@@ -65,6 +68,7 @@ from .serializers import (
     AssetInfrastructureSerializer,
 
     RiskConfigurationSerializer,
+    PriorityModelConfigSerializer,
 
     AssetClassificationReviewSerializer,
 
@@ -82,8 +86,11 @@ from .services.intel_service import IntelService
 
 from .services.risk_engine import RiskEngineService
 
-from .services.prioritization import VulnerabilityPrioritizationService
+from .services.prioritization import VulnerabilityPrioritizationService, VulnerabilityScoringEngine
 from .services.ciso_risk_panel import CisoRiskPanelService
+
+
+logger = logging.getLogger(__name__)
 
 
 def _start_management_command(command_name):
@@ -427,7 +434,7 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
             }
 
         mode = request.query_params.get('mode') or 'explainable_weighted'
-        if mode not in {'explainable_weighted', 'xgboost_experimental'}:
+        if mode not in {'explainable_weighted', 'xgboost_experimental', 'xgboost_shap'}:
             return Response({"detail": "Modo de priorização inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
         items = VulnerabilityPrioritizationService.get_top_vulnerabilities(
@@ -491,6 +498,71 @@ class AssetVulnerabilityViewSet(viewsets.ModelViewSet):
         )
 
         return Response(AssetVulnerabilitySerializer(instance).data)
+
+
+    @action(detail=True, methods=['get'], url_path='model-explanation')
+
+    def model_explanation(self, request, pk=None):
+
+        mode = request.query_params.get('mode') or 'explainable_weighted'
+        if mode not in {'explainable_weighted', 'xgboost_experimental', 'xgboost_shap'}:
+            return Response({"detail": "Modo de priorização inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        occurrence = self.get_object()
+        score_data = VulnerabilityScoringEngine.calculate_scores(occurrence, mode=mode)
+        vulnerability = occurrence.vulnerability
+        asset = occurrence.asset
+
+        return Response({
+            "occurrence": {
+                "id": str(occurrence.id),
+                "status": occurrence.status,
+                "source": occurrence.source,
+                "first_detected": occurrence.first_detected,
+                "last_seen": occurrence.last_seen,
+            },
+            "asset": {
+                "id": str(asset.id),
+                "name": asset.name,
+                "criticality": asset.criticality,
+                "classification_status": getattr(asset, "classification_status", None),
+            },
+            "vulnerability": {
+                "id": str(vulnerability.id),
+                "cve_id": vulnerability.cve_id,
+                "severity": vulnerability.severity,
+                "cvss_score": vulnerability.cvss_score,
+                "epss_score": vulnerability.epss_score,
+                "is_in_kev": vulnerability.is_in_kev,
+            },
+            "model": {
+                "requested_mode": mode,
+                "served_mode": score_data.get("model_mode"),
+                "estimator_key": score_data.get("estimator_key"),
+                "model_note": score_data.get("model_note"),
+                "experimental_model": score_data.get("experimental_model", {}),
+            },
+            "scores": {
+                "priority_score": score_data.get("priority_score"),
+                "risk_score": score_data.get("risk_score"),
+                "remediation_score": score_data.get("remediation_score"),
+                "risk_breakdown": score_data.get("risk_breakdown", {}),
+                "remediation_breakdown": score_data.get("remediation_breakdown", {}),
+                "priority_summary": score_data.get("priority_summary"),
+            },
+            "contribution_breakdown": score_data.get("contribution_breakdown", []),
+            "governance_context": score_data.get("governance_context", {}),
+            "audit": {
+                "target_type": "asset_vulnerability",
+                "target_id": str(occurrence.id),
+                "decision_context_url": f"/decisions/{occurrence.id}",
+                "generated_at": timezone.now(),
+                "statement": (
+                    "Explicação auditável do modelo de priorização para esta ocorrência: "
+                    "features, pesos explicáveis/SHAP quando aplicável, score e contexto de governação."
+                ),
+            },
+        })
 
 
 
@@ -1940,3 +2012,121 @@ class RiskConfigurationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(config)
 
         return Response(serializer.data)
+
+
+class PriorityModelConfigViewSet(viewsets.ModelViewSet):
+
+    queryset = PriorityModelConfig.objects.all()
+
+    serializer_class = PriorityModelConfigSerializer
+
+
+    def perform_update(self, serializer):
+
+        previous_mode = serializer.instance.mode if serializer.instance else None
+
+        previous_shadow_mode = serializer.instance.shadow_mode_enabled if serializer.instance else None
+
+        instance = serializer.save()
+
+        self._record_model_decision(previous_mode, previous_shadow_mode, instance)
+
+
+    def _record_model_decision(self, previous_mode, previous_shadow_mode, instance):
+
+        if previous_mode == instance.mode and previous_shadow_mode == instance.shadow_mode_enabled:
+            return
+
+        try:
+            from governance.models.decision import DecisionRecord
+
+            actor = self.request.user.get_username() if self.request.user.is_authenticated else "system"
+            readiness = instance.readiness_snapshot()
+            activated = previous_mode != instance.mode and instance.mode == PriorityModelConfig.Mode.XGBOOST_SHAP
+            deactivated = previous_mode != instance.mode and instance.mode == PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED
+            shadow_changed = previous_shadow_mode != instance.shadow_mode_enabled
+
+            if activated:
+                title = "Ativação governada do XGBoost+SHAP interno"
+                recommendation = "Servir o estimador XGBoost+SHAP interno como modelo oficial de priorização."
+                risk_impact = "A priorização passa a refletir padrões aprendidos dos desfechos históricos da organização."
+                compliance_impact = "A ativação fica registada como decisão auditável com métricas e artefacto aprovados."
+            elif deactivated:
+                title = "Desativação do XGBoost+SHAP interno"
+                recommendation = "Voltar ao modelo ponderado explicável como modelo oficial de priorização."
+                risk_impact = "A priorização volta ao combinador determinístico enquanto se revê o modelo interno."
+                compliance_impact = "A alteração preserva rastreabilidade e evita servir um modelo sem confiança suficiente."
+            elif shadow_changed:
+                title = "Alteração do shadow mode XGBoost+SHAP"
+                recommendation = (
+                    "Ativar comparação paralela do XGBoost+SHAP."
+                    if instance.shadow_mode_enabled
+                    else "Desativar comparação paralela do XGBoost+SHAP."
+                )
+                risk_impact = "O modelo servido não muda; apenas se recolhe evidência comparativa."
+                compliance_impact = "O shadow mode apoia validação controlada antes de ativação oficial."
+            else:
+                return
+
+            DecisionRecord.objects.create(
+                decision_type=DecisionRecord.DecisionType.RISK,
+                target_type="priority_model_config",
+                target_id=str(instance.id),
+                title=title,
+                recommendation=recommendation,
+                rationale=(
+                    f"Modo anterior={previous_mode}; modo atual={instance.mode}; "
+                    f"shadow_mode={instance.shadow_mode_enabled}; artefacto={instance.active_model_version or 'n/d'}."
+                ),
+                source_snapshot=[
+                    {
+                        "source_type": "priority_model_readiness",
+                        "source_ref": f"priority_model_config:{instance.id}",
+                        "content": readiness,
+                    }
+                ],
+                score_snapshot={
+                    "previous_mode": previous_mode,
+                    "current_mode": instance.mode,
+                    "shadow_mode_enabled": instance.shadow_mode_enabled,
+                    "active_model_version": instance.active_model_version,
+                    "trained_at": instance.trained_at.isoformat() if instance.trained_at else None,
+                    "holdout_auc": float(instance.holdout_auc) if instance.holdout_auc is not None else None,
+                    "holdout_brier": float(instance.holdout_brier) if instance.holdout_brier is not None else None,
+                    "readiness": readiness,
+                },
+                decision=DecisionRecord.Decision.ACCEPTED,
+                justification=(
+                    "Alteração de modelo registada automaticamente pelo painel de administração "
+                    "para manter a ativação de IA rastreável e defensável."
+                ),
+                responsible=actor,
+                risk_impact=risk_impact,
+                compliance_impact=compliance_impact,
+                evidence_reference=f"/admin/priority-model#config-{instance.id}",
+                action_reference="priority_model_config_update",
+                decided_by=actor,
+                decided_at=timezone.now(),
+            )
+        except Exception as exc:
+            logger.warning("[PRIORITY_MODEL] DecisionRecord skipped for config %s: %s", instance.id, exc, exc_info=True)
+
+
+    @action(detail=False, methods=['get'])
+
+    def current(self, request):
+
+        config = PriorityModelConfig.get_config()
+
+        serializer = self.get_serializer(config)
+
+        return Response(serializer.data)
+
+
+    @action(detail=False, methods=['get'])
+
+    def readiness(self, request):
+
+        config = PriorityModelConfig.get_config()
+
+        return Response(config.readiness_snapshot())

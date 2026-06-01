@@ -36,6 +36,44 @@ export type IntegrationConfig = ApiRecord & {
     name?: string;
 };
 
+export type PriorityModelConfigMode = "explainable_weighted" | "xgboost_shap";
+export type PriorityModelMode = PriorityModelConfigMode | "xgboost_experimental";
+
+export type PriorityModelReadiness = {
+    feature_snapshots: number;
+    labeled_outcomes: number;
+    review_cycles: number;
+    required_labeled_outcomes: number;
+    required_review_cycles: number;
+    has_active_artifact: boolean;
+    has_quality_metrics: boolean;
+    ready: boolean;
+    blockers: Array<{ code: string; message: string }>;
+    supported_features: string[];
+    current_ml_signal: string;
+    internal_model: string;
+    dependency_status?: Record<string, boolean>;
+};
+
+export type PriorityModelConfig = ApiRecord & {
+    id: number;
+    mode: PriorityModelConfigMode;
+    feature_store_enabled: boolean;
+    shadow_mode_enabled: boolean;
+    min_labeled_outcomes: number;
+    min_review_cycles: number;
+    active_model_version?: string;
+    artifact_path?: string;
+    trained_at?: string | null;
+    holdout_auc?: string | number | null;
+    holdout_brier?: string | number | null;
+    last_training_summary?: ApiRecord;
+    updated_at?: string;
+    readiness: PriorityModelReadiness;
+    supported_modes: Array<{ value: PriorityModelConfigMode; label: string }>;
+    features: string[];
+};
+
 export type OperationResult = ApiRecord & {
     detail: string;
     status: string;
@@ -377,7 +415,7 @@ export interface PrioritizedVulnerability {
     risk_reasons: string[];
     remediation_reasons: string[];
     priority_summary: string;
-    model_mode?: "explainable_weighted" | "xgboost_experimental";
+    model_mode?: PriorityModelMode;
     model_note?: string;
     contribution_breakdown?: Array<{
         code: string;
@@ -407,6 +445,36 @@ export interface PrioritizedVulnerability {
     governance_context?: PrioritizedGovernanceContext;
     experimental_model?: Record<string, unknown>;
 }
+
+export type VulnerabilityModelExplanation = {
+    occurrence: ApiRecord & { id: string; status?: string; source?: string };
+    asset: ApiRecord & { id: string; name?: string; criticality?: string; classification_status?: string };
+    vulnerability: ApiRecord & { id: string; cve_id?: string; severity?: string };
+    model: {
+        requested_mode: PriorityModelMode;
+        served_mode: PriorityModelMode;
+        estimator_key?: string;
+        model_note?: string;
+        experimental_model?: Record<string, unknown>;
+    };
+    scores: {
+        priority_score: number;
+        risk_score: number;
+        remediation_score: number;
+        risk_breakdown?: ApiRecord;
+        remediation_breakdown?: ApiRecord;
+        priority_summary?: string;
+    };
+    contribution_breakdown: NonNullable<PrioritizedVulnerability["contribution_breakdown"]>;
+    governance_context?: PrioritizedGovernanceContext;
+    audit: ApiRecord & {
+        target_type: string;
+        target_id: string;
+        decision_context_url?: string;
+        generated_at?: string;
+        statement?: string;
+    };
+};
 
 export type PrioritizedGovernanceContext = {
     governance_links?: number;
@@ -868,6 +936,21 @@ export const riskApi = {
         });
     },
 
+    async getPriorityModelConfig(): Promise<PriorityModelConfig> {
+        return await request<PriorityModelConfig>('/api/risk/priority-model-config/current/');
+    },
+
+    async updatePriorityModelConfig(id: number, payload: Partial<PriorityModelConfig>): Promise<PriorityModelConfig> {
+        return await request<PriorityModelConfig>(`/api/risk/priority-model-config/${id}/`, {
+            method: "PATCH",
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async getPriorityModelReadiness(): Promise<PriorityModelReadiness> {
+        return await request<PriorityModelReadiness>('/api/risk/priority-model-config/readiness/');
+    },
+
   // Lookup Entities
   listAssetLocations: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-locations/"),
   listAssetEnvironments: () => request<PaginatedResponse<AssetLookup>>("/api/risk/asset-environments/"),
@@ -919,10 +1002,16 @@ export const riskApi = {
     const query = cleanParams(params);
     return request<PrioritizedVulnerability[]>(`/api/risk/vulnerability-occurrences/prioritized/${query ? '?' + query : ''}`);
   },
+  getVulnerabilityModelExplanation: (id: EntityId, mode: PriorityModelMode = "explainable_weighted") =>
+    request<VulnerabilityModelExplanation>(`/api/risk/vulnerability-occurrences/${id}/model-explanation/?${cleanParams({ mode })}`),
 
   // Integration Configs
   listIntegrationConfigs: () => request<IntegrationConfig[]>("/api/integrations/configs/"),
   getIntegrationConfig: (provider: string) => request<IntegrationConfig>(`/api/integrations/configs/${provider}/provider/`),
+  createIntegrationConfig: (payload: Partial<IntegrationConfig> | ApiRecord) => request<IntegrationConfig>("/api/integrations/configs/", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }),
   updateIntegrationConfig: (id: number, payload: Partial<IntegrationConfig> | ApiRecord) => request<IntegrationConfig>(`/api/integrations/configs/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(payload)

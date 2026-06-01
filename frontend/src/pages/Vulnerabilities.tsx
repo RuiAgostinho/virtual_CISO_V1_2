@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -30,7 +30,7 @@ type IntelFilter =
   | "missing_mitigation"
   | "kev";
 
-type SyncKind = "epss" | "nvd" | "kev";
+type SyncKind = "epss" | "nvd";
 
 type AffectedAsset = {
   occurrence_id?: string;
@@ -121,12 +121,17 @@ const filterOptions: Array<{ value: IntelFilter; label: string }> = [
   { value: "kev", label: "CISA KEV" },
 ];
 
+function filterFromQuery(value: string | null): IntelFilter {
+  return filterOptions.some((option) => option.value === value) ? (value as IntelFilter) : "all";
+}
+
 export default function Vulnerabilities() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [vulns, setVulns] = useState<Vulnerability[]>([]);
   const [quality, setQuality] = useState<VulnerabilityIntelQuality | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<IntelFilter>("all");
+  const [filter, setFilter] = useState<IntelFilter>(() => filterFromQuery(searchParams.get("filter")));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<SyncKind | null>(null);
@@ -152,6 +157,10 @@ export default function Vulnerabilities() {
     void loadVulns();
   }, [loadVulns]);
 
+  useEffect(() => {
+    setFilter(filterFromQuery(searchParams.get("filter")));
+  }, [searchParams]);
+
   const runSync = async (kind: SyncKind) => {
     setSyncing(kind);
     setNotice(null);
@@ -160,9 +169,7 @@ export default function Vulnerabilities() {
       const result =
         kind === "epss"
           ? await riskApi.refreshVulnerabilityIntel()
-          : kind === "nvd"
-            ? await riskApi.refreshNvdIntel()
-            : await riskApi.refreshKevIntel();
+          : await riskApi.refreshNvdIntel();
       setNotice(result.detail || result.message || "Sincronização iniciada.");
       await loadVulns();
     } catch (err: unknown) {
@@ -229,14 +236,13 @@ export default function Vulnerabilities() {
               <Shield className="h-4 w-4" />
               {syncing === "nvd" ? "A iniciar..." : "Sync NVD"}
             </button>
-            <button
-              onClick={() => void runSync("kev")}
-              disabled={Boolean(syncing)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+            <Link
+              to="/admin/integrations/kev"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-700 transition-colors hover:bg-red-100"
             >
               <AlertTriangle className="h-4 w-4" />
-              {syncing === "kev" ? "A iniciar..." : "Sync KEV"}
-            </button>
+              CISA KEV
+            </Link>
           </div>
         </div>
       </header>
@@ -343,7 +349,14 @@ export default function Vulnerabilities() {
             </div>
             <select
               value={filter}
-              onChange={(event) => setFilter(event.target.value as IntelFilter)}
+              onChange={(event) => {
+                const nextFilter = event.target.value as IntelFilter;
+                setFilter(nextFilter);
+                const nextParams = new URLSearchParams(searchParams);
+                if (nextFilter === "all") nextParams.delete("filter");
+                else nextParams.set("filter", nextFilter);
+                setSearchParams(nextParams, { replace: true });
+              }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500"
             >
               {filterOptions.map((option) => (

@@ -137,6 +137,8 @@ function SourceCard({ source }: { source: ChatSource }) {
             {source.url && (
                 <a
                     href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
                     className="mt-3 inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50"
                 >
                     Abrir fonte <ExternalLink className="h-3 w-3" />

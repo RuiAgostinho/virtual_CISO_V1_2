@@ -143,6 +143,90 @@ class PrioritizedVulnerabilityDTO:
         return asdict(self)
 
 
+@dataclass
+class PriorityEstimate:
+    risk_score: float
+    remediation_score: float
+    priority_score: float
+    contribution_breakdown: List[Dict[str, Any]]
+    estimator_key: str
+    model_mode: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class PriorityEstimator:
+    key = "base"
+
+    def estimate(
+        self,
+        factors: List[Dict[str, Any]],
+        remediation_breakdown: Dict[str, float],
+        model_mode: str,
+    ) -> PriorityEstimate:
+        raise NotImplementedError
+
+
+class WeightedPriorityEstimator(PriorityEstimator):
+    key = "weighted_v1"
+
+    def estimate(
+        self,
+        factors: List[Dict[str, Any]],
+        remediation_breakdown: Dict[str, float],
+        model_mode: str,
+    ) -> PriorityEstimate:
+        risk_score = round(max(0.0, min(sum(f["contribution"] for f in factors), 100.0)), 2)
+        remediation_score = round(max(0.0, min(sum(remediation_breakdown.values()), 100.0)), 2)
+        priority_score = (
+            (risk_score * PRIORITY_FORMULA_WEIGHTS["risk_ratio"])
+            + (remediation_score * PRIORITY_FORMULA_WEIGHTS["remediation_ratio"])
+        )
+        priority_score = round(max(0.0, min(priority_score, 100.0)), 2)
+        return PriorityEstimate(
+            risk_score=risk_score,
+            remediation_score=remediation_score,
+            priority_score=priority_score,
+            contribution_breakdown=factors,
+            estimator_key=self.key,
+            model_mode=model_mode,
+        )
+
+
+class XgboostShapPriorityEstimator(PriorityEstimator):
+    key = "xgboost_shap"
+
+    def estimate(
+        self,
+        factors: List[Dict[str, Any]],
+        remediation_breakdown: Dict[str, float],
+        model_mode: str,
+    ) -> PriorityEstimate:
+        from risk.services.priority_model import PriorityModelRuntime
+
+        weighted = WeightedPriorityEstimator().estimate(
+            factors,
+            remediation_breakdown,
+            "explainable_weighted",
+        )
+        feature_vector = {
+            factor["code"]: round(float(factor["normalized_score"]) / 100.0, 4)
+            for factor in factors
+        }
+        prediction = PriorityModelRuntime.predict(feature_vector, factors)
+        return PriorityEstimate(
+            risk_score=weighted.risk_score,
+            remediation_score=weighted.remediation_score,
+            priority_score=prediction["priority_score"],
+            contribution_breakdown=prediction["contribution_breakdown"],
+            estimator_key=self.key,
+            model_mode=model_mode,
+            metadata={
+                "model_version": prediction.get("model_version"),
+                "weighted_priority_score": weighted.priority_score,
+            },
+        )
+
+
 class VulnerabilityScoringEngine:
     @staticmethod
     def _clamp(value: float, min_val: float, max_val: float) -> float:
@@ -265,8 +349,6 @@ class VulnerabilityScoringEngine:
                 "Quanto menor a mitigacao validada, maior a prioridade.",
             ),
         ]
-        risk_score = round(cls._clamp(sum(f["contribution"] for f in factors), 0.0, 100.0), 2)
-
         risk_bd = {
             "cvss": cls._contribution(factors, "cvss"),
             "epss": cls._contribution(factors, "epss"),
@@ -288,13 +370,11 @@ class VulnerabilityScoringEngine:
             "patch_actionability": round(patch_comp, 2),
             "age_urgency_bonus": round(age_bonus, 2),
         }
-        remediation_score = round(cls._clamp(sum(remediation_bd.values()), 0.0, 100.0), 2)
-
-        priority_score = (
-            (risk_score * PRIORITY_FORMULA_WEIGHTS["risk_ratio"])
-            + (remediation_score * PRIORITY_FORMULA_WEIGHTS["remediation_ratio"])
-        )
-        priority_score = round(cls._clamp(priority_score, 0.0, 100.0), 2)
+        feature_vector = cls._feature_vector(factors)
+        estimate = cls._estimate_priority(mode, factors, remediation_bd)
+        risk_score = estimate.risk_score
+        remediation_score = estimate.remediation_score
+        priority_score = estimate.priority_score
 
         risk_reasons = cls._risk_reasons(
             safe_cvss,
@@ -313,8 +393,10 @@ class VulnerabilityScoringEngine:
             f"Prioridade baseada em {'ameaca severa' if risk_score > 70 else 'risco moderado'} "
             f"com {'remediacao acionavel' if remediation_score > 50 else 'mitigacao ainda pouco definida'}."
         )
+        experimental_model = cls._experimental_model_note(mode)
+        experimental_model.update(cls._shadow_model_payload(mode, factors, remediation_bd, estimate))
 
-        return {
+        result = {
             "risk_score": risk_score,
             "remediation_score": remediation_score,
             "priority_score": priority_score,
@@ -324,7 +406,7 @@ class VulnerabilityScoringEngine:
             "remediation_reasons": remediation_reasons,
             "priority_summary": priority_summary,
             "derived_exposure": asset_context["exposure_label"],
-            "contribution_breakdown": factors,
+            "contribution_breakdown": estimate.contribution_breakdown,
             "recommended_action": cls._recommended_action(
                 vuln,
                 asset,
@@ -333,12 +415,15 @@ class VulnerabilityScoringEngine:
                 kev_score,
                 governance_context,
             ),
-            "model_mode": "xgboost_experimental" if mode == "xgboost_experimental" else "explainable_weighted",
-            "model_note": cls._model_note(mode),
+            "model_mode": estimate.model_mode,
+            "model_note": cls._model_note(mode, estimate.model_mode),
+            "estimator_key": estimate.estimator_key,
             "data_quality": cls._data_quality(vuln, governance_context),
             "governance_context": governance_context,
-            "experimental_model": cls._experimental_model_note(mode),
+            "experimental_model": experimental_model,
         }
+        cls._record_feature_snapshot(asset_vuln, feature_vector, result)
+        return result
 
     @classmethod
     def _factor(cls, code, label, normalized, weight, raw_value, source, explanation):
@@ -613,24 +698,170 @@ class VulnerabilityScoringEngine:
         return f"{prefix}: investigar correcao para {vuln.cve_id}, definir owner, prazo e evidencia de fecho."
 
     @staticmethod
-    def _model_note(mode):
+    def _feature_vector(factors):
+        return {
+            factor["code"]: round(float(factor["normalized_score"]) / 100.0, 4)
+            for factor in factors
+        }
+
+    @staticmethod
+    def _served_model_mode(mode):
+        if mode == "xgboost_experimental":
+            return "xgboost_experimental"
+        return "explainable_weighted"
+
+    @classmethod
+    def _estimate_priority(cls, mode, factors, remediation_bd):
+        try:
+            from risk.models.priority_model import PriorityModelConfig
+
+            config = PriorityModelConfig.get_config()
+            should_serve_xgboost = (
+                mode == PriorityModelConfig.Mode.XGBOOST_SHAP
+                or (
+                    mode == PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED
+                    and config.mode == PriorityModelConfig.Mode.XGBOOST_SHAP
+                )
+            )
+            if should_serve_xgboost and config.is_xgboost_ready():
+                return XgboostShapPriorityEstimator().estimate(
+                    factors,
+                    remediation_bd,
+                    PriorityModelConfig.Mode.XGBOOST_SHAP,
+                )
+        except Exception as exc:
+            logger.warning("[PRIORITIZATION_ENGINE] XGBoost+SHAP fallback to weighted: %s", exc, exc_info=True)
+
+        served_mode = cls._served_model_mode(mode)
+        return WeightedPriorityEstimator().estimate(factors, remediation_bd, served_mode)
+
+    @classmethod
+    def _shadow_model_payload(cls, mode, factors, remediation_bd, served_estimate):
+        try:
+            from risk.models.priority_model import PriorityModelConfig
+
+            config = PriorityModelConfig.get_config()
+            if (
+                not config.shadow_mode_enabled
+                or served_estimate.model_mode == PriorityModelConfig.Mode.XGBOOST_SHAP
+                or not config.is_xgboost_ready()
+            ):
+                return {}
+
+            shadow = XgboostShapPriorityEstimator().estimate(
+                factors,
+                remediation_bd,
+                PriorityModelConfig.Mode.XGBOOST_SHAP,
+            )
+            return {
+                "shadow_mode": {
+                    "enabled": True,
+                    "model_mode": PriorityModelConfig.Mode.XGBOOST_SHAP,
+                    "model_version": shadow.metadata.get("model_version"),
+                    "priority_score": shadow.priority_score,
+                    "served_priority_score": served_estimate.priority_score,
+                    "delta": round(shadow.priority_score - served_estimate.priority_score, 2),
+                }
+            }
+        except Exception as exc:
+            logger.warning("[PRIORITIZATION_ENGINE] Shadow XGBoost+SHAP skipped: %s", exc, exc_info=True)
+            return {
+                "shadow_mode": {
+                    "enabled": False,
+                    "reason": str(exc),
+                }
+            }
+
+    @classmethod
+    def _record_feature_snapshot(cls, asset_vuln, feature_vector, result):
+        try:
+            from risk.models.priority_model import PriorityFeatureSnapshot, PriorityModelConfig
+
+            config = PriorityModelConfig.get_config()
+            if not config.feature_store_enabled:
+                return
+
+            asset = asset_vuln.asset
+            vulnerability = asset_vuln.vulnerability
+            outcome = PriorityFeatureSnapshot.outcome_from_occurrence(asset_vuln)
+            PriorityFeatureSnapshot.objects.update_or_create(
+                occurrence_key=str(asset_vuln.id),
+                observed_on=now().date(),
+                model_mode=result.get("model_mode", "explainable_weighted"),
+                defaults={
+                    "occurrence": asset_vuln,
+                    "asset": asset,
+                    "asset_key": str(asset.id),
+                    "vulnerability": vulnerability,
+                    "vulnerability_key": str(vulnerability.id),
+                    "estimator_key": result.get("estimator_key", "weighted_v1"),
+                    "feature_vector": feature_vector,
+                    "score_snapshot": {
+                        "risk_breakdown": result.get("risk_breakdown", {}),
+                        "remediation_breakdown": result.get("remediation_breakdown", {}),
+                        "priority_summary": result.get("priority_summary", ""),
+                    },
+                    "contribution_breakdown": result.get("contribution_breakdown", []),
+                    "priority_score": result.get("priority_score", 0.0),
+                    "risk_score": result.get("risk_score", 0.0),
+                    "remediation_score": result.get("remediation_score", 0.0),
+                    **outcome,
+                },
+            )
+        except Exception as exc:
+            logger.warning(
+                "[PRIORITIZATION_ENGINE] Feature snapshot skipped for %s: %s",
+                getattr(asset_vuln, "id", "unknown"),
+                exc,
+                exc_info=True,
+            )
+
+    @staticmethod
+    def _model_note(mode, served_mode=None):
+        if served_mode == "xgboost_shap":
+            return (
+                "Modelo interno XGBoost+SHAP ativo: prioridade aprendida a partir dos desfechos historicos "
+                "da organizacao, com explicacao por valores SHAP."
+            )
         if mode == "xgboost_experimental":
             return (
-                "Modo experimental: sem dataset historico suficiente, o sistema mantem o score ponderado "
-                "explicavel e usa EPSS como sinal preditivo externo. XGBoost/SHAP fica preparado como evolucao."
+                "Modo demonstrativo XGBoost+SHAP: ainda nao e servido como modelo oficial. "
+                "O ranking mostrado continua a ser calculado pelo modelo ponderado explicavel; "
+                "o EPSS e o sinal preditivo externo ativo. XGBoost+SHAP fica preparado para "
+                "ativacao governada quando existir historico suficiente."
             )
-        return "Modelo oficial explainable_weighted: score multidimensional ponderado, auditavel e rastreavel."
+        if mode == "xgboost_shap":
+            return (
+                "XGBoost+SHAP interno pedido, mas ainda nao servido. A ativacao e governada por prontidao: "
+                "historico temporal, artefacto aprovado e metricas holdout. Enquanto isso, "
+                "o score oficial continua ponderado e explicavel."
+            )
+        return "Modelo oficial ponderado explicavel: score multidimensional auditavel e rastreavel."
 
     @staticmethod
     def _experimental_model_note(mode):
-        if mode != "xgboost_experimental":
+        if mode not in {"xgboost_experimental", "xgboost_shap"}:
             return {}
-        return {
+        payload = {
             "enabled": False,
             "reason": "Sem historico real suficiente de exploracao, remediacao e decisao para treinar XGBoost de forma defendivel.",
             "current_ml_signal": "EPSS",
-            "future_extension": "Substituir ou complementar contribuicoes por XGBoost + SHAP quando existir dataset historico.",
+            "future_extension": "Treinar e servir XGBoost + SHAP apenas quando existir dataset historico e aprovacao governada.",
         }
+        if mode == "xgboost_shap":
+            try:
+                from risk.models.priority_model import PriorityModelConfig
+
+                readiness = PriorityModelConfig.get_config().readiness_snapshot()
+                payload["readiness"] = readiness
+                payload["enabled"] = bool(readiness.get("ready"))
+                if readiness.get("blockers"):
+                    payload["reason"] = " ".join(item["message"] for item in readiness["blockers"])
+                else:
+                    payload["reason"] = "XGBoost+SHAP interno pronto para servir com artefacto e metricas aprovadas."
+            except Exception as exc:
+                payload["reason"] = f"Prontidao do XGBoost+SHAP indisponivel: {exc}"
+        return payload
 
 
 class VulnerabilityPrioritizationService:

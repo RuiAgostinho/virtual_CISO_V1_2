@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FileCode2, RefreshCw, Plus, Target, ShieldCheck, FileWarning, Search } from "lucide-react";
 import { governanceApi, type PaginatedResponse, type TechnicalRegulation } from "@/lib/governanceApi";
 
@@ -28,9 +29,12 @@ function statusTone(status?: string) {
 }
 
 export default function TechnicalRegulations() {
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
   const [regulations, setRegulations] = useState<TechnicalRegulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState(searchParam);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +53,18 @@ export default function TechnicalRegulations() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setSearch(searchParam);
+  }, [searchParam]);
+
+  const filteredRegulations = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return regulations;
+    return regulations.filter((reg) =>
+      `${reg.code || ""} ${reg.title || ""} ${reg.description || ""} ${reg.version || ""}`.toLowerCase().includes(term)
+    );
+  }, [regulations, search]);
 
   const metrics = useMemo(() => ({
     total: regulations.length,
@@ -110,6 +126,8 @@ export default function TechnicalRegulations() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Pesquisar normas..."
               className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm font-medium text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all"
             />
@@ -118,7 +136,7 @@ export default function TechnicalRegulations() {
 
         {loading ? (
           <div className="p-12 text-center text-sm font-bold uppercase tracking-wide text-slate-400">A carregar...</div>
-        ) : regulations.length === 0 ? (
+        ) : filteredRegulations.length === 0 ? (
           <div className="p-12 text-center">
             <Target className="mx-auto h-8 w-8 text-slate-300" />
             <p className="mt-4 text-sm font-bold uppercase tracking-wide text-slate-400">Nenhuma norma técnica definida.</p>
@@ -136,7 +154,7 @@ export default function TechnicalRegulations() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {regulations.map((reg) => (
+                {filteredRegulations.map((reg) => (
                   <tr key={reg.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

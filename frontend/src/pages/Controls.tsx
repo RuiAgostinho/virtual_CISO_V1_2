@@ -71,14 +71,20 @@ function normalizeControlRecord(record: Record<string, unknown>): ControlListRec
 export default function Controls() {
   const [searchParams] = useSearchParams();
   const frameworkId = searchParams.get("framework") || undefined;
+  const searchParam = searchParams.get("search") || "";
 
   const [controls, setControls] = useState<ControlListRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParam);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [totalControls, setTotalControls] = useState(0);
+
+  useEffect(() => {
+    setSearch(searchParam);
+    setPage(1);
+  }, [searchParam]);
 
   const load = useCallback(async () => {
     setLoading(true);

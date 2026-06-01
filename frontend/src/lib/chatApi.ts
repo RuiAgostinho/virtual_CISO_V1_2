@@ -18,6 +18,22 @@ export interface ChatSource {
   url?: string | null;
   score?: number;
   snippet?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface KnowledgeSourceDetail extends ChatSource {
+  id: string;
+  source_type_label?: string;
+  content: string;
+  citation?: string;
+  document_label?: string;
+  document_title?: string;
+  article_number?: string;
+  article_title?: string;
+  paragraph_display?: string;
+  page_start?: number | null;
+  page_end?: number | null;
+  source_file?: string;
 }
 
 export interface ChatMessage {
@@ -152,5 +168,9 @@ export const chatApi = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+
+  async getKnowledgeSource(ref: string) {
+    return await request<KnowledgeSourceDetail>(`/api/assistant/knowledge-source/?ref=${encodeURIComponent(ref)}`);
   },
 };

@@ -22,6 +22,7 @@ const AdminAssetTypes = React.lazy(() => import("@/pages/admin/AssetTypes"));
 const AdminSettings = React.lazy(() => import("@/pages/admin/Settings"));
 const AdminLogs = React.lazy(() => import("@/pages/admin/Logs"));
 const AdminRagKnowledgeBase = React.lazy(() => import("@/pages/admin/RagKnowledgeBase"));
+const AdminPriorityModel = React.lazy(() => import("@/pages/admin/PriorityModel"));
 
 const Inventory = React.lazy(() => import("@/pages/assets/Inventory"));
 const AssetDetail = React.lazy(() => import("@/pages/assets/AssetDetail"));
@@ -32,6 +33,7 @@ const Discovery = React.lazy(() => import("@/pages/assets/Discovery"));
 const WazuhIntegration = React.lazy(() => import("@/pages/admin/integrations/Wazuh"));
 const EPSSIntegration = React.lazy(() => import("@/pages/admin/integrations/EPSS"));
 const NISTIntegration = React.lazy(() => import("@/pages/admin/integrations/NIST"));
+const KEVIntegration = React.lazy(() => import("@/pages/admin/integrations/KEV"));
 const NmapIntegration = React.lazy(() => import("@/pages/NmapSettings"));
 const NetworkRanges = React.lazy(() => import("@/pages/NetworkRanges"));
 const NetworkMap = React.lazy(() => import("@/pages/NetworkMap"));
@@ -41,6 +43,7 @@ const Infrastructures = React.lazy(() => import("@/pages/assets/Infrastructures"
 const SoftwareInventory = React.lazy(() => import("@/pages/SoftwareInventory"));
 const SoftwareDetail = React.lazy(() => import("@/pages/SoftwareDetail"));
 const Assistant = React.lazy(() => import("@/pages/Assistant"));
+const KnowledgeSource = React.lazy(() => import("@/pages/KnowledgeSource"));
 const ComplianceGaps = React.lazy(() => import("@/pages/ComplianceGaps"));
 const ControlMappings = React.lazy(() => import("@/pages/ControlMappings"));
 const GovernanceDashboard = React.lazy(() => import("@/pages/governance/GovernanceDashboard"));
@@ -190,6 +193,7 @@ export default function App() {
             <Route path="/assets/software" element={<SoftwareInventory />} />
             <Route path="/assets/software/:id" element={<SoftwareDetail />} />
             <Route path="/ciso-assistant" element={<Assistant />} />
+            <Route path="/knowledge/source" element={<KnowledgeSource />} />
 
             {/* Governance Routes */}
             <Route path="/governance" element={<GovernanceDashboard />} />
@@ -235,11 +239,13 @@ export default function App() {
             <Route path="/admin/integrations/wazuh" element={<WazuhIntegration />} />
             <Route path="/admin/integrations/epss" element={<EPSSIntegration />} />
             <Route path="/admin/integrations/nist" element={<NISTIntegration />} />
+            <Route path="/admin/integrations/kev" element={<KEVIntegration />} />
             <Route path="/admin/integrations/nmap" element={<NmapIntegration />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/roles" element={<AdminRoles />} />
             <Route path="/admin/asset-types" element={<AdminAssetTypes />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/priority-model" element={<AdminPriorityModel />} />
             <Route path="/admin/logs" element={<AdminLogs />} />
             <Route path="/admin/rag" element={<AdminRagKnowledgeBase />} />
             <Route path="/admin/institution" element={<Institution />} />

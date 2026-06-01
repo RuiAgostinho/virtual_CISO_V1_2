@@ -344,6 +344,60 @@ class AssistantRecommendationDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class KnowledgeSourceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        source_ref = (request.query_params.get("ref") or "").strip()
+        source_id = (request.query_params.get("id") or "").strip()
+
+        if source_ref:
+            chunk = KnowledgeChunk.objects.filter(source_ref=source_ref).first()
+        elif source_id.isdigit():
+            chunk = KnowledgeChunk.objects.filter(id=int(source_id)).first()
+        else:
+            return Response(
+                {"detail": "Indica uma referencia de fonte valida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not chunk:
+            return Response({"detail": "Fonte nao encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        metadata = chunk.metadata_json or {}
+        normalized = SourceNormalizer.normalize(
+            {
+                "id": chunk.source_ref,
+                "title": chunk.title,
+                "source_type": chunk.source_type,
+                "source_ref": chunk.source_ref,
+                "content": chunk.chunk_text or chunk.content,
+                "framework": chunk.framework,
+                "control_code": chunk.control_code,
+                "metadata": metadata,
+            }
+        )
+        return Response(
+            {
+                **normalized,
+                "id": str(chunk.id),
+                "source_type_label": chunk.get_source_type_display(),
+                "content": chunk.chunk_text or chunk.content,
+                "metadata": metadata,
+                "citation": metadata.get("citation") or "",
+                "document_label": metadata.get("document_label") or chunk.framework or "",
+                "document_title": metadata.get("document_title") or "",
+                "article_number": metadata.get("article_number") or "",
+                "article_title": metadata.get("article_title") or "",
+                "paragraph_display": metadata.get("paragraph_display") or "",
+                "page_start": metadata.get("page_start"),
+                "page_end": metadata.get("page_end"),
+                "source_file": metadata.get("source_file") or "",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class ConvertAssistantRecommendationView(APIView):
     permission_classes = [IsAuthenticated]
 

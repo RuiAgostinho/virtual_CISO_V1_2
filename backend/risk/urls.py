@@ -15,6 +15,7 @@ from .views import (
     AssetLocationViewSet, AssetEnvironmentViewSet, AssetInfrastructureViewSet,
 
     RiskConfigurationViewSet,
+    PriorityModelConfigViewSet,
 
     AssetClassificationReviewViewSet,
 
@@ -31,6 +32,8 @@ from .views import (
 router = DefaultRouter()
 
 router.register(r'risk-configuration', RiskConfigurationViewSet, basename='risk-configuration')
+
+router.register(r'priority-model-config', PriorityModelConfigViewSet, basename='priority-model-config')
 
 router.register(r'assets', AssetViewSet, basename='asset')
 

@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 import CisoDecisionFlow from "@/components/ui/CisoDecisionFlow";
 import { buildDecisionUrl } from "@/lib/decisionApi";
-import { riskApi, type PrioritizedVulnerability } from "@/lib/riskApi";
+import { riskApi, type PrioritizedVulnerability, type VulnerabilityModelExplanation } from "@/lib/riskApi";
 
-type ModelMode = "explainable_weighted" | "xgboost_experimental";
+type ModelMode = "explainable_weighted" | "xgboost_experimental" | "xgboost_shap";
 type TimeScope = "7d" | "all";
 
 const severityStyles: Record<string, string> = {
@@ -138,6 +138,12 @@ function DataQuality({ item }: { item: PrioritizedVulnerability }) {
 
 function formatStatus(value?: string) {
   return (value || "nao definido").replace(/_/g, " ");
+}
+
+function modelModeLabel(mode?: string) {
+  if (mode === "xgboost_shap") return "XGBoost+SHAP servido";
+  if (mode === "xgboost_experimental") return "XGBoost+SHAP preparado, não servido";
+  return "Modelo ponderado oficial";
 }
 
 function compactNumber(value?: number) {
@@ -334,6 +340,9 @@ export default function RiskPrioritization() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ModelMode>("explainable_weighted");
   const [timeScope, setTimeScope] = useState<TimeScope>("7d");
+  const [modelExplanation, setModelExplanation] = useState<VulnerabilityModelExplanation | null>(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
 
   const loadPrioritization = useCallback(async () => {
     setLoading(true);
@@ -356,6 +365,20 @@ export default function RiskPrioritization() {
   useEffect(() => {
     void loadPrioritization();
   }, [loadPrioritization]);
+
+  const openModelExplanation = async (item: PrioritizedVulnerability) => {
+    setExplanationLoading(true);
+    setExplanationError(null);
+    setModelExplanation(null);
+    try {
+      const response = await riskApi.getVulnerabilityModelExplanation(item.occurrence_id, mode);
+      setModelExplanation(response);
+    } catch (err) {
+      setExplanationError(getErrorMessage(err, "Não foi possível carregar a explicação auditável do modelo."));
+    } finally {
+      setExplanationLoading(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const avgPriority = items.length ? items.reduce((acc, item) => acc + item.priority_score, 0) / items.length : 0;
@@ -397,6 +420,9 @@ export default function RiskPrioritization() {
   const topItems = items.slice(0, 3);
   const queueItems = items.slice(3);
   const modelNote = items[0]?.model_note;
+  const shadowModel = items[0]?.experimental_model?.shadow_mode as
+    | { enabled?: boolean; model_version?: string; priority_score?: number; served_priority_score?: number; delta?: number; reason?: string }
+    | undefined;
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-8 p-8 pb-20">
@@ -419,8 +445,9 @@ export default function RiskPrioritization() {
               onChange={(event) => setMode(event.target.value as ModelMode)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500"
             >
-              <option value="explainable_weighted">Modelo ponderado explicável</option>
-              <option value="xgboost_experimental">XGBoost/SHAP experimental</option>
+              <option value="explainable_weighted">Modelo ponderado oficial</option>
+              <option value="xgboost_experimental">XGBoost+SHAP preparado (não servido)</option>
+              <option value="xgboost_shap">XGBoost+SHAP interno governado</option>
             </select>
             <select
               value={timeScope}
@@ -441,10 +468,23 @@ export default function RiskPrioritization() {
       </header>
 
       {modelNote && (
-        <div className={`rounded-2xl border p-5 text-sm font-semibold shadow-sm ${mode === "xgboost_experimental" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+        <div className={`rounded-2xl border p-5 text-sm font-semibold shadow-sm ${mode === "explainable_weighted" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
           <div className="flex items-start gap-3">
-            {mode === "xgboost_experimental" ? <FlaskConical className="mt-0.5 h-5 w-5" /> : <CheckCircle2 className="mt-0.5 h-5 w-5" />}
+            {mode === "explainable_weighted" ? <CheckCircle2 className="mt-0.5 h-5 w-5" /> : <FlaskConical className="mt-0.5 h-5 w-5" />}
             <p>{modelNote}</p>
+          </div>
+        </div>
+      )}
+
+      {shadowModel?.enabled && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-sm font-semibold text-indigo-800 shadow-sm">
+          <div className="flex items-start gap-3">
+            <FlaskConical className="mt-0.5 h-5 w-5" />
+            <p>
+              Shadow mode ativo: XGBoost+SHAP {shadowModel.model_version} calculou prioridade{" "}
+              {Math.round(shadowModel.priority_score || 0)} para o primeiro item, com desvio{" "}
+              {Number(shadowModel.delta || 0).toFixed(1)} face ao modelo servido.
+            </p>
           </div>
         </div>
       )}
@@ -539,12 +579,21 @@ export default function RiskPrioritization() {
                   <GovernanceTraceabilityPanel item={item} compact />
                 </div>
 
-                <Link
-                  to={buildDecisionUrl(item.occurrence_id)}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-4 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-indigo-700"
-                >
-                  Abrir decisão <ArrowRight className="h-4 w-4" />
-                </Link>
+                <div className="mt-5 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openModelExplanation(item)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 py-3 text-[10px] font-bold uppercase tracking-wide text-indigo-700 transition-colors hover:border-indigo-400 hover:bg-indigo-100"
+                  >
+                    Explicação auditável <Scale className="h-4 w-4" />
+                  </button>
+                  <Link
+                    to={buildDecisionUrl(item.occurrence_id)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 py-4 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-indigo-700"
+                  >
+                    Abrir decisão <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </article>
             ))}
           </section>
@@ -571,7 +620,7 @@ export default function RiskPrioritization() {
                           {item.cve_id}
                         </span>
                         <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                          {item.model_mode}
+                          {modelModeLabel(item.model_mode)}
                         </span>
                       </div>
                       <h4 className="mt-3 text-lg font-bold text-slate-950">{item.asset.name}</h4>
@@ -602,6 +651,13 @@ export default function RiskPrioritization() {
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Ação recomendada</p>
                       <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">{item.recommended_action}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => void openModelExplanation(item)}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-indigo-700 transition-colors hover:border-indigo-400 hover:bg-indigo-100"
+                    >
+                      Explicação auditável <Scale className="h-4 w-4" />
+                    </button>
                     <Link
                       to={buildDecisionUrl(item.occurrence_id)}
                       className="flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-indigo-700"
@@ -616,6 +672,88 @@ export default function RiskPrioritization() {
         </>
       )}
 
+      {(explanationLoading || explanationError || modelExplanation) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">Evidência auditável do modelo</p>
+                <h3 className="mt-1 text-2xl font-bold text-slate-950">
+                  {modelExplanation?.vulnerability.cve_id || "A carregar explicação"}
+                </h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {modelExplanation?.asset.name || "A recolher score, features e contexto de governação."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModelExplanation(null);
+                  setExplanationError(null);
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+              >
+                Fechar
+              </button>
+            </div>
+
+            {explanationLoading && (
+              <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-8 text-center text-sm font-bold uppercase text-slate-400">
+                A carregar explicação...
+              </div>
+            )}
+
+            {explanationError && (
+              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+                {explanationError}
+              </div>
+            )}
+
+            {modelExplanation && !explanationLoading && (
+              <div className="mt-6 space-y-5">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <ScorePill label="Prioridade" value={modelExplanation.scores.priority_score} />
+                  <ScorePill label="Risco" value={modelExplanation.scores.risk_score} />
+                  <ScorePill label="Remediação" value={modelExplanation.scores.remediation_score} />
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Modelo servido</span>
+                    <span className="mt-2 block text-sm font-bold text-slate-900">{modelModeLabel(modelExplanation.model.served_mode)}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm font-semibold text-indigo-800">
+                  {modelExplanation.audit.statement}
+                </div>
+
+                <div className="rounded-xl border border-slate-100 bg-white p-4">
+                  <ContributionBreakdown
+                    item={{
+                      contribution_breakdown: modelExplanation.contribution_breakdown,
+                    } as PrioritizedVulnerability}
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Nota do modelo</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-700">{modelExplanation.model.model_note}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Rastreio</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-700">
+                      Target {modelExplanation.audit.target_type}:{modelExplanation.audit.target_id}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Gerado em {modelExplanation.audit.generated_at ? new Date(modelExplanation.audit.generated_at).toLocaleString("pt-PT") : "n/d"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-6">
         <div className="flex flex-col gap-5 md:flex-row md:items-start">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
@@ -624,9 +762,10 @@ export default function RiskPrioritization() {
           <div>
             <h3 className="text-xl font-bold text-indigo-950">Nota para a dissertação</h3>
             <p className="mt-2 max-w-5xl text-sm font-semibold leading-relaxed text-indigo-800">
-              O modo oficial usa um modelo multidimensional ponderado e explicável. O EPSS é o sinal preditivo externo
-              mais forte nesta fase. XGBoost/SHAP fica disponível como modo experimental conceptual, a ativar quando
-              existir histórico suficiente de vulnerabilidades, decisões, remediações e incidentes para treino robusto.
+              O modo oficial desta demo usa um modelo multidimensional ponderado e explicável. O EPSS é o sinal
+              preditivo externo ativo. O XGBoost+SHAP interno está preparado e governado, mas ainda não deve ser
+              apresentado como modelo servido enquanto não existir histórico suficiente de vulnerabilidades, decisões,
+              remediações e incidentes para treino robusto.
             </p>
           </div>
         </div>

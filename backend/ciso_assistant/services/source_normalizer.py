@@ -1,3 +1,6 @@
+from urllib.parse import quote
+
+
 class SourceNormalizer:
     """
     Converts heterogeneous source payloads into a stable UI/audit contract.
@@ -131,6 +134,40 @@ class SourceNormalizer:
             return None
         return round(1 / (1 + max(distance, 0.0)), 4)
 
+    @staticmethod
+    def _internal_url(source_type: str, source_ref: str, metadata: dict, framework: str | None, control_code: str | None):
+        if not source_ref and not control_code:
+            return None
+
+        if source_type == "internal_control":
+            return f"/governance/traceability?type=internal_control&id={source_ref}"
+        if source_type == "governance_document":
+            return f"/governance/documents/{source_ref}"
+        if source_type == "governance_section":
+            document_id = metadata.get("governance_document_id") or metadata.get("document_id")
+            return f"/governance/documents/{document_id}" if document_id else "/governance/documents"
+        if source_type == "policy_internal_control":
+            return f"/governance/policies/{source_ref}"
+        if source_type == "internal_control_mechanism":
+            mechanism_id = metadata.get("mechanism_id") or source_ref
+            return f"/governance/mechanisms/{mechanism_id}"
+        if source_type == "evidence_item":
+            return f"/governance/evidence/{source_ref}"
+        if source_type == "governance_action":
+            return f"/governance/tasks/{source_ref}"
+        if source_type in {"control", "compliance_gap"}:
+            query = control_code or framework or source_ref
+            return f"/controls?search={quote(str(query))}"
+        if source_type == "framework_mapping":
+            query = control_code or source_ref
+            return f"/governance/mapping-review?search={quote(str(query))}"
+        if source_type == "technical_regulation":
+            if source_ref:
+                return f"/knowledge/source?ref={quote(str(source_ref), safe='')}"
+            query = control_code or metadata.get("article_number") or source_ref
+            return f"/governance/technical-regulations?search={quote(str(query))}"
+        return None
+
     @classmethod
     def source_metadata(cls, source_type: str | None) -> dict:
         key = str(source_type or "unknown")
@@ -212,6 +249,15 @@ class SourceNormalizer:
         for optional_key in ["framework", "control_code", "url", "metadata"]:
             if source.get(optional_key):
                 normalized[optional_key] = source[optional_key]
+
+        if not normalized.get("url"):
+            normalized["url"] = cls._internal_url(
+                str(source_type),
+                str(source_ref),
+                metadata,
+                source.get("framework"),
+                source.get("control_code"),
+            )
 
         return normalized
 

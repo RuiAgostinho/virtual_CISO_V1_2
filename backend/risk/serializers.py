@@ -1,3 +1,5 @@
+import copy
+
 from rest_framework import serializers
 
 from .models.asset import Asset, AssetHistory, AssetCategory, AssetType, RiskConfiguration
@@ -17,6 +19,8 @@ from .models.risk import Risk, RiskFactor, RiskAssessment, RiskTreatment
 
 from .models.network_range import NetworkRange
 
+from .models.priority_model import PriorityFeatureSnapshot, PriorityModelConfig
+
 from .models.asset_lookups import AssetLocation, AssetEnvironment, AssetInfrastructure
 
 from governance.serializers import ControlSerializer
@@ -34,6 +38,82 @@ class RiskConfigurationSerializer(serializers.ModelSerializer):
         model = RiskConfiguration
 
         fields = '__all__'
+
+
+class PriorityModelConfigSerializer(serializers.ModelSerializer):
+    readiness = serializers.SerializerMethodField()
+    supported_modes = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PriorityModelConfig
+        fields = [
+            'id',
+            'mode',
+            'feature_store_enabled',
+            'shadow_mode_enabled',
+            'min_labeled_outcomes',
+            'min_review_cycles',
+            'active_model_version',
+            'artifact_path',
+            'trained_at',
+            'holdout_auc',
+            'holdout_brier',
+            'last_training_summary',
+            'updated_at',
+            'readiness',
+            'supported_modes',
+            'features',
+        ]
+        read_only_fields = (
+            'active_model_version',
+            'artifact_path',
+            'trained_at',
+            'holdout_auc',
+            'holdout_brier',
+            'last_training_summary',
+            'updated_at',
+            'readiness',
+            'supported_modes',
+            'features',
+        )
+
+    def get_readiness(self, obj):
+        return obj.readiness_snapshot()
+
+    def get_supported_modes(self, obj):
+        return [
+            {'value': value, 'label': label}
+            for value, label in PriorityModelConfig.Mode.choices
+        ]
+
+    def get_features(self, obj):
+        return obj.supported_features
+
+    def validate(self, attrs):
+        candidate = copy.copy(self.instance or PriorityModelConfig.get_config())
+        for key, value in attrs.items():
+            setattr(candidate, key, value)
+        if candidate.mode == PriorityModelConfig.Mode.XGBOOST_SHAP and not candidate.is_xgboost_ready():
+            readiness = candidate.readiness_snapshot()
+            blockers = " ".join(item["message"] for item in readiness["blockers"])
+            raise serializers.ValidationError(
+                {
+                    "mode": (
+                        "O XGBoost+SHAP interno ainda nao pode ser ativado. "
+                        f"{blockers}"
+                    ),
+                    "readiness": readiness,
+                }
+            )
+        return attrs
+
+
+class PriorityFeatureSnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriorityFeatureSnapshot
+        fields = '__all__'
+        read_only_fields = [field.name for field in PriorityFeatureSnapshot._meta.fields]
 
 
 
