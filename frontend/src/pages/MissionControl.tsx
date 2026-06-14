@@ -9,6 +9,7 @@ import {
   FileCheck2,
   Gauge,
   LayoutDashboard,
+  Radar,
   RefreshCw,
   Rocket,
   ShieldAlert,
@@ -16,7 +17,7 @@ import {
   Target,
   Wrench,
 } from "lucide-react";
-import { riskApi, type Asset, type AssetVulnerability, type PrioritizedVulnerability } from "@/lib/riskApi";
+import { riskApi, type Asset, type AssetVulnerability, type AttackVectorOverview, type AttackVectorRisk, type PrioritizedVulnerability } from "@/lib/riskApi";
 import { governanceApi, type ComplianceSummary, type DecisionRecord, type GovernanceAction } from "@/lib/governanceApi";
 import { chatApi, type AssistantHistoryEntry } from "@/lib/chatApi";
 import { request } from "@/lib/api";
@@ -161,6 +162,7 @@ type LoadState = {
   residualRisk: Record<string, unknown> | null;
   governanceWorkbench: WorkbenchPayload | null;
   programOverview: ProgramOverview | null;
+  attackVectorOverview: AttackVectorOverview | null;
 };
 
 type MissionMetrics = {
@@ -196,6 +198,7 @@ const emptyState: LoadState = {
   residualRisk: null,
   governanceWorkbench: null,
   programOverview: null,
+  attackVectorOverview: null,
 };
 
 const severityLabel: Record<string, string> = {
@@ -381,6 +384,20 @@ function scoreTone(value: number) {
   if (value >= 40) return "text-amber-600";
   return "text-emerald-600";
 }
+
+const attackVectorLevelLabel: Record<string, string> = {
+  critical: "Crítico",
+  high: "Elevado",
+  medium: "Médio",
+  low: "Baixo",
+};
+
+const attackVectorLevelTone: Record<string, string> = {
+  critical: "border-red-200 bg-red-50 text-red-700",
+  high: "border-orange-200 bg-orange-50 text-orange-700",
+  medium: "border-amber-200 bg-amber-50 text-amber-700",
+  low: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
 
 function formatCount(value?: number) {
   return new Intl.NumberFormat("pt-PT").format(Number(value || 0));
@@ -1153,6 +1170,50 @@ function MechanismActionList({
   );
 }
 
+function AttackVectorTopScenarios({ payload }: { payload: AttackVectorOverview | null }) {
+  const topVectors: AttackVectorRisk[] = payload?.vectors?.slice(0, 3) || [];
+  if (!topVectors.length) return null;
+
+  return (
+    <div className="rounded-[2rem] border border-red-100 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-red-100 pb-5">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-red-600">Complemento prospetivo</p>
+          <h2 className="text-lg font-bold text-slate-950">Top cenários de ameaça</h2>
+        </div>
+        <Radar className="h-5 w-5 text-red-500" />
+      </div>
+      <div className="mt-5 space-y-3">
+        {topVectors.map((vector) => (
+          <Link
+            key={vector.id}
+            to={`/risks/attack-vectors?vector=${encodeURIComponent(vector.id)}&horizon=${payload?.horizon_days || 30}`}
+            className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 hover:border-red-200 hover:bg-red-50/50"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-sm font-bold text-slate-950">{vector.label}</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${attackVectorLevelTone[vector.level] || attackVectorLevelTone.low}`}>
+                    {attackVectorLevelLabel[vector.level] || vector.level}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-slate-500">
+                  {formatCount(vector.counts.affected_assets)} ativos, {formatCount(vector.counts.relevant_occurrences)} ocorrências, confiança {Math.round(vector.confidence.score)}%.
+                </p>
+              </div>
+              <span className={`shrink-0 text-2xl font-bold ${scoreTone(vector.score)}`}>{Math.round(vector.score)}</span>
+            </div>
+          </Link>
+        ))}
+        <Link to="/risks/attack-vectors" className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:border-indigo-200 hover:text-indigo-700">
+          Ver matriz completa <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function DecisionSupportSidebar({
   data,
   metrics,
@@ -1257,6 +1318,7 @@ function DecisionSupportSidebar({
           <LatestDecisionList items={data.decisions} />
         </div>
       </div>
+      <AttackVectorTopScenarios payload={data.attackVectorOverview} />
     </aside>
   );
 }
@@ -1320,6 +1382,7 @@ export default function MissionControl() {
         residualRiskRes,
         workbenchRes,
         programRes,
+        attackVectorRes,
       ] = await Promise.allSettled([
         riskApi.listAssets({ page_size: 10000 }),
         riskApi.listVulnerabilityOccurrences({ page_size: 100000 }),
@@ -1332,6 +1395,7 @@ export default function MissionControl() {
         governanceApi.getResidualRiskOverview("official"),
         request<WorkbenchPayload>("/api/governance/workbench/overview/"),
         request<ProgramOverview>("/api/governance/program/overview/"),
+        riskApi.getAttackVectorOverview(30),
       ]);
 
       setData({
@@ -1346,6 +1410,7 @@ export default function MissionControl() {
         residualRisk: residualRiskRes.status === "fulfilled" ? (residualRiskRes.value as Record<string, unknown>) : null,
         governanceWorkbench: workbenchRes.status === "fulfilled" ? workbenchRes.value : null,
         programOverview: programRes.status === "fulfilled" ? programRes.value : null,
+        attackVectorOverview: attackVectorRes.status === "fulfilled" ? attackVectorRes.value : null,
       });
       setLastUpdated(new Date());
     } catch (err: unknown) {

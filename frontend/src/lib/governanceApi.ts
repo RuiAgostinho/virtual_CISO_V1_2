@@ -744,18 +744,24 @@ export type ComplianceDriftOverview = {
     };
     metrics: {
         total_events: number;
+        negative_events?: number;
+        positive_events?: number;
         critical: number;
         high: number;
         medium: number;
         low: number;
         control_regressions: number;
+        control_improvements?: number;
         asset_exposure_regressions: number;
+        asset_exposure_improvements?: number;
         new_vulnerabilities: number;
         framework_mapping_gaps: number;
     };
     summary: string;
     control_regressions: ComplianceDriftEvent[];
+    control_improvements?: ComplianceDriftEvent[];
     asset_exposure_regressions: ComplianceDriftEvent[];
+    asset_exposure_improvements?: ComplianceDriftEvent[];
     new_vulnerabilities: ComplianceDriftEvent[];
     framework_mapping_gaps: ComplianceDriftEvent[];
     recommendations: string[];
@@ -1302,6 +1308,11 @@ export const governanceApi = {
         }),
     createComplianceDriftDemoRegression: () =>
         request<ComplianceDriftDemoResult>("/api/governance/drift/demo-regression/", {
+            method: "POST",
+            body: JSON.stringify({})
+        }),
+    createComplianceDriftDemoImprovement: () =>
+        request<ComplianceDriftDemoResult>("/api/governance/drift/demo-improvement/", {
             method: "POST",
             body: JSON.stringify({})
         }),

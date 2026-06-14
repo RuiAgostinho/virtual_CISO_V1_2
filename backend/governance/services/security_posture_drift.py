@@ -111,22 +111,78 @@ class SecurityPostureDriftService:
         }
 
     @classmethod
+    def create_demo_improvement(cls, user=None):
+        assessment = (
+            ControlAssessment.objects
+            .select_related("profile", "control", "control__framework")
+            .order_by("control__framework__code", "control__code")
+            .first()
+        )
+        if not assessment:
+            return {
+                "created": False,
+                "message": "Nao existem avaliacoes de controlos para simular melhoria.",
+            }
+
+        snapshot = ControlAssessmentSnapshot.from_assessment(
+            assessment,
+            snapshot_label="Auditoria anterior - melhoria demo",
+            snapshot_type=ControlAssessmentSnapshot.SnapshotType.DEMO,
+            user=user,
+            captured_at=timezone.now(),
+        )
+        snapshot.implementation_status = ControlAssessment.ImplementationStatus.PARTIAL
+        snapshot.maturity_level = 2
+        snapshot.effectiveness = Decimal("0.35")
+        snapshot.risk_residual = Decimal("0.75")
+        snapshot.notes = "Snapshot demo: controlo parcialmente implementado na auditoria anterior."
+        snapshot.save()
+
+        assessment.implementation_status = ControlAssessment.ImplementationStatus.OPTIMIZED
+        assessment.maturity_level = 5
+        assessment.effectiveness = Decimal("0.95")
+        assessment.risk_residual = Decimal("0.10")
+        assessment.notes = (
+            f"{assessment.notes}\n"
+            "Cenario demo de drift: controlo melhorado para testar melhoria de postura."
+        ).strip()
+        assessment.assessed_at = timezone.now()
+        assessment.assessed_by = getattr(user, "username", "") or "frontend_demo_drift"
+        assessment.save()
+
+        return {
+            "created": True,
+            "assessment_id": str(assessment.id),
+            "control_id": str(assessment.control_id),
+            "control_code": assessment.control.code,
+            "control_title": assessment.control.title,
+            "framework": cls._framework_payload(assessment.control.framework),
+            "snapshot_id": str(snapshot.id),
+            "message": "Cenario demo criado. A pagina ja pode detetar uma melhoria de controlo.",
+        }
+
+    @classmethod
     def overview(cls, since=None):
         latest_snapshots = cls._latest_control_snapshots()
         baseline_at = cls._baseline_time(latest_snapshots, since)
         control_regressions = cls._control_regressions(latest_snapshots)
+        control_improvements = cls._control_improvements(latest_snapshots)
         asset_exposure_regressions = cls._asset_exposure_regressions()
+        asset_exposure_improvements = cls._asset_exposure_improvements()
         new_vulnerabilities = cls._new_vulnerabilities(baseline_at)
         framework_mapping_gaps = cls._framework_mapping_gaps()
 
-        all_events = (
-            control_regressions
-            + asset_exposure_regressions
-            + new_vulnerabilities
-            + framework_mapping_gaps
+        risk_events = control_regressions + asset_exposure_regressions + new_vulnerabilities
+        positive_events = control_improvements + asset_exposure_improvements
+        all_events = risk_events + positive_events
+        severity_counts = cls._severity_counts(risk_events)
+        summary = cls._summary(
+            control_regressions,
+            asset_exposure_regressions,
+            new_vulnerabilities,
+            control_improvements,
+            asset_exposure_improvements,
         )
-        severity_counts = cls._severity_counts(all_events)
-        summary = cls._summary(control_regressions, asset_exposure_regressions, new_vulnerabilities)
 
         return {
             "generated_at": timezone.now().isoformat(),
@@ -137,18 +193,24 @@ class SecurityPostureDriftService:
             },
             "metrics": {
                 "total_events": len(all_events),
+                "negative_events": len(risk_events),
+                "positive_events": len(positive_events),
                 "critical": severity_counts["critical"],
                 "high": severity_counts["high"],
                 "medium": severity_counts["medium"],
                 "low": severity_counts["low"],
                 "control_regressions": len(control_regressions),
+                "control_improvements": len(control_improvements),
                 "asset_exposure_regressions": len(asset_exposure_regressions),
+                "asset_exposure_improvements": len(asset_exposure_improvements),
                 "new_vulnerabilities": len(new_vulnerabilities),
                 "framework_mapping_gaps": len(framework_mapping_gaps),
             },
             "summary": summary,
             "control_regressions": control_regressions[: cls.LIMIT],
+            "control_improvements": control_improvements[: cls.LIMIT],
             "asset_exposure_regressions": asset_exposure_regressions[: cls.LIMIT],
+            "asset_exposure_improvements": asset_exposure_improvements[: cls.LIMIT],
             "new_vulnerabilities": new_vulnerabilities[: cls.LIMIT],
             "framework_mapping_gaps": framework_mapping_gaps[: cls.LIMIT],
             "recommendations": cls._recommendations(
@@ -156,6 +218,8 @@ class SecurityPostureDriftService:
                 asset_exposure_regressions,
                 new_vulnerabilities,
                 framework_mapping_gaps,
+                control_improvements,
+                asset_exposure_improvements,
             ),
         }
 
@@ -198,6 +262,28 @@ class SecurityPostureDriftService:
             if event:
                 regressions.append(event)
         return sorted(regressions, key=lambda item: (cls._severity_rank(item["severity"]), -item["impact_score"]))
+
+    @classmethod
+    def _control_improvements(cls, latest_snapshots):
+        if not latest_snapshots:
+            return []
+
+        current_assessments = (
+            ControlAssessment.objects
+            .select_related("profile", "control", "control__framework")
+            .filter(id__in=latest_snapshots.keys())
+        )
+        improvements = []
+        for assessment in current_assessments:
+            previous = latest_snapshots.get(assessment.id)
+            if not previous:
+                continue
+            if cls._control_regression_event(previous, assessment):
+                continue
+            event = cls._control_improvement_event(previous, assessment)
+            if event:
+                improvements.append(event)
+        return sorted(improvements, key=lambda item: -item["impact_score"])
 
     @classmethod
     def _control_regression_event(cls, previous, current):
@@ -253,6 +339,58 @@ class SecurityPostureDriftService:
         }
 
     @classmethod
+    def _control_improvement_event(cls, previous, current):
+        previous_rank = cls.STATUS_RANK.get(previous.implementation_status, 0)
+        current_rank = cls.STATUS_RANK.get(current.implementation_status, 0)
+        effectiveness_delta = float(current.effectiveness) - float(previous.effectiveness)
+        residual_delta = float(current.risk_residual) - float(previous.risk_residual)
+
+        status_improved = current_rank > previous_rank
+        effectiveness_improved = effectiveness_delta >= 0.05
+        residual_improved = residual_delta <= -0.05
+        if not (status_improved or effectiveness_improved or residual_improved):
+            return None
+
+        framework = current.control.framework
+        return {
+            "type": "control_improvement",
+            "severity": "low",
+            "impact_score": cls._improvement_score(current_rank - previous_rank, effectiveness_delta, residual_delta),
+            "assessment_id": str(current.id),
+            "control_id": str(current.control_id),
+            "control_code": current.control.code,
+            "control_title": current.control.title,
+            "framework": cls._framework_payload(framework),
+            "previous": {
+                "snapshot_id": str(previous.id),
+                "snapshot_label": previous.snapshot_label,
+                "captured_at": previous.captured_at.isoformat(),
+                "implementation_status": previous.implementation_status,
+                "maturity_level": previous.maturity_level,
+                "effectiveness": float(previous.effectiveness),
+                "risk_residual": float(previous.risk_residual),
+            },
+            "current": {
+                "implementation_status": current.implementation_status,
+                "maturity_level": current.maturity_level,
+                "effectiveness": float(current.effectiveness),
+                "risk_residual": float(current.risk_residual),
+                "assessed_at": current.assessed_at.isoformat() if current.assessed_at else None,
+            },
+            "reasons": cls._control_improvement_reasons(
+                status_improved,
+                effectiveness_improved,
+                residual_improved,
+                previous,
+                current,
+            ),
+            "recommendation": (
+                "Registar a evidencia que sustenta a melhoria e atualizar o baseline quando a alteracao "
+                "for aceite pela validacao humana."
+            ),
+        }
+
+    @classmethod
     def _control_reasons(cls, status_regressed, effectiveness_regressed, residual_regressed, previous, current):
         reasons = []
         if status_regressed:
@@ -266,6 +404,23 @@ class SecurityPostureDriftService:
         if residual_regressed:
             reasons.append(
                 f"Risco residual subiu de {float(previous.risk_residual):.2f} para {float(current.risk_residual):.2f}."
+            )
+        return reasons
+
+    @classmethod
+    def _control_improvement_reasons(cls, status_improved, effectiveness_improved, residual_improved, previous, current):
+        reasons = []
+        if status_improved:
+            reasons.append(
+                f"Estado passou de {previous.implementation_status} para {current.implementation_status}."
+            )
+        if effectiveness_improved:
+            reasons.append(
+                f"Efetividade subiu de {float(previous.effectiveness):.2f} para {float(current.effectiveness):.2f}."
+            )
+        if residual_improved:
+            reasons.append(
+                f"Risco residual desceu de {float(previous.risk_residual):.2f} para {float(current.risk_residual):.2f}."
             )
         return reasons
 
@@ -317,6 +472,60 @@ class SecurityPostureDriftService:
                 }
             )
         return sorted(events, key=lambda item: (cls._severity_rank(item["severity"]), -item["impact_score"]))
+
+    @classmethod
+    def _asset_exposure_improvements(cls):
+        AssetExposureSnapshot = apps.get_model("risk", "AssetExposureSnapshot")
+        snapshots = (
+            AssetExposureSnapshot.objects
+            .select_related("asset")
+            .order_by("asset_id", "-captured_at")
+        )
+        by_asset = {}
+        for snapshot in snapshots:
+            entries = by_asset.setdefault(snapshot.asset_id, [])
+            if len(entries) < 2:
+                entries.append(snapshot)
+
+        events = []
+        for entries in by_asset.values():
+            if len(entries) < 2:
+                continue
+            latest, previous = entries[0], entries[1]
+            new_ports = sorted(cls._ports(latest.open_ports) - cls._ports(previous.open_ports))
+            closed_ports = sorted(cls._ports(previous.open_ports) - cls._ports(latest.open_ports))
+            score_delta = int(latest.exposure_score or 0) - int(previous.exposure_score or 0)
+            if score_delta > 0 or new_ports:
+                continue
+            if score_delta >= 0 and not closed_ports:
+                continue
+            events.append(
+                {
+                    "type": "asset_exposure_improvement",
+                    "severity": "low",
+                    "impact_score": min(
+                        100,
+                        cls._improvement_score(abs(score_delta), 0, 0) + len(closed_ports) * 4,
+                    ),
+                    "asset_id": str(latest.asset_id),
+                    "asset_name": latest.asset.name,
+                    "previous": {
+                        "snapshot_id": str(previous.id),
+                        "captured_at": previous.captured_at.isoformat(),
+                        "exposure_score": previous.exposure_score,
+                        "open_ports": previous.open_ports,
+                    },
+                    "current": {
+                        "snapshot_id": str(latest.id),
+                        "captured_at": latest.captured_at.isoformat(),
+                        "exposure_score": latest.exposure_score,
+                        "open_ports": latest.open_ports,
+                    },
+                    "closed_ports": closed_ports,
+                    "recommendation": "Registar a mudanca tecnica, associar evidencia e atualizar o baseline se a reducao for permanente.",
+                }
+            )
+        return sorted(events, key=lambda item: -item["impact_score"])
 
     @classmethod
     def _new_vulnerabilities(cls, since):
@@ -424,6 +633,19 @@ class SecurityPostureDriftService:
         return min(100, round(base + max(0, float(primary_delta or 0)) * 3 + max(0, float(residual_delta or 0)) * 20, 1))
 
     @staticmethod
+    def _improvement_score(rank_delta, effectiveness_delta, residual_delta):
+        return min(
+            100,
+            round(
+                35
+                + max(0, float(rank_delta or 0)) * 8
+                + max(0, float(effectiveness_delta or 0)) * 35
+                + max(0, -float(residual_delta or 0)) * 35,
+                1,
+            ),
+        )
+
+    @staticmethod
     def _severity_rank(severity):
         return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(severity, 9)
 
@@ -455,32 +677,64 @@ class SecurityPostureDriftService:
         )
 
     @classmethod
-    def _summary(cls, control_regressions, asset_exposure_regressions, new_vulnerabilities):
-        if not control_regressions and not asset_exposure_regressions and not new_vulnerabilities:
-            return "Nao foram detetadas regressões materiais face à última fotografia disponível."
-
-        parts = []
+    def _summary(
+        cls,
+        control_regressions,
+        asset_exposure_regressions,
+        new_vulnerabilities,
+        control_improvements,
+        asset_exposure_improvements,
+    ):
+        negative_parts = []
+        positive_parts = []
         if control_regressions:
-            parts.append(f"{len(control_regressions)} regressões de controlos")
+            negative_parts.append(f"{len(control_regressions)} regressoes de controlos")
         if asset_exposure_regressions:
-            parts.append(f"{len(asset_exposure_regressions)} aumentos de exposição")
+            negative_parts.append(f"{len(asset_exposure_regressions)} aumentos de exposicao")
         if new_vulnerabilities:
-            parts.append(f"{len(new_vulnerabilities)} vulnerabilidades novas/recentes")
-        return "Foram detetados sinais de possível degradação: " + ", ".join(parts) + "."
+            negative_parts.append(f"{len(new_vulnerabilities)} vulnerabilidades novas/recentes")
+        if control_improvements:
+            positive_parts.append(f"{len(control_improvements)} melhorias de controlos")
+        if asset_exposure_improvements:
+            positive_parts.append(f"{len(asset_exposure_improvements)} reducoes de exposicao")
+
+        if negative_parts and positive_parts:
+            return (
+                "Foram detetados sinais de possivel degradacao: "
+                + ", ".join(negative_parts)
+                + ". Tambem ha melhoria mensuravel: "
+                + ", ".join(positive_parts)
+                + "."
+            )
+        if negative_parts:
+            return "Foram detetados sinais de possivel degradacao: " + ", ".join(negative_parts) + "."
+        if positive_parts:
+            return "Foram detetadas melhorias materiais face a ultima fotografia: " + ", ".join(positive_parts) + "."
+        return "Nao foi detetado drift material face a ultima fotografia disponivel."
 
     @classmethod
-    def _recommendations(cls, control_regressions, asset_exposure_regressions, new_vulnerabilities, mapping_gaps):
+    def _recommendations(
+        cls,
+        control_regressions,
+        asset_exposure_regressions,
+        new_vulnerabilities,
+        mapping_gaps,
+        control_improvements=None,
+        asset_exposure_improvements=None,
+    ):
         recommendations = []
         if control_regressions:
-            recommendations.append("Rever primeiro as regressões de controlos críticos ou associados a NIS2/ISO.")
+            recommendations.append("Rever primeiro as regressoes de controlos criticos ou associados a NIS2/ISO.")
         if asset_exposure_regressions:
-            recommendations.append("Validar alterações de exposição técnica e confirmar se foram autorizadas.")
+            recommendations.append("Validar alteracoes de exposicao tecnica e confirmar se foram autorizadas.")
         if new_vulnerabilities:
-            recommendations.append("Enviar vulnerabilidades novas para a priorização contextual e associar ações de mitigação.")
+            recommendations.append("Enviar vulnerabilidades novas para a priorizacao contextual e associar acoes de mitigacao.")
         if mapping_gaps:
-            recommendations.append("Completar mappings em frameworks críticas para não perder cobertura normativa.")
+            recommendations.append("Completar mappings em frameworks criticas para nao perder cobertura normativa.")
+        if control_improvements or asset_exposure_improvements:
+            recommendations.append("Preservar evidencia das melhorias e atualizar o baseline apenas depois de validacao humana.")
         if not recommendations:
-            recommendations.append("Criar um snapshot antes da próxima auditoria para tornar a comparação temporal mais robusta.")
+            recommendations.append("Criar um snapshot antes da proxima auditoria para tornar a comparacao temporal mais robusta.")
         return recommendations
 
     @classmethod

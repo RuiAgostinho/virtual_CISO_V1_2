@@ -19,9 +19,11 @@ from governance.services.residual_risk_service import GovernanceResidualRiskServ
 from risk.models import (
     Asset,
     AssetClassificationReview,
+    AssetExposureSnapshot,
     AssetVulnerability,
     PriorityFeatureSnapshot,
     PriorityModelConfig,
+    Software,
     Vulnerability,
 )
 from risk.models import Risk
@@ -64,6 +66,63 @@ class AssetClassificationApiTests(TestCase):
         self.assertEqual(review.status, AssetClassificationReview.Status.VALIDATED)
         self.assertEqual(review.reviewed_by, self.user)
 
+        detail_response = self.client.get(f"/api/risk/assets/{asset.id}/")
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.data["classification_status"], AssetClassificationReview.Status.VALIDATED)
+        self.assertEqual(str(detail_response.data["classification_review_due"]), "2026-12-31")
+        self.assertEqual(detail_response.data["current_classification_review"]["status"], AssetClassificationReview.Status.VALIDATED)
+
+    def test_classifying_asset_recalculates_existing_risks(self):
+        asset = Asset.objects.create(
+            name="DEMO UC1 - Portal de Municipes",
+            confidentiality=5,
+            integrity=5,
+            availability=5,
+            exposure=5,
+            business_value=5,
+            dependency_score=5,
+        )
+        vulnerability = Vulnerability.objects.create(
+            cve_id="CVE-2026-UC1-0001",
+            severity="High",
+            cvss_score="8.0",
+            epss_score="0.7800",
+        )
+        risk = Risk.objects.create(
+            asset=asset,
+            vulnerability=vulnerability,
+            risk_score=90,
+            risk_level=Risk.RiskLevel.CRITICAL,
+            likelihood=3.9,
+            impact=5,
+            ai_explanation="Risco antigo com elevada criticidade do ativo.",
+        )
+
+        response = self.client.post(
+            f"/api/risk/assets/{asset.id}/classify/",
+            self._payload(
+                confidentiality=1,
+                integrity=1,
+                availability=1,
+                exposure=1,
+                business_value=1,
+                dependency_score=1,
+                rationale="Reclassificacao validada com impacto baixo no negocio.",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        asset.refresh_from_db()
+        risk.refresh_from_db()
+        self.assertEqual(asset.criticality, "Low")
+        self.assertLess(risk.risk_score, 60)
+        self.assertEqual(risk.risk_level, Risk.RiskLevel.MEDIUM)
+        self.assertLess(risk.impact, 3)
+        self.assertNotIn("elevada criticidade do ativo", risk.ai_explanation)
+        self.assertEqual(risk.factors.get(name="Criticidade do Ativo").value, "Low")
+
     def test_validated_classification_requires_rationale(self):
         asset = Asset.objects.create(name="Servidor legado")
 
@@ -99,6 +158,27 @@ class AssetClassificationApiTests(TestCase):
             ).count(),
             2,
         )
+
+    def test_asset_detail_serializes_vulnerability_software(self):
+        asset = Asset.objects.create(name="PC Rui")
+        software = Software.objects.create(id=999001, name="Chromium", version="136.0", vendor="Google")
+        vulnerability = Vulnerability.objects.create(
+            cve_id="CVE-2026-1234",
+            severity="High",
+            cvss_score="8.5",
+        )
+        AssetVulnerability.objects.create(
+            asset=asset,
+            vulnerability=vulnerability,
+            software=software,
+            software_version="136.0",
+            status="Open",
+        )
+
+        response = self.client.get(f"/api/risk/assets/{asset.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["vulnerability_occurrences"][0]["software_name"], "Chromium")
 
 
 class VulnerabilityIntelApiTests(TestCase):
@@ -483,3 +563,93 @@ class GovernanceRiskIntegrationTests(TestCase):
         self.assertEqual(response.data["metrics"]["critical_vulnerabilities_on_critical_assets"], 1)
         self.assertEqual(response.data["metrics"]["kev_open"], 1)
         self.assertIn("top_prioritized_vulnerabilities", response.data["lists"])
+
+
+class AttackVectorRiskApiTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="vector-ciso", password="testpass")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def _critical_exposed_ransomware_fixture(self):
+        asset = Asset.objects.create(
+            name="Portal municipal exposto",
+            description="Servico critico de atendimento online.",
+            confidentiality=5,
+            integrity=5,
+            availability=5,
+            exposure=5,
+            business_value=5,
+            dependency_score=5,
+            owner="CISO",
+            wazuh_ip="203.0.113.10",
+        )
+        AssetExposureSnapshot.objects.create(
+            asset=asset,
+            exposure_score=5,
+            exposure_label="Internet publico",
+            open_ports=[443, 445, 3389],
+            services=["https", "smb", "rdp"],
+        )
+        vulnerability = Vulnerability.objects.create(
+            cve_id="CVE-2026-4242",
+            severity="High",
+            cvss_score="8.0",
+            epss_score="0.8000",
+            is_in_kev=True,
+            description="Remote code execution often used in ransomware intrusion chains.",
+        )
+        AssetVulnerability.objects.create(asset=asset, vulnerability=vulnerability, status="Open")
+        return asset, vulnerability
+
+    def test_attack_vector_catalog_exposes_supported_vectors(self):
+        response = self.client.get("/api/risk/attack-vectors/catalog/")
+
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in response.data["vectors"]}
+        self.assertIn("ransomware", ids)
+        self.assertIn("phishing_credentials", ids)
+        self.assertIn("critical_vulnerability_exploitation", ids)
+
+    def test_attack_vector_overview_returns_explainable_matrix(self):
+        self._critical_exposed_ransomware_fixture()
+
+        response = self.client.get("/api/risk/attack-vectors/overview/?horizon_days=30")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["horizon_days"], 30)
+        self.assertIn("methodology", response.data)
+        self.assertIn("formula_pt", response.data["methodology"])
+        self.assertIn("probability", response.data["methodology"]["dimension_explanations"])
+        self.assertGreaterEqual(len(response.data["vectors"]), 10)
+        ransomware = next(item for item in response.data["vectors"] if item["id"] == "ransomware")
+        self.assertGreater(ransomware["score"], 50)
+        self.assertGreater(ransomware["dimensions"]["mitigation_gap"], 80)
+        self.assertEqual(ransomware["counts"]["kev_occurrences"], 1)
+        self.assertIn("rationale", ransomware)
+        self.assertIn("next_action", ransomware)
+        self.assertIn("predictive_model", ransomware)
+        self.assertEqual(ransomware["predictive_model"]["official_score_source"], "attack_vector_risk_v1")
+        self.assertFalse(ransomware["predictive_model"]["enabled"])
+        self.assertIn("cvss", ransomware["predictive_model"]["feature_vector"])
+        self.assertIn("readiness", ransomware["predictive_model"])
+
+    def test_attack_vector_detail_reports_assets_and_vulnerabilities(self):
+        asset, vulnerability = self._critical_exposed_ransomware_fixture()
+
+        response = self.client.get("/api/risk/attack-vectors/ransomware/?horizon_days=90")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], "ransomware")
+        self.assertEqual(response.data["horizon_days"], 90)
+        self.assertEqual(response.data["top_assets"][0]["id"], str(asset.id))
+        self.assertEqual(response.data["top_vulnerabilities"][0]["id"], str(vulnerability.id))
+        self.assertEqual(response.data["formula_factors"][0]["code"], "probability")
+        self.assertEqual(response.data["predictive_model"]["served_mode"], PriorityModelConfig.Mode.EXPLAINABLE_WEIGHTED)
+        self.assertIn("Shadow mode", response.data["predictive_model"]["reason"])
+        self.assertTrue(response.data["predictive_model"]["contribution_breakdown"])
+
+    def test_attack_vector_detail_returns_404_for_unknown_vector(self):
+        response = self.client.get("/api/risk/attack-vectors/unknown-vector/")
+
+        self.assertEqual(response.status_code, 404)

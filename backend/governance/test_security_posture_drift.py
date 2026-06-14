@@ -53,6 +53,41 @@ class SecurityPostureDriftServiceTests(TestCase):
         self.assertEqual(regression["previous"]["implementation_status"], "implemented")
         self.assertEqual(regression["current"]["implementation_status"], "partial")
 
+    def test_snapshot_then_control_improvement_is_detected_separately(self):
+        self.assessment.implementation_status = ControlAssessment.ImplementationStatus.PARTIAL
+        self.assessment.effectiveness = Decimal("0.40")
+        self.assessment.risk_residual = Decimal("0.70")
+        self.assessment.save()
+        SecurityPostureDriftService.create_current_snapshot(label="Auditoria anterior")
+
+        self.assessment.implementation_status = ControlAssessment.ImplementationStatus.OPTIMIZED
+        self.assessment.effectiveness = Decimal("0.90")
+        self.assessment.risk_residual = Decimal("0.20")
+        self.assessment.save()
+
+        payload = SecurityPostureDriftService.overview()
+
+        self.assertEqual(payload["metrics"]["control_regressions"], 0)
+        self.assertEqual(payload["metrics"]["control_improvements"], 1)
+        self.assertEqual(payload["metrics"]["negative_events"], 0)
+        self.assertEqual(payload["metrics"]["positive_events"], 1)
+        improvement = payload["control_improvements"][0]
+        self.assertEqual(improvement["type"], "control_improvement")
+        self.assertEqual(improvement["previous"]["implementation_status"], "partial")
+        self.assertEqual(improvement["current"]["implementation_status"], "optimized")
+
+    def test_mixed_control_change_is_not_reported_as_improvement(self):
+        SecurityPostureDriftService.create_current_snapshot(label="Auditoria anterior")
+        self.assessment.implementation_status = ControlAssessment.ImplementationStatus.OPTIMIZED
+        self.assessment.effectiveness = Decimal("0.95")
+        self.assessment.risk_residual = Decimal("0.70")
+        self.assessment.save()
+
+        payload = SecurityPostureDriftService.overview()
+
+        self.assertEqual(payload["metrics"]["control_regressions"], 1)
+        self.assertEqual(payload["metrics"]["control_improvements"], 0)
+
     def test_without_snapshot_control_regression_is_not_inferred(self):
         self.assessment.implementation_status = ControlAssessment.ImplementationStatus.PARTIAL
         self.assessment.save()
@@ -60,3 +95,6 @@ class SecurityPostureDriftServiceTests(TestCase):
         payload = SecurityPostureDriftService.overview()
 
         self.assertEqual(payload["metrics"]["control_regressions"], 0)
+        self.assertEqual(payload["metrics"]["negative_events"], 0)
+        self.assertEqual(payload["metrics"]["total_events"], 0)
+        self.assertEqual(payload["metrics"]["framework_mapping_gaps"], 1)

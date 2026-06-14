@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ShieldAlert,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   governanceApi,
@@ -22,6 +23,10 @@ const severityTone: Record<string, string> = {
   medium: "border-amber-200 bg-amber-50 text-amber-700",
   low: "border-slate-200 bg-slate-50 text-slate-600",
 };
+
+function isPositiveEvent(event: ComplianceDriftEvent) {
+  return event.type === "control_improvement" || event.type === "asset_exposure_improvement";
+}
 
 function formatDate(value?: string | null) {
   if (!value) return "Sem baseline";
@@ -70,7 +75,13 @@ function eventTitle(event: ComplianceDriftEvent) {
   if (event.type === "control_regression") {
     return `${textValue(event.framework && typeof event.framework === "object" ? (event.framework as { code?: unknown }).code : "")}:${textValue(event.control_code)} - ${textValue(event.control_title)}`;
   }
+  if (event.type === "control_improvement") {
+    return `${textValue(event.framework && typeof event.framework === "object" ? (event.framework as { code?: unknown }).code : "")}:${textValue(event.control_code)} - ${textValue(event.control_title)}`;
+  }
   if (event.type === "asset_exposure_regression") {
+    return textValue(event.asset_name, "Ativo sem nome");
+  }
+  if (event.type === "asset_exposure_improvement") {
     return textValue(event.asset_name, "Ativo sem nome");
   }
   if (event.type === "new_vulnerability") {
@@ -88,9 +99,18 @@ function eventDescription(event: ComplianceDriftEvent) {
     const current = event.current as { implementation_status?: string; risk_residual?: number } | undefined;
     return `Estado ${textValue(previous?.implementation_status)} -> ${textValue(current?.implementation_status)}; risco residual ${textValue(previous?.risk_residual)} -> ${textValue(current?.risk_residual)}.`;
   }
+  if (event.type === "control_improvement") {
+    const previous = event.previous as { implementation_status?: string; risk_residual?: number; effectiveness?: number } | undefined;
+    const current = event.current as { implementation_status?: string; risk_residual?: number; effectiveness?: number } | undefined;
+    return `Estado ${textValue(previous?.implementation_status)} -> ${textValue(current?.implementation_status)}; efetividade ${textValue(previous?.effectiveness)} -> ${textValue(current?.effectiveness)}; risco residual ${textValue(previous?.risk_residual)} -> ${textValue(current?.risk_residual)}.`;
+  }
   if (event.type === "asset_exposure_regression") {
     const ports = Array.isArray(event.new_ports) ? event.new_ports.join(", ") : "";
     return ports ? `Novas portas expostas: ${ports}.` : "Score de exposicao aumentou face ao snapshot anterior.";
+  }
+  if (event.type === "asset_exposure_improvement") {
+    const ports = Array.isArray(event.closed_ports) ? event.closed_ports.join(", ") : "";
+    return ports ? `Portas fechadas: ${ports}.` : "Score de exposicao reduziu face ao snapshot anterior.";
   }
   if (event.type === "new_vulnerability") {
     return `CVSS ${textValue(event.cvss_score)}; EPSS ${textValue(event.epss_score)}; estado ${textValue(event.status)}.`;
@@ -118,12 +138,12 @@ function EventList({ title, description, events }: { title: string; description:
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${severityTone[event.severity] || severityTone.low}`}>
-                        {event.severity}
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${isPositiveEvent(event) ? "border-emerald-200 bg-emerald-50 text-emerald-700" : severityTone[event.severity] || severityTone.low}`}>
+                        {isPositiveEvent(event) ? "melhoria" : event.severity}
                       </span>
                       {typeof event.impact_score === "number" && (
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">
-                          Impacto {Math.round(event.impact_score)}
+                          {isPositiveEvent(event) ? "Beneficio" : "Impacto"} {Math.round(event.impact_score)}
                         </span>
                       )}
                     </div>
@@ -149,6 +169,7 @@ export default function ComplianceDrift() {
   const [loading, setLoading] = useState(true);
   const [savingSnapshot, setSavingSnapshot] = useState(false);
   const [creatingDemo, setCreatingDemo] = useState(false);
+  const [creatingDemoImprovement, setCreatingDemoImprovement] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -207,17 +228,53 @@ export default function ComplianceDrift() {
     }
   };
 
+  const createDemoImprovement = async () => {
+    const confirmed = window.confirm(
+      "Esta acao cria um cenario de demonstracao na BD: guarda um snapshot anterior fraco e melhora uma avaliacao de controlo para que o drift positivo seja detetado. Queres continuar?"
+    );
+    if (!confirmed) return;
+
+    setCreatingDemoImprovement(true);
+    setMessage("");
+    setError("");
+    try {
+      const result = await governanceApi.createComplianceDriftDemoImprovement();
+      if (!result.created) {
+        setError(result.message || "Nao foi possivel criar cenario demo de melhoria.");
+        return;
+      }
+      const controlLabel = [result.framework?.code, result.control_code].filter(Boolean).join(":");
+      setMessage(`${result.message} ${controlLabel ? `Controlo afetado: ${controlLabel}.` : ""}`);
+      await load();
+    } catch (err) {
+      console.error(err);
+      setError("Nao foi possivel criar o cenario de melhoria a partir do frontend.");
+    } finally {
+      setCreatingDemoImprovement(false);
+    }
+  };
+
   useEffect(() => {
     void load();
   }, []);
 
   const metrics = data?.metrics;
-  const allEvents = useMemo(
+  const negativeEvents = metrics?.negative_events ?? (
+    (metrics?.control_regressions || 0)
+    + (metrics?.asset_exposure_regressions || 0)
+    + (metrics?.new_vulnerabilities || 0)
+  );
+  const positiveEvents = metrics?.positive_events ?? (
+    (metrics?.control_improvements || 0)
+    + (metrics?.asset_exposure_improvements || 0)
+  );
+  const driftEvents = useMemo(
     () => [
       ...(data?.control_regressions || []),
+      ...(data?.control_improvements || []),
       ...(data?.asset_exposure_regressions || []),
+      ...(data?.asset_exposure_improvements || []),
       ...(data?.new_vulnerabilities || []),
-      ...(data?.framework_mapping_gaps || []),
     ],
     [data]
   );
@@ -226,8 +283,8 @@ export default function ComplianceDrift() {
     return (
       <div className="mx-auto max-w-[1700px] space-y-6 p-6 pb-20">
         <div className="h-32 animate-pulse rounded-2xl bg-slate-100" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          {[1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-36 animate-pulse rounded-2xl bg-slate-100" />)}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => <div key={item} className="h-36 animate-pulse rounded-2xl bg-slate-100" />)}
         </div>
       </div>
     );
@@ -247,10 +304,10 @@ export default function ComplianceDrift() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Conformidade continua</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Regressao de postura e drift</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Drift de postura</h1>
             <p className="mt-2 max-w-4xl text-sm font-medium leading-relaxed text-slate-500">
-              Compara a ultima fotografia auditavel com o estado atual para detetar controlos que pioraram,
-              exposicao tecnica que aumentou, vulnerabilidades novas e mappings normativos em falta.
+              Compara a ultima fotografia auditavel com o estado atual para detetar degradacao, melhorias
+              e vulnerabilidades novas, mantendo gaps de mapping como contexto de cobertura.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -278,7 +335,16 @@ export default function ComplianceDrift() {
               className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-orange-700 hover:border-orange-300 hover:bg-orange-100 disabled:opacity-60"
             >
               <PlayCircle className="h-4 w-4" />
-              {creatingDemo ? "A simular..." : "Cenario demo"}
+              {creatingDemo ? "A simular..." : "Demo regressao"}
+            </button>
+            <button
+              type="button"
+              onClick={createDemoImprovement}
+              disabled={creatingDemoImprovement}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold uppercase tracking-wide text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              <TrendingUp className="h-4 w-4" />
+              {creatingDemoImprovement ? "A simular..." : "Demo melhoria"}
             </button>
           </div>
         </div>
@@ -317,32 +383,34 @@ export default function ComplianceDrift() {
           </div>
           <h2 className="mt-4 text-base font-bold text-slate-950">2. Simular ou provocar alteração</h2>
           <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-            Para defesa, o cenário demo cria uma regressão controlada. Em operação real, a alteração vem de avaliações, scans ou vulnerabilidades novas.
+            Para defesa, os cenarios demo criam uma regressao ou uma melhoria controlada. Em operacao real, a alteracao vem de avaliacoes, scans ou vulnerabilidades novas.
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
-            <TrendingDown className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <ShieldAlert className="h-5 w-5" />
           </div>
-          <h2 className="mt-4 text-base font-bold text-slate-950">3. Rever regressões</h2>
+          <h2 className="mt-4 text-base font-bold text-slate-950">3. Rever drift</h2>
           <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-            A página recalcula eventos, severidade, recomendações e links para priorização ou validação de mappings.
+            A pagina recalcula eventos negativos, melhorias, severidade, recomendacoes e links para priorizacao ou validacao de mappings.
           </p>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <MetricCard icon={<ShieldAlert className="h-5 w-5" />} label="Eventos" value={metrics.total_events} detail="Sinais de possivel degradacao." tone={metrics.total_events ? "text-red-600" : "text-emerald-600"} />
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
+        <MetricCard icon={<ShieldAlert className="h-5 w-5" />} label="Eventos" value={metrics.total_events} detail="Mudancas materiais face ao baseline." tone={negativeEvents ? "text-red-600" : positiveEvents ? "text-emerald-600" : "text-slate-950"} />
+        <MetricCard icon={<TrendingDown className="h-5 w-5" />} label="Risco" value={negativeEvents} detail="Eventos que exigem priorizacao." tone={negativeEvents ? "text-red-600" : "text-emerald-600"} />
+        <MetricCard icon={<TrendingUp className="h-5 w-5" />} label="Melhorias" value={positiveEvents} detail="Drift positivo validavel." tone="text-emerald-600" />
         <MetricCard icon={<AlertTriangle className="h-5 w-5" />} label="Criticos" value={metrics.critical} detail="Regressoes com maior relevancia normativa." tone="text-red-600" />
-        <MetricCard icon={<TrendingDown className="h-5 w-5" />} label="Controlos" value={metrics.control_regressions} detail="Controlos que pioraram face ao snapshot." tone="text-orange-600" />
-        <MetricCard icon={<AlertTriangle className="h-5 w-5" />} label="Exposicao" value={metrics.asset_exposure_regressions} detail="Ativos com nova exposicao tecnica." tone="text-amber-600" />
+        <MetricCard icon={<TrendingDown className="h-5 w-5" />} label="Controlos" value={metrics.control_regressions} detail={`${metrics.control_improvements || 0} melhorias de controlo.`} tone="text-orange-600" />
+        <MetricCard icon={<AlertTriangle className="h-5 w-5" />} label="Exposicao" value={metrics.asset_exposure_regressions} detail={`${metrics.asset_exposure_improvements || 0} reducoes de exposicao.`} tone="text-amber-600" />
         <MetricCard icon={<ShieldAlert className="h-5 w-5" />} label="Vulnerabilidades" value={metrics.new_vulnerabilities} detail="Ocorrencias recentes desde baseline." tone="text-red-600" />
         <MetricCard icon={<CheckCircle2 className="h-5 w-5" />} label="Mappings" value={metrics.framework_mapping_gaps} detail="Controlos externos sem mapping oficial." tone="text-indigo-600" />
       </section>
 
-      {allEvents.length === 0 && (
+      {driftEvents.length === 0 && (
         <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-sm font-bold text-emerald-800">
-          Nao ha regressao material detetada. Para uma defesa mais forte, cria um snapshot antes da auditoria e volta a comparar depois de alteracoes reais ou simuladas.
+          Nao ha drift material detetado. Para uma defesa mais forte, cria um snapshot antes da auditoria e volta a comparar depois de alteracoes reais ou simuladas.
         </section>
       )}
 
@@ -353,9 +421,19 @@ export default function ComplianceDrift() {
           events={data.control_regressions}
         />
         <EventList
+          title="Melhorias de controlos"
+          description="Estado, efetividade ou risco residual melhoraram face ao snapshot anterior."
+          events={data.control_improvements || []}
+        />
+        <EventList
           title="Aumento de exposicao"
           description="Comparacao entre os dois ultimos snapshots tecnicos por ativo."
           events={data.asset_exposure_regressions}
+        />
+        <EventList
+          title="Reducao de exposicao"
+          description="Portas fechadas ou score tecnico menor face ao snapshot anterior."
+          events={data.asset_exposure_improvements || []}
         />
         <EventList
           title="Vulnerabilidades novas"

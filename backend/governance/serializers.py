@@ -1347,6 +1347,7 @@ class GovernanceActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = GovernanceAction
         fields = "__all__"
+        validators = []
         read_only_fields = [
             "created_at",
             "updated_at",
@@ -1364,6 +1365,26 @@ class GovernanceActionSerializer(serializers.ModelSerializer):
         score_impact = attrs.get("score_impact", getattr(self.instance, "score_impact", 0))
         if score_impact is not None and (score_impact < -100 or score_impact > 100):
             raise serializers.ValidationError({"score_impact": "O impacto no score deve estar entre -100 e 100."})
+        source_type = attrs.get(
+            "source_type",
+            getattr(self.instance, "source_type", GovernanceAction.SourceType.MANUAL),
+        )
+        source_key = attrs.get("source_key", getattr(self.instance, "source_key", ""))
+        action_status = attrs.get(
+            "status",
+            getattr(self.instance, "status", GovernanceAction.Status.OPEN),
+        )
+        if source_key and action_status not in {GovernanceAction.Status.DONE, GovernanceAction.Status.CANCELLED}:
+            duplicate = GovernanceAction.objects.filter(
+                source_type=source_type,
+                source_key=source_key,
+            ).exclude(status__in=[GovernanceAction.Status.DONE, GovernanceAction.Status.CANCELLED])
+            if self.instance:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                raise serializers.ValidationError({
+                    "source_key": "Já existe uma tarefa ativa com esta origem."
+                })
         return attrs
 
     def get_target_label(self, obj):

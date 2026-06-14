@@ -214,8 +214,12 @@ function statusTone(status?: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
+function getAssetClassificationStatus(asset?: Asset | null) {
+  return asset?.classification_status || asset?.current_classification_review?.status || "not_validated";
+}
+
 function assetNeedsOnboarding(asset: Asset) {
-  return asset.status === "New" || asset.classification_status !== "validated" || assetWithoutOwner(asset) || !asset.asset_type;
+  return asset.status === "New" || getAssetClassificationStatus(asset) !== "validated" || assetWithoutOwner(asset) || !asset.asset_type;
 }
 
 function assetWithoutOwner(asset: Asset) {
@@ -223,7 +227,7 @@ function assetWithoutOwner(asset: Asset) {
 }
 
 function assetUnclassified(asset: Asset) {
-  return asset.classification_status !== "validated";
+  return getAssetClassificationStatus(asset) !== "validated";
 }
 
 function assetWithoutType(asset: Asset) {
@@ -743,11 +747,14 @@ function OnboardingWizard({
 
   useEffect(() => {
     setClassification(buildClassification(asset));
+  }, [asset]);
+
+  useEffect(() => {
     setActiveMetric("confidentiality");
     setMessage(null);
     setError(null);
     setStep("origin");
-  }, [asset]);
+  }, [asset?.id]);
 
   const reloadAsset = async () => {
     if (!asset?.id) return;
@@ -867,7 +874,8 @@ function OnboardingWizard({
   const assetContext = getAssetContext(asset);
   const responsibleComplete = !assetWithoutOwner(asset);
   const assetTypeComplete = Boolean(asset.asset_type || asset.type_name);
-  const classificationComplete = asset.classification_status === "validated";
+  const classificationStatus = getAssetClassificationStatus(asset);
+  const classificationComplete = classificationStatus === "validated";
   const canFinish = responsibleComplete && assetTypeComplete && classificationComplete;
   const finishRequirements = [
     { label: "responsável de negócio", complete: responsibleComplete },
@@ -1127,14 +1135,14 @@ function OnboardingWizard({
               recomendações do assistente.
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-4">
-              <span className={`rounded-xl border px-4 py-3 text-xs font-bold uppercase tracking-wide ${statusTone(asset.classification_status)}`}>Classificação: {asset.classification_status || "não validada"}</span>
+              <span className={`rounded-xl border px-4 py-3 text-xs font-bold uppercase tracking-wide ${statusTone(classificationStatus)}`}>Classificação: {classificationStatus}</span>
               <span className={`rounded-xl border px-4 py-3 text-xs font-bold uppercase tracking-wide ${responsibleComplete ? "border-emerald-200 bg-white text-emerald-700" : "border-amber-200 bg-white text-amber-700"}`}>Responsável: {assetContext.businessOwner || "em falta"}</span>
               <span className={`rounded-xl border px-4 py-3 text-xs font-bold uppercase tracking-wide ${assetTypeComplete ? "border-emerald-200 bg-white text-emerald-700" : "border-amber-200 bg-white text-amber-700"}`}>Tipo: {asset.type_name || "em falta"}</span>
               <span className={`rounded-xl border px-4 py-3 text-xs font-bold uppercase tracking-wide ${asset.status === "Active" ? "border-emerald-200 bg-white text-emerald-700" : "border-amber-200 bg-white text-amber-700"}`}>Estado: {asset.status}</span>
             </div>
             {!canFinish && (
               <p className="mt-4 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-semibold text-amber-800">
-                Para finalizar, este ativo precisa de responsável, tipo de ativo e classificação validada com justificação auditável.
+                Para finalizar, falta: {missingFinishRequirements.join(", ")}.
               </p>
             )}
             <div className="group relative mt-5 inline-flex" title={finishTooltip}>
@@ -1589,7 +1597,7 @@ export default function AssetOnboarding() {
                         <div className="min-w-0">
                         <div className="flex flex-wrap gap-2">
                           <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(asset.status)}`}>{asset.status || "sem estado"}</span>
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(asset.classification_status)}`}>{asset.classification_status || "sem classificação"}</span>
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusTone(getAssetClassificationStatus(asset))}`}>{getAssetClassificationStatus(asset)}</span>
                         </div>
                         <h3 className="mt-3 text-base font-bold text-slate-950">{asset.name}</h3>
                         <p className="mt-1 text-sm font-semibold text-slate-500">{asset.wazuh_ip || "Sem IP"} · {asset.type_name || asset.category_name || "Sem tipo"}</p>

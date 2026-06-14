@@ -45,7 +45,7 @@ from .views_traceability import (
 )
 from .views_workbench import workbench_overview
 from .views_program import program_overview
-from .views_drift import drift_demo_regression, drift_overview, drift_snapshot_current
+from .views_drift import drift_demo_improvement, drift_demo_regression, drift_overview, drift_snapshot_current
 from .views_governance_health import governance_health_overview
 from .views_evidence_overview import mechanism_evidence_overview
 from .views_evaluation import evaluation_overview
@@ -125,6 +125,11 @@ urlpatterns = [
         "drift/demo-regression/",
         drift_demo_regression,
         name="drift-demo-regression",
+    ),
+    path(
+        "drift/demo-improvement/",
+        drift_demo_improvement,
+        name="drift-demo-improvement",
     ),
     path(
         "health/overview/",

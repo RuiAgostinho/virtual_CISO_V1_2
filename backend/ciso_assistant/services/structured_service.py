@@ -642,12 +642,15 @@ class StructuredQueryService:
             payload = result["payload"]
             metrics = payload["metrics"]
             response = (
-                "Análise de regressão de postura desde a última fotografia disponível:\n"
-                f"- Eventos detetados: {metrics['total_events']} "
-                f"({metrics['critical']} críticos, {metrics['high']} altos, {metrics['medium']} médios).\n"
+                "Analise de drift de postura desde a ultima fotografia disponivel:\n"
+                f"- Eventos de risco: {metrics.get('negative_events', metrics['total_events'])} "
+                f"({metrics['critical']} criticos, {metrics['high']} altos, {metrics['medium']} medios).\n"
+                f"- Melhorias detetadas: {metrics.get('positive_events', 0)}.\n"
                 f"- Regressões de controlos: {metrics['control_regressions']}.\n"
                 f"- Aumentos de exposição em ativos: {metrics['asset_exposure_regressions']}.\n"
                 f"- Vulnerabilidades novas/recentes: {metrics['new_vulnerabilities']}.\n"
+                f"- Melhorias de controlos: {metrics.get('control_improvements', 0)}.\n"
+                f"- Reducoes de exposicao: {metrics.get('asset_exposure_improvements', 0)}.\n"
                 f"- Gaps de mapping normativo: {metrics['framework_mapping_gaps']}.\n"
             )
             control_lines = [

@@ -23,7 +23,11 @@ from .views import (
 
     AssetDiscoveryRunViewSet,
 
-    AssetExposureSnapshotViewSet
+    AssetExposureSnapshotViewSet,
+
+    attack_vector_catalog,
+    attack_vector_detail,
+    attack_vector_overview
 
 )
 
@@ -72,6 +76,12 @@ router.register(r'asset-classification-reviews', AssetClassificationReviewViewSe
 
 
 urlpatterns = [
+
+    path('attack-vectors/catalog/', attack_vector_catalog, name='attack-vector-catalog'),
+
+    path('attack-vectors/overview/', attack_vector_overview, name='attack-vector-overview'),
+
+    path('attack-vectors/<slug:vector_id>/', attack_vector_detail, name='attack-vector-detail'),
 
     path('', include(router.urls)),
 

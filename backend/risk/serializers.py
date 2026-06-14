@@ -116,6 +116,34 @@ class PriorityFeatureSnapshotSerializer(serializers.ModelSerializer):
         read_only_fields = [field.name for field in PriorityFeatureSnapshot._meta.fields]
 
 
+class AttackVectorRiskSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    label = serializers.CharField()
+    description = serializers.CharField()
+    category = serializers.CharField()
+    horizon_days = serializers.IntegerField()
+    score = serializers.FloatField()
+    level = serializers.CharField()
+    trend = serializers.CharField()
+    confidence = serializers.DictField()
+    dimensions = serializers.DictField()
+    counts = serializers.DictField()
+    top_assets = serializers.ListField(child=serializers.DictField())
+    top_vulnerabilities = serializers.ListField(child=serializers.DictField())
+    rationale = serializers.ListField(child=serializers.CharField())
+    next_action = serializers.DictField()
+    predictive_model = serializers.DictField()
+    governance = serializers.DictField()
+
+
+class AttackVectorOverviewSerializer(serializers.Serializer):
+    generated_at = serializers.CharField()
+    horizon_days = serializers.IntegerField()
+    methodology = serializers.DictField()
+    summary = serializers.DictField()
+    vectors = AttackVectorRiskSerializer(many=True)
+
+
 
 # --- Tiny Serializers for Pruning ---
 
@@ -636,14 +664,29 @@ class AssetSerializer(serializers.ModelSerializer):
 
     current_classification_review = serializers.SerializerMethodField()
 
+    classification_status = serializers.SerializerMethodField()
+
+    classification_review_due = serializers.SerializerMethodField()
+
     latest_exposure_snapshot = serializers.SerializerMethodField()
 
     def get_criticality_breakdown(self, obj):
         return obj.criticality_breakdown()
 
+    def _current_classification_review(self, obj):
+        return obj.classification_reviews.filter(is_current=True).order_by('-created_at').first()
+
     def get_current_classification_review(self, obj):
-        review = obj.classification_reviews.filter(is_current=True).order_by('-created_at').first()
+        review = self._current_classification_review(obj)
         return AssetClassificationReviewSerializer(review).data if review else None
+
+    def get_classification_status(self, obj):
+        review = self._current_classification_review(obj)
+        return review.status if review else 'not_validated'
+
+    def get_classification_review_due(self, obj):
+        review = self._current_classification_review(obj)
+        return review.next_review_at if review else None
 
     def get_latest_exposure_snapshot(self, obj):
         snapshot = obj.exposure_snapshots.order_by('-captured_at').first()
@@ -681,6 +724,8 @@ class AssetSerializer(serializers.ModelSerializer):
             'dependent_assets_details', 'external_service_assets_details', 'integration_assets_details',
 
             'depends_on_software_details', 'criticality_breakdown',
+
+            'classification_status', 'classification_review_due',
 
             'current_classification_review', 'latest_exposure_snapshot'
 

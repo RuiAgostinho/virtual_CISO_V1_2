@@ -580,6 +580,13 @@ export const mappingReviewApi = {
     });
   },
 
+  updateEvidenceItem(id: string, data: Record<string, any>) {
+    return request<any>(`/api/governance/evidence-items/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
   getEvidenceItemLinks(id: string) {
     return request<any[]>(`/api/governance/evidence-items/${id}/links/`);
   },

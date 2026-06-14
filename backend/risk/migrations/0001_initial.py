@@ -236,7 +236,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Software',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(db_index=True, max_length=255)),
                 ('version', models.CharField(blank=True, max_length=255, null=True)),
                 ('architecture', models.CharField(blank=True, max_length=120, null=True)),

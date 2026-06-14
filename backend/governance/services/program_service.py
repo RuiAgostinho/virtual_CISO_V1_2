@@ -430,18 +430,22 @@ class ProgramService:
     @staticmethod
     def _drift_signal(drift):
         metrics = drift.get("metrics", {})
-        total_events = int(metrics.get("total_events") or 0)
+        total_events = int(metrics.get("negative_events", metrics.get("total_events") or 0) or 0)
+        positive_events = int(metrics.get("positive_events") or 0)
         critical = int(metrics.get("critical") or 0)
         high = int(metrics.get("high") or 0)
         severity = "critical" if critical else "high" if high else "medium" if total_events else "info"
         return {
             "total_events": total_events,
+            "positive_events": positive_events,
             "critical": critical,
             "high": high,
             "medium": int(metrics.get("medium") or 0),
             "low": int(metrics.get("low") or 0),
             "control_regressions": int(metrics.get("control_regressions") or 0),
+            "control_improvements": int(metrics.get("control_improvements") or 0),
             "asset_exposure_regressions": int(metrics.get("asset_exposure_regressions") or 0),
+            "asset_exposure_improvements": int(metrics.get("asset_exposure_improvements") or 0),
             "new_vulnerabilities": int(metrics.get("new_vulnerabilities") or 0),
             "framework_mapping_gaps": int(metrics.get("framework_mapping_gaps") or 0),
             "severity": severity,

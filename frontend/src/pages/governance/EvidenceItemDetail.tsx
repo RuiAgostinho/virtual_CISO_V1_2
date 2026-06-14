@@ -13,10 +13,13 @@ import {
   Link2,
   Loader2,
   Network,
+  Pencil,
   RefreshCw,
+  Save,
   ShieldCheck,
   Timer,
   Workflow,
+  X,
   XCircle,
 } from "lucide-react";
 import { mappingReviewApi, type TraceabilityPayload } from "@/lib/mappingReviewApi";
@@ -30,6 +33,43 @@ import { API_BASE } from "@/lib/api";
 
 type EvidenceRecord = Record<string, any>;
 type EvidenceWorkspaceTab = "overview" | "links" | "impact" | "scoring" | "audit";
+type EvidenceEditDraft = {
+  title: string;
+  description: string;
+  evidence_type: string;
+  source: string;
+  external_reference: string;
+  collected_at: string;
+  valid_until: string;
+  confidence_level: string;
+  status: string;
+  owner: string;
+  is_active: boolean;
+};
+
+const evidenceTypeOptions = [
+  { value: "report", label: "Relatorio" },
+  { value: "screenshot", label: "Captura de ecra" },
+  { value: "ticket", label: "Ticket" },
+  { value: "log", label: "Log" },
+  { value: "audit_report", label: "Relatorio de auditoria" },
+  { value: "configuration_export", label: "Exportacao de configuracao" },
+  { value: "meeting_minutes", label: "Ata de reuniao" },
+  { value: "approval_record", label: "Registo de aprovacao" },
+  { value: "vulnerability_scan", label: "Analise de vulnerabilidades" },
+  { value: "siem_alert", label: "Alerta SIEM" },
+  { value: "manual_attestation", label: "Declaracao manual" },
+  { value: "other", label: "Outro" },
+];
+
+const evidenceStatusOptions = [
+  { value: "draft", label: "Rascunho" },
+  { value: "pending_review", label: "Pendente de revisao" },
+  { value: "valid", label: "Valida" },
+  { value: "expired", label: "Expirada" },
+  { value: "rejected", label: "Rejeitada" },
+  { value: "deprecated", label: "Descontinuada" },
+];
 
 function asArray<T = any>(payload: any): T[] {
   if (!payload) return [];
@@ -45,6 +85,35 @@ function formatDate(value?: string | null) {
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString("pt-PT");
+}
+
+function toDateInputValue(value?: string | null) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function toDateTimeInputValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function buildEvidenceEditDraft(evidence: EvidenceRecord): EvidenceEditDraft {
+  return {
+    title: evidence.title || "",
+    description: evidence.description || "",
+    evidence_type: evidence.evidence_type || "other",
+    source: evidence.source || "",
+    external_reference: evidence.external_reference || "",
+    collected_at: toDateTimeInputValue(evidence.collected_at),
+    valid_until: toDateInputValue(evidence.valid_until),
+    confidence_level: evidence.confidence_level === null || evidence.confidence_level === undefined ? "0" : String(evidence.confidence_level),
+    status: evidence.status || "draft",
+    owner: evidence.owner || "",
+    is_active: evidence.is_active !== false,
+  };
 }
 
 function compactText(value?: string | null, fallback = "-") {
@@ -287,7 +356,7 @@ function EvidenceLinksPanel({
   );
 }
 
-function EvidenceImpactPanel({ impact, traceability }: { impact: any; traceability: TraceabilityPayload | null }) {
+function EvidenceImpactPanel({ impact, traceability, evidenceId }: { impact: any; traceability: TraceabilityPayload | null; evidenceId: string }) {
   const relationships = traceability?.relationships || {};
   const mechanisms = asArray(impact?.mechanisms).concat(asArray(relationships.mechanisms));
   const internalControls = asArray(impact?.internal_controls)
@@ -300,7 +369,16 @@ function EvidenceImpactPanel({ impact, traceability }: { impact: any; traceabili
   const estimatedImpact = relationships.estimated_score_impact || {};
 
   return (
-    <SectionCard title="Impacto e rastreabilidade" icon={Network}>
+    <SectionCard
+      title="Impacto e rastreabilidade"
+      icon={Network}
+      action={(
+        <Link to={`/governance/mapping-review?evidence=${evidenceId}`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
+          <GitBranch className="h-4 w-4" />
+          Escolher destinos
+        </Link>
+      )}
+    >
       <div className="grid gap-4 lg:grid-cols-3">
         <RelationshipList title="Mecanismos" items={mechanisms} empty="Sem mecanismos suportados." />
         <RelationshipList title="Controlos internos" items={internalControls} empty="Sem controlos internos impactados." />
@@ -356,6 +434,11 @@ export default function EvidenceItemDetail() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<EvidenceWorkspaceTab>("overview");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState<EvidenceEditDraft | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEvidence, setSavingEvidence] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -416,6 +499,70 @@ export default function EvidenceItemDetail() {
     if (!evidence.source && !evidence.external_reference && !evidence.file) items.push({ type: "reference", text: "A evidência não tem fonte, referência externa ou ficheiro associado." });
     return items;
   }, [evidence, links]);
+
+  const openEditDialog = () => {
+    if (!evidence) return;
+    setEditDraft(buildEvidenceEditDraft(evidence));
+    setEditError(null);
+    setNotice(null);
+    setEditOpen(true);
+  };
+
+  const updateEditDraft = <K extends keyof EvidenceEditDraft>(field: K, value: EvidenceEditDraft[K]) => {
+    setEditDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const handleSaveEvidence = async () => {
+    if (!evidence || !editDraft) return;
+    const title = editDraft.title.trim();
+    const confidence = Number(editDraft.confidence_level);
+
+    if (!title) {
+      setEditError("O titulo da evidencia e obrigatorio.");
+      return;
+    }
+
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
+      setEditError("A confianca deve estar entre 0 e 100.");
+      return;
+    }
+
+    let collectedAt: string | null = null;
+    if (editDraft.collected_at) {
+      const parsedCollectedAt = new Date(editDraft.collected_at);
+      if (Number.isNaN(parsedCollectedAt.getTime())) {
+        setEditError("A data de recolha nao e valida.");
+        return;
+      }
+      collectedAt = parsedCollectedAt.toISOString();
+    }
+
+    setSavingEvidence(true);
+    setEditError(null);
+    try {
+      const updated = await mappingReviewApi.updateEvidenceItem(evidence.id, {
+        title,
+        description: editDraft.description,
+        evidence_type: editDraft.evidence_type,
+        source: editDraft.source,
+        external_reference: editDraft.external_reference,
+        collected_at: collectedAt,
+        valid_until: editDraft.valid_until || null,
+        confidence_level: confidence.toFixed(2),
+        status: editDraft.status,
+        owner: editDraft.owner,
+        is_active: editDraft.is_active,
+      });
+      setEvidence(updated);
+      setEditOpen(false);
+      setNotice("Evidencia atualizada.");
+    } catch (err: any) {
+      console.error(err);
+      setEditError(err?.message || "Nao foi possivel atualizar a evidencia.");
+    } finally {
+      setSavingEvidence(false);
+    }
+  };
 
   const handleApprove = async (link: any) => {
     if (!window.confirm("Aprovar esta ligação de evidência?")) return;
@@ -555,6 +702,10 @@ export default function EvidenceItemDetail() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <button onClick={openEditDialog} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800">
+              <Pencil className="h-4 w-4" />
+              Editar
+            </button>
             <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-indigo-700">
               <RefreshCw className="h-4 w-4" />
               Atualizar
@@ -570,6 +721,13 @@ export default function EvidenceItemDetail() {
           </div>
         </div>
       </header>
+
+      {notice && (
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          {notice}
+        </div>
+      )}
 
       {warnings.length > 0 && (
         <section className="space-y-2">
@@ -708,7 +866,17 @@ export default function EvidenceItemDetail() {
       )}
 
       {activeWorkspaceTab === "impact" && (
-          <EvidenceImpactPanel impact={impact} traceability={traceability} />
+        <div className="space-y-6">
+          <EvidenceImpactPanel impact={impact} traceability={traceability} evidenceId={evidence.id} />
+          <EvidenceLinksPanel
+            links={links}
+            actionLoading={actionLoading}
+            mappingReviewHref={`/governance/mapping-review?evidence=${evidence.id}`}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDeprecated={handleDeprecated}
+          />
+        </div>
       )}
 
       {activeWorkspaceTab === "scoring" && (
@@ -819,6 +987,160 @@ export default function EvidenceItemDetail() {
               </Link>
             </div>
           </SectionCard>
+        </div>
+      )}
+
+      {editOpen && editDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <form onSubmit={(event) => { event.preventDefault(); handleSaveEvidence(); }} className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">Evidencia</p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-950">Editar metadados</h2>
+              </div>
+              <button type="button" onClick={() => setEditOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-slate-950" aria-label="Fechar">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
+              <label className="md:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Titulo</span>
+                <input
+                  value={editDraft.title}
+                  onChange={(event) => updateEditDraft("title", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                  maxLength={255}
+                  required
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tipo</span>
+                <select
+                  value={editDraft.evidence_type}
+                  onChange={(event) => updateEditDraft("evidence_type", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                >
+                  {evidenceTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Estado</span>
+                <select
+                  value={editDraft.status}
+                  onChange={(event) => updateEditDraft("status", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                >
+                  {evidenceStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Fonte</span>
+                <input
+                  value={editDraft.source}
+                  onChange={(event) => updateEditDraft("source", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                  maxLength={255}
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Referencia externa</span>
+                <input
+                  value={editDraft.external_reference}
+                  onChange={(event) => updateEditDraft("external_reference", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                  maxLength={2048}
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Recolhida em</span>
+                <input
+                  type="datetime-local"
+                  value={editDraft.collected_at}
+                  onChange={(event) => updateEditDraft("collected_at", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Valida ate</span>
+                <input
+                  type="date"
+                  value={editDraft.valid_until}
+                  onChange={(event) => updateEditDraft("valid_until", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Confianca</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={editDraft.confidence_level}
+                  onChange={(event) => updateEditDraft("confidence_level", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                />
+              </label>
+
+              <label>
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Responsavel</span>
+                <input
+                  value={editDraft.owner}
+                  onChange={(event) => updateEditDraft("owner", event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-indigo-400"
+                  maxLength={255}
+                />
+              </label>
+
+              <label className="md:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Descricao</span>
+                <textarea
+                  value={editDraft.description}
+                  onChange={(event) => updateEditDraft("description", event.target.value)}
+                  className="mt-1 min-h-32 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold leading-relaxed text-slate-900 outline-none focus:border-indigo-400"
+                />
+              </label>
+
+              <label className="md:col-span-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={editDraft.is_active}
+                  onChange={(event) => updateEditDraft("is_active", event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-700 focus:ring-indigo-600"
+                />
+                Evidencia ativa
+              </label>
+            </div>
+
+            {editError && (
+              <div className="mx-6 mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {editError}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-6 py-5">
+              <button type="button" onClick={() => setEditOpen(false)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 hover:text-slate-950">
+                <X className="h-4 w-4" />
+                Cancelar
+              </button>
+              <button type="submit" disabled={savingEvidence} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60">
+                {savingEvidence ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Guardar
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

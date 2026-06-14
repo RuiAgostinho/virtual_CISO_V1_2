@@ -339,7 +339,7 @@ export default function RiskPrioritization() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<ModelMode>("explainable_weighted");
-  const [timeScope, setTimeScope] = useState<TimeScope>("7d");
+  const [timeScope, setTimeScope] = useState<TimeScope>("all");
   const [modelExplanation, setModelExplanation] = useState<VulnerabilityModelExplanation | null>(null);
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
@@ -420,6 +420,21 @@ export default function RiskPrioritization() {
   const topItems = items.slice(0, 3);
   const queueItems = items.slice(3);
   const modelNote = items[0]?.model_note;
+  const weeklyScope = !occurrenceId && timeScope === "7d";
+  const emptyCopy = occurrenceId
+    ? {
+        title: "Ocorrencia nao encontrada na fila de priorizacao",
+        body: "A ocorrencia selecionada nao esta aberta ou ja nao corresponde aos filtros de priorizacao.",
+      }
+    : weeklyScope
+      ? {
+          title: "Sem vulnerabilidades novas esta semana",
+          body: "Existem vulnerabilidades abertas, mas nenhuma foi detetada nos ultimos 7 dias.",
+        }
+      : {
+          title: "Sem vulnerabilidades abertas para priorizar",
+          body: "O motor nao encontrou ocorrencias abertas para construir a fila de remediacao.",
+        };
   const shadowModel = items[0]?.experimental_model?.shadow_mode as
     | { enabled?: boolean; model_version?: string; priority_score?: number; served_priority_score?: number; delta?: number; reason?: string }
     | undefined;
@@ -454,8 +469,8 @@ export default function RiskPrioritization() {
               onChange={(event) => setTimeScope(event.target.value as TimeScope)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500"
             >
-              <option value="7d">Novas esta semana</option>
               <option value="all">Todas as abertas</option>
+              <option value="7d">Novas esta semana</option>
             </select>
             <button
               onClick={() => void loadPrioritization()}
@@ -493,7 +508,7 @@ export default function RiskPrioritization() {
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-sm font-semibold text-indigo-800 shadow-sm">
           Fonte aberta a partir do assistente: a lista está filtrada para a ocorrência selecionada.
           <Link to="/risks/prioritization" className="ml-3 font-bold underline underline-offset-4">
-            Ver top semanal
+            Ver fila completa
           </Link>
         </div>
       )}
@@ -529,10 +544,19 @@ export default function RiskPrioritization() {
       {items.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center shadow-sm">
           <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-          <h2 className="text-2xl font-bold text-slate-900">Sem vulnerabilidades abertas para priorizar</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{emptyCopy.title}</h2>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            O motor não encontrou ocorrências abertas para construir a fila de remediação.
+            {emptyCopy.body}
           </p>
+          {weeklyScope && (
+            <button
+              type="button"
+              onClick={() => setTimeScope("all")}
+              className="mt-5 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-indigo-700"
+            >
+              Ver todas as abertas
+            </button>
+          )}
         </div>
       ) : (
         <>

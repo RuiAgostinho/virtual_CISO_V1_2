@@ -36,3 +36,10 @@ def drift_snapshot_current(request):
 def drift_demo_regression(request):
     user = request.user if request.user and request.user.is_authenticated else None
     return Response(SecurityPostureDriftService.create_demo_regression(user=user))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def drift_demo_improvement(request):
+    user = request.user if request.user and request.user.is_authenticated else None
+    return Response(SecurityPostureDriftService.create_demo_improvement(user=user))

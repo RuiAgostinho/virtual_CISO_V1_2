@@ -6,7 +6,7 @@ from pathlib import Path
 
 from rest_framework import viewsets, filters, status
 
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 
 from rest_framework.response import Response
 
@@ -69,6 +69,7 @@ from .serializers import (
 
     RiskConfigurationSerializer,
     PriorityModelConfigSerializer,
+    AttackVectorOverviewSerializer,
 
     AssetClassificationReviewSerializer,
 
@@ -88,6 +89,7 @@ from .services.risk_engine import RiskEngineService
 
 from .services.prioritization import VulnerabilityPrioritizationService, VulnerabilityScoringEngine
 from .services.ciso_risk_panel import CisoRiskPanelService
+from .services.attack_vector_risk import AttackVectorRiskService
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +103,32 @@ def _start_management_command(command_name):
 def _start_wazuh_sync():
     _start_management_command("sync_wazuh_assets")
     _start_management_command("sync_wazuh_vulns")
+
+
+def _attack_vector_horizon(request):
+    try:
+        return int(request.query_params.get("horizon_days", 30))
+    except (TypeError, ValueError):
+        return 30
+
+
+@api_view(["GET"])
+def attack_vector_catalog(request):
+    return Response({"vectors": AttackVectorRiskService.catalog()})
+
+
+@api_view(["GET"])
+def attack_vector_overview(request):
+    payload = AttackVectorRiskService.overview(horizon_days=_attack_vector_horizon(request))
+    return Response(AttackVectorOverviewSerializer(payload).data)
+
+
+@api_view(["GET"])
+def attack_vector_detail(request, vector_id):
+    payload = AttackVectorRiskService.detail(vector_id, horizon_days=_attack_vector_horizon(request))
+    if payload is None:
+        return Response({"detail": "Vetor de ataque nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(payload)
 
 
 
@@ -834,6 +862,17 @@ def _classification_status_from_payload(data):
     return requested
 
 
+def _recalculate_asset_risks(asset):
+    recalculated = 0
+    risks = Risk.objects.filter(asset=asset).select_related("asset", "vulnerability")
+    for risk in risks:
+        RiskEngineService.recalculate_risk(risk)
+        recalculated += 1
+    if recalculated:
+        RiskEngineService.assess_asset(asset)
+    return recalculated
+
+
 def _apply_asset_classification(asset, data, user=None, bulk=False):
     values = _parse_classification_payload(data, asset)
     owner = (data.get("owner") or asset.owner or "").strip()
@@ -853,6 +892,7 @@ def _apply_asset_classification(asset, data, user=None, bulk=False):
         setattr(asset, field, value)
     asset.owner = owner
     asset.save()
+    _recalculate_asset_risks(asset)
 
     AssetClassificationReview.objects.filter(asset=asset, is_current=True).update(is_current=False)
     review = AssetClassificationReview.from_asset(
@@ -985,6 +1025,7 @@ class AssetClassificationReviewViewSet(viewsets.ModelViewSet):
         review.is_current = True
         AssetClassificationReview.objects.filter(asset=review.asset, is_current=True).exclude(pk=review.pk).update(is_current=False)
         review.save()
+        _recalculate_asset_risks(review.asset)
         return Response(self.get_serializer(review).data)
 
 
@@ -1168,6 +1209,15 @@ class AssetViewSet(viewsets.ModelViewSet):
 
         # Compara e regista alterações
 
+        risks_recalculated = 0
+
+        if any(
+            field in CLASSIFICATION_FIELDS and old_data[field] != getattr(asset, field)
+            for field in old_data
+        ):
+
+            risks_recalculated = _recalculate_asset_risks(asset)
+
         changes = []
 
         for field, old_value in old_data.items():
@@ -1181,6 +1231,10 @@ class AssetViewSet(viewsets.ModelViewSet):
                 changes.append(f"Alterou {field}: '{old_value}' -> '{new_value}'")
 
         
+
+        if risks_recalculated:
+
+            changes.append(f"Recalculou {risks_recalculated} risco(s) associado(s) apos alteracao da classificacao.")
 
         if changes:
 
@@ -1223,6 +1277,8 @@ class AssetViewSet(viewsets.ModelViewSet):
                 'vulnerability_occurrences', 
 
                 'vulnerability_occurrences__vulnerability',
+
+                'vulnerability_occurrences__software',
 
                 'installed_software', 
 

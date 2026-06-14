@@ -82,6 +82,7 @@ const RiskList = React.lazy(() => import("@/pages/risk/RiskList"));
 const RiskDetail = React.lazy(() => import("@/pages/risk/RiskDetail"));
 const RiskPrioritization = React.lazy(() => import("@/pages/risk/RiskPrioritization"));
 const RiskMatrix = React.lazy(() => import("@/pages/risk/RiskMatrix"));
+const AttackVectors = React.lazy(() => import("@/pages/risk/AttackVectors"));
 const Procedures = React.lazy(() => import("@/pages/governance/Procedures"));
 const DecisionScreen = React.lazy(() => import("@/pages/decision/DecisionScreen"));
 const DecisionRecords = React.lazy(() => import("@/pages/decision/DecisionRecords"));
@@ -166,6 +167,7 @@ export default function App() {
             <Route path="/risks/inventory" element={<RiskList />} />
             <Route path="/risks/prioritization" element={<RiskPrioritization />} />
             <Route path="/risks/matrix" element={<RiskMatrix />} />
+            <Route path="/risks/attack-vectors" element={<AttackVectors />} />
             <Route path="/risks/:id" element={<RiskDetail />} />
             <Route path="/decisions/:occurrenceId" element={<DecisionScreen />} />
             <Route path="/decision-records" element={<DecisionRecords />} />

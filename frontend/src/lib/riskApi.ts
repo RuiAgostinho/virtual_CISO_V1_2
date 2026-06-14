@@ -619,6 +619,179 @@ export type CisoRiskPanelPayload = {
     }>;
 };
 
+export type AttackVectorLevel = "low" | "medium" | "high" | "critical";
+
+export type AttackVectorConfidence = {
+    score: number;
+    level: "low" | "medium" | "high";
+    components: {
+        assets: number;
+        vulnerabilities: number;
+        governance: number;
+    };
+};
+
+export type AttackVectorAsset = {
+    id: string;
+    name: string;
+    criticality?: string;
+    exposure?: number | null;
+    business_value?: number | null;
+    open_relevant_occurrences: number;
+    score: number;
+    latest_exposure?: {
+        captured_at?: string | null;
+        source?: string;
+        score?: number;
+        label?: string;
+        open_ports?: number[];
+        services?: string[];
+    } | null;
+};
+
+export type AttackVectorVulnerability = {
+    id: string;
+    cve_id: string;
+    severity?: string;
+    cvss_score: number;
+    epss_score: number;
+    is_in_kev: boolean;
+    affected_assets: number;
+    occurrences: number;
+    score: number;
+};
+
+export type AttackVectorPredictiveFactor = {
+    code: string;
+    label: string;
+    raw_value: string;
+    normalized_score: number;
+    weight: number;
+    contribution: number;
+    source: string;
+    explanation: string;
+};
+
+export type AttackVectorPredictiveModel = {
+    official_score_source: string;
+    served_mode: PriorityModelMode | "shadow";
+    enabled: boolean;
+    shadow_mode_enabled: boolean;
+    reason: string;
+    warning: string;
+    readiness?: PriorityModelReadiness;
+    feature_vector: Record<string, number>;
+    contribution_breakdown: AttackVectorPredictiveFactor[];
+    model_version?: string | null;
+    predicted_score?: number | null;
+    delta?: number | null;
+};
+
+export type AttackVectorRisk = {
+    id: string;
+    label: string;
+    description: string;
+    category: string;
+    horizon_days: number;
+    score: number;
+    level: AttackVectorLevel;
+    trend: string;
+    confidence: AttackVectorConfidence;
+    dimensions: {
+        probability: number;
+        impact: number;
+        exposure: number;
+        mitigation_coverage: number;
+        mitigation_gap: number;
+    };
+    counts: {
+        affected_assets: number;
+        relevant_vulnerabilities: number;
+        relevant_occurrences: number;
+        kev_occurrences: number;
+        controls_considered: number;
+        mechanisms_considered: number;
+        evidence_items: number;
+    };
+    top_assets: AttackVectorAsset[];
+    top_vulnerabilities: AttackVectorVulnerability[];
+    rationale: string[];
+    next_action: {
+        label: string;
+        href: string;
+        reason: string;
+    };
+    predictive_model?: AttackVectorPredictiveModel;
+    governance: {
+        control_keywords: string[];
+        controls_count: number;
+        mechanisms_count: number;
+        evidence_count: number;
+        mitigation_coverage: number;
+        top_controls: Array<{ id: string; code?: string; title?: string }>;
+        top_mechanisms: Array<{
+            id: string;
+            title?: string;
+            implementation_status?: string;
+            validation_status?: string;
+        }>;
+    };
+    methodology?: AttackVectorMethodology;
+    assets?: AttackVectorAsset[];
+    vulnerabilities?: AttackVectorVulnerability[];
+    matched_services?: Array<{
+        asset_id: string;
+        asset_name: string;
+        ports: number[];
+        services: string[];
+        captured_at?: string | null;
+    }>;
+    formula_factors?: Array<{ code: string; label: string; value: number }>;
+};
+
+export type AttackVectorCatalogItem = {
+    id: string;
+    label: string;
+    description: string;
+    category: string;
+    control_keywords: string[];
+    service_keywords: string[];
+    ports: number[];
+};
+
+export type AttackVectorDimensionExplanation = {
+    label: string;
+    summary: string;
+    calculation?: string;
+    signals?: string[];
+};
+
+export type AttackVectorMethodology = ApiRecord & {
+    name?: string;
+    type?: string;
+    formula?: string;
+    formula_pt?: string;
+    scale?: string;
+    dimensions?: string[];
+    note?: string;
+    predictive_extension?: string;
+    dimension_explanations?: Record<string, AttackVectorDimensionExplanation>;
+};
+
+export type AttackVectorOverview = {
+    generated_at: string;
+    horizon_days: number;
+    methodology: AttackVectorMethodology;
+    summary: {
+        total_vectors: number;
+        critical: number;
+        high: number;
+        average_score: number;
+        top_vector: AttackVectorRisk | null;
+    };
+    vectors: AttackVectorRisk[];
+};
+
 export type SoftwareStats = ApiRecord & {
     total?: number;
     total_software?: number;
@@ -904,6 +1077,18 @@ export const riskApi = {
 
     async getCisoRiskPanel(): Promise<CisoRiskPanelPayload> {
         return await request<CisoRiskPanelPayload>('/api/risk/risks/ciso-panel/');
+    },
+
+    async getAttackVectorCatalog(): Promise<{ vectors: AttackVectorCatalogItem[] }> {
+        return await request<{ vectors: AttackVectorCatalogItem[] }>('/api/risk/attack-vectors/catalog/');
+    },
+
+    async getAttackVectorOverview(horizonDays = 30): Promise<AttackVectorOverview> {
+        return await request<AttackVectorOverview>(`/api/risk/attack-vectors/overview/?${cleanParams({ horizon_days: horizonDays })}`);
+    },
+
+    async getAttackVectorDetail(id: string, horizonDays = 30): Promise<AttackVectorRisk> {
+        return await request<AttackVectorRisk>(`/api/risk/attack-vectors/${encodeURIComponent(id)}/?${cleanParams({ horizon_days: horizonDays })}`);
     },
 
     // --- Risk Treatments & Assessments ---

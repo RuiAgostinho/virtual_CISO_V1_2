@@ -1919,6 +1919,50 @@ class GovernanceActionOnboardingTests(TestCase):
         self.assertEqual(action.action_type, GovernanceAction.ActionType.COLLECT_EVIDENCE)
         self.assertEqual(action.owner, "Responsavel designado")
 
+    def test_partial_update_due_date_does_not_require_status(self):
+        action = GovernanceAction.objects.create(
+            action_type=GovernanceAction.ActionType.IMPLEMENT_MECHANISM,
+            title="Definir ambito de implementacao",
+            source_type=GovernanceAction.SourceType.WORKBENCH,
+            source_key="mechanism:nda:scope",
+            status=GovernanceAction.Status.CANCELLED,
+            due_date=timezone.localdate(),
+        )
+        new_due_date = timezone.localdate() + timedelta(days=14)
+
+        response = self.client.patch(
+            f"/api/governance/governance-actions/{action.id}/",
+            {"due_date": new_due_date.isoformat()},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        action.refresh_from_db()
+        self.assertEqual(action.due_date, new_due_date)
+        self.assertEqual(action.status, GovernanceAction.Status.CANCELLED)
+
+    def test_duplicate_active_source_key_is_blocked_by_serializer(self):
+        GovernanceAction.objects.create(
+            title="Acao ativa",
+            source_type=GovernanceAction.SourceType.WORKBENCH,
+            source_key="mechanism:duplicate",
+            status=GovernanceAction.Status.OPEN,
+        )
+
+        response = self.client.post(
+            "/api/governance/governance-actions/",
+            {
+                "title": "Acao duplicada",
+                "source_type": GovernanceAction.SourceType.WORKBENCH,
+                "source_key": "mechanism:duplicate",
+                "status": GovernanceAction.Status.IN_PROGRESS,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("source_key", response.data)
+
 
 class GovernanceRiskLinkApiTests(GovernanceTestDataMixin, TestCase):
     def setUp(self):

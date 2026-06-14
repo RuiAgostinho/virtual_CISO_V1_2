@@ -1,5 +1,3 @@
-import uuid
-
 from django.db import models
 
 from company.models import OrgUnit, Person
@@ -18,7 +16,6 @@ class Software(models.Model):
         ("discovery", "Discovery"),
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, db_index=True)
     version = models.CharField(max_length=255, blank=True, null=True)
     architecture = models.CharField(max_length=120, blank=True, null=True)
