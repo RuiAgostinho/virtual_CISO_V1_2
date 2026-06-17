@@ -112,7 +112,8 @@ def evidence_links_response(target_type, target_id):
 class FrameworkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Framework.objects.all().order_by("name")
     serializer_class = FrameworkSerializer
-    filter_backends = [SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["is_active"]
     search_fields = ["name", "code", "version", "publisher", "description"]
     ordering_fields = ["name", "code", "version", "published_at"]
 

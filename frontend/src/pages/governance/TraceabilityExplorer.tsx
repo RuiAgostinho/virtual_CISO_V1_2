@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
@@ -889,6 +889,14 @@ function ResidualRiskPanel({
   const riskResults = asArray(data.risk_results);
   const links = asArray(data.links_used).concat(asArray(data.direct_links));
   const aggregate = data.aggregate || {};
+  const baseScore = numberValue(data.base_score ?? aggregate.base_score_average);
+  const residualScore = numberValue(data.adjusted_residual_score ?? aggregate.adjusted_residual_score_average);
+  const governanceReduction =
+    data.governance_reduction_percentage != null
+      ? numberValue(data.governance_reduction_percentage)
+      : baseScore > 0
+        ? (1 - residualScore / baseScore) * 100
+        : 0;
   const risksExpanded = Boolean(expandedSections.residualRisks);
   const visibleRiskResults = risksExpanded ? riskResults : riskResults.slice(0, 9);
 
@@ -898,7 +906,7 @@ function ResidualRiskPanel({
         <Kpi icon={Target} label={entityType === "asset" ? "Ativo" : "Risco"} value={selected.label} />
         <Kpi icon={ShieldAlert} label="Score base" value={data.base_score ?? aggregate.base_score_average ?? "-"} tone="text-red-600" />
         <Kpi icon={ShieldCheck} label="Score residual" value={data.adjusted_residual_score ?? aggregate.adjusted_residual_score_average ?? "-"} tone="text-emerald-600" />
-        <Kpi icon={Activity} label="Redução governance" value={`${numberValue(data.governance_reduction_percentage).toFixed(0)}%`} tone="text-indigo-700" />
+        <Kpi icon={Activity} label="Redução governance" value={`${governanceReduction.toFixed(0)}%`} tone="text-indigo-700" />
         <Kpi icon={GitBranch} label="Links usados" value={links.length} />
       </section>
 
@@ -908,7 +916,23 @@ function ResidualRiskPanel({
           <h2 className="mt-1 text-lg font-bold text-slate-950">Fontes de governance que reduzem risco</h2>
         </div>
         {links.length === 0 ? (
-          <div className="p-8 text-sm font-semibold text-slate-500">Sem links de governance para este alvo.</div>
+          <div className="p-8">
+            <p className="text-sm font-semibold text-slate-500">
+              Sem links de governance para este alvo, por isso a redução de risco por governance é nula.
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
+              {entityType === "asset"
+                ? "Conclua o onboarding do ativo (responsável, tipo e classificação) e mapeie controlos internos e mecanismos para começar a construir a cadeia."
+                : "Mapeie controlos internos, mecanismos e evidências a este risco para começar a construir a cadeia."}
+            </p>
+            <Link
+              to={entityType === "asset" ? "/assets/onboarding" : "/governance/mapping-review"}
+              className="mt-4 inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-indigo-700"
+            >
+              {entityType === "asset" ? "Concluir onboarding do ativo" : "Rever mapeamentos"}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {links.map((link, index) => (

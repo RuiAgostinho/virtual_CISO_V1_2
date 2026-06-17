@@ -450,7 +450,7 @@ export const mappingReviewApi = {
   },
 
   searchFrameworks(search = "") {
-    return searchEndpoint("/api/governance/frameworks/", { search, page_size: 20 }, (item) =>
+    return searchEndpoint("/api/governance/frameworks/", { search, is_active: true, page_size: 20 }, (item) =>
       optionFromItem(item, joinLabel([item.code, item.name]), item.description, item.version || item.slug)
     );
   },

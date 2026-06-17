@@ -277,8 +277,11 @@ export default function Assistant() {
                                             {msg.used_rag ? `RAG: ${msg.sources?.length || 0} fontes` : "RAG: não usado"}
                                         </span>
                                         {confidenceLabel(msg.confidence) && (
-                                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                                                Confiança: {confidenceLabel(msg.confidence)}
+                                            <span
+                                                className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700"
+                                                title="Confiança do classificador na deteção do tipo de pergunta (não é a fiabilidade da resposta)."
+                                            >
+                                                Classificação: {confidenceLabel(msg.confidence)}
                                             </span>
                                         )}
                                     </div>

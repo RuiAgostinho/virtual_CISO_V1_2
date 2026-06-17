@@ -483,8 +483,11 @@ export default function RecommendationHistory() {
                       {entry.used_rag ? `RAG: ${(entry.sources_json || []).length} fontes` : "Sem RAG"}
                     </span>
                     {confidenceLabel(entry.confidence) && (
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-                        Confiança: {confidenceLabel(entry.confidence)}
+                      <span
+                        className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700"
+                        title="Confiança do classificador na deteção do tipo de pergunta (não é a fiabilidade da resposta)."
+                      >
+                        Classificação: {confidenceLabel(entry.confidence)}
                       </span>
                     )}
                     {entry.converted_decision_id && (
@@ -583,7 +586,7 @@ export default function RecommendationHistory() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Confiança</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400" title="Confiança do classificador na deteção do tipo de pergunta (não é a fiabilidade da resposta).">Classificação</p>
                   <p className="mt-2 text-lg font-bold text-slate-950">{confidenceLabel(selected.confidence) || "—"}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
