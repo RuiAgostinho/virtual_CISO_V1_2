@@ -603,6 +603,10 @@ class SecurityPostureDriftService:
                 candidate = item.get("port") or item.get("number") or item.get("id")
             else:
                 candidate = item
+            if isinstance(candidate, str):
+                # Snapshots store ports as "22/tcp" (first token of the service
+                # string), so extract the leading port number before int().
+                candidate = candidate.split("/")[0].strip()
             try:
                 ports.add(int(candidate))
             except (TypeError, ValueError):
