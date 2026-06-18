@@ -84,8 +84,20 @@ class ControlMappingEngine:
         mapped_control_ids = set(mappings.values_list("source_control_id", flat=True))
         mapped_control_ids.update(mappings.values_list("target_control_id", flat=True))
 
+        # When the internal-control governance layer exists, the official posture
+        # is the propagation model (internal control -> mechanism -> evidence),
+        # the same source the assistant uses. Fall back to the legacy gap-based
+        # score only when there are no internal controls.
+        from governance.models import InternalControl
+        from governance.services.compliance_propagation_engine import CompliancePropagationEngine
+
+        if InternalControl.objects.filter(is_active=True).exists():
+            framework_scores = CompliancePropagationEngine.framework_scores()
+        else:
+            framework_scores = ControlMappingEngine.framework_scores()
+
         return {
-            "framework_scores": ControlMappingEngine.framework_scores(),
+            "framework_scores": framework_scores,
             "mapping_summary": {
                 "total_mappings": mappings.count(),
                 "equivalent": mappings.filter(mapping_type=ControlMapping.MappingType.EQUIVALENT).count(),

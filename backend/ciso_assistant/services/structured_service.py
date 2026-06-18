@@ -235,37 +235,12 @@ class StructuredQueryService:
 
     @classmethod
     def framework_scores_from_propagation(cls) -> list[dict]:
-        frameworks = Framework.objects.filter(is_active=True).order_by("code", "version")
-        scores = []
-        for framework in frameworks:
-            result = CompliancePropagationEngine.calculate_framework(
-                framework,
-                mode=CompliancePropagationEngine.OFFICIAL,
-                include_details=True,
-                include_gaps=True,
-            )
-            details = result.get("details") or {}
-            controls = details.get("controls") or []
-            scores.append(
-                {
-                    "framework_id": str(framework.id),
-                    "framework_code": framework.code,
-                    "framework_name": framework.name,
-                    "version": framework.version,
-                    "score": result.get("score", 0),
-                    "status": result.get("status"),
-                    "coverage": result.get("coverage", details.get("coverage", 0)),
-                    "total_controls": details.get("total_controls", len(controls)),
-                    "assessed_controls": details.get("assessed_controls", 0),
-                    "compliant": sum(1 for item in controls if item.get("status") == "compliant"),
-                    "mostly_compliant": sum(1 for item in controls if item.get("status") == "mostly_compliant"),
-                    "partially_compliant": sum(1 for item in controls if item.get("status") == "partially_compliant"),
-                    "non_compliant": sum(1 for item in controls if item.get("status") == "non_compliant"),
-                    "not_assessed": sum(1 for item in controls if item.get("status") == "not_assessed"),
-                    "gaps": result.get("gaps", []),
-                }
-            )
-        return scores
+        # Single source of truth shared with the frameworks overview UI
+        # (governance.ControlMappingEngine.overview), so the assistant and the
+        # page always report the same official posture.
+        return CompliancePropagationEngine.framework_scores(
+            mode=CompliancePropagationEngine.OFFICIAL
+        )
 
     @classmethod
     def propagation_gap_counts(cls, target_scores: list[dict] | None = None) -> dict:

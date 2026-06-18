@@ -1012,6 +1012,10 @@ export const governanceApi = {
         method: "POST",
         body: JSON.stringify({})
     }),
+    recalculateCompliancePosture: () => request<{ persisted_results: number; calculation_mode: string; result_counts: Record<string, number> }>("/api/governance/compliance-propagation/recalculate/", {
+        method: "POST",
+        body: JSON.stringify({})
+    }),
 
     // Control assessments / human validation
     listControlAssessments: (params?: QueryParams) => {

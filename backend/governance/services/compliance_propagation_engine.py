@@ -212,7 +212,20 @@ class CompliancePropagationEngine:
         )
 
     @classmethod
-    def calculate_internal_control(cls, internal_control, mode=OFFICIAL, include_details=True, include_gaps=True):
+    def calculate_internal_control(cls, internal_control, mode=OFFICIAL, include_details=True, include_gaps=True, cache=None):
+        # An internal control's score is independent of which framework control
+        # maps to it, so within a computation pass (framework_scores / recalculate)
+        # the same control is otherwise recomputed once per mapped framework
+        # control. Memoize per (control, mode, detail flags) to avoid that.
+        if cache is None:
+            return cls._calculate_internal_control(internal_control, mode, include_details, include_gaps)
+        key = ("internal_control", str(internal_control.id), cls.normalize_mode(mode), include_details, include_gaps)
+        if key not in cache:
+            cache[key] = cls._calculate_internal_control(internal_control, mode, include_details, include_gaps)
+        return cache[key]
+
+    @classmethod
+    def _calculate_internal_control(cls, internal_control, mode=OFFICIAL, include_details=True, include_gaps=True):
         mode = cls.normalize_mode(mode)
         calculated_at = timezone.now()
         links = list(
@@ -390,7 +403,7 @@ class CompliancePropagationEngine:
         )
 
     @classmethod
-    def calculate_framework_control(cls, framework_control, mode=OFFICIAL, include_details=True, include_gaps=True):
+    def calculate_framework_control(cls, framework_control, mode=OFFICIAL, include_details=True, include_gaps=True, cache=None):
         mode = cls.normalize_mode(mode)
         calculated_at = timezone.now()
         mappings = list(
@@ -439,6 +452,7 @@ class CompliancePropagationEngine:
                 mode=mode,
                 include_details=include_details,
                 include_gaps=include_gaps,
+                cache=cache,
             )
             if internal_result["status"] == CompliancePropagationResult.Status.NOT_APPLICABLE:
                 continue
@@ -487,7 +501,7 @@ class CompliancePropagationEngine:
         )
 
     @classmethod
-    def calculate_framework(cls, framework, mode=OFFICIAL, include_details=True, include_gaps=True):
+    def calculate_framework(cls, framework, mode=OFFICIAL, include_details=True, include_gaps=True, cache=None):
         mode = cls.normalize_mode(mode)
         calculated_at = timezone.now()
         controls = list(Control.objects.filter(framework=framework).order_by("code"))
@@ -501,6 +515,7 @@ class CompliancePropagationEngine:
                 mode=mode,
                 include_details=include_details,
                 include_gaps=include_gaps,
+                cache=cache,
             )
             results.append(
                 {
@@ -560,6 +575,84 @@ class CompliancePropagationEngine:
             [],
             extra={"coverage": float(coverage)},
         )
+
+    @classmethod
+    def framework_scores(cls, mode=OFFICIAL):
+        """
+        Per-framework official posture from the internal-control propagation
+        model, in the shape consumed by the frameworks overview UI and the
+        assistant. Single source of truth so both surfaces report the same
+        official posture.
+
+        Reads precomputed CompliancePropagationResult rows for speed (the live
+        propagation is heavy); a framework without a stored result is computed
+        and persisted on demand (lazy cache). Refresh after data changes via
+        the compliance-propagation recalculate action.
+        """
+        mode = cls.normalize_mode(mode)
+        stored = {
+            str(row.target_id): row
+            for row in CompliancePropagationResult.objects.filter(
+                result_type=CompliancePropagationResult.ResultType.FRAMEWORK,
+                calculation_mode=mode,
+            )
+        }
+        scores = []
+        cache = {}
+        for framework in Framework.objects.filter(is_active=True).order_by("code", "version"):
+            row = stored.get(str(framework.id))
+            if row is not None:
+                score_value = float(row.score or 0)
+                status = row.status
+                details = row.details or {}
+                gaps = row.gaps or []
+            else:
+                result = cls.calculate_framework(framework, mode=mode, include_details=True, include_gaps=True, cache=cache)
+                cls.persist_result(result)
+                score_value = float(result.get("score", 0) or 0)
+                status = result.get("status")
+                details = result.get("details") or {}
+                gaps = result.get("gaps", [])
+            controls = details.get("controls") or []
+            compliant = sum(1 for item in controls if item.get("status") == "compliant")
+            mostly_compliant = sum(1 for item in controls if item.get("status") == "mostly_compliant")
+            partially_compliant = sum(1 for item in controls if item.get("status") == "partially_compliant")
+            non_compliant = sum(1 for item in controls if item.get("status") == "non_compliant")
+            not_assessed = sum(1 for item in controls if item.get("status") == "not_assessed")
+            total = details.get("total_controls", len(controls))
+            assessed = details.get("assessed_controls", 0)
+            coverage = details.get("coverage", 0) or 0
+            scores.append(
+                {
+                    "framework_id": str(framework.id),
+                    "framework_code": framework.code,
+                    "framework_name": framework.name,
+                    "version": framework.version,
+                    "score": round(score_value, 1),
+                    "status": status,
+                    "coverage": coverage,
+                    "total_controls": total,
+                    "assessed_controls": assessed,
+                    "compliant": compliant,
+                    "mostly_compliant": mostly_compliant,
+                    "partially_compliant": partially_compliant,
+                    "non_compliant": non_compliant,
+                    "not_assessed": not_assessed,
+                    "gaps": gaps,
+                    # Aliases matching the legacy ControlMappingEngine.framework_scores
+                    # output so the frameworks overview UI renders unchanged.
+                    "implemented": compliant + mostly_compliant,
+                    "partial": partially_compliant,
+                    "missing": non_compliant + not_assessed,
+                    "evaluated_controls": assessed,
+                    "mapped_controls": assessed,
+                    "mapping_coverage": round(float(coverage or 0), 1),
+                    "evidence_count": 0,
+                    "has_controls": total > 0,
+                    "score_status": "measured" if total else "not_configured",
+                }
+            )
+        return scores
 
     @classmethod
     def calculate_domain(cls, domain, mode=OFFICIAL, include_details=True, include_gaps=True):
@@ -836,17 +929,23 @@ class CompliancePropagationEngine:
             "persisted_results": 0,
             "result_counts": {},
         }
+        # Shared memo cache so each internal control (and the mechanisms it owns)
+        # is computed once per pass instead of once per mapped framework control.
+        cache = {}
         calculation_sets = [
-            (Mechanism.objects.all(), cls.calculate_mechanism),
-            (InternalControl.objects.all(), cls.calculate_internal_control),
-            (Policy.objects.all(), cls.calculate_policy),
-            (GovernanceDocument.objects.all(), cls.calculate_governance_document),
-            (Control.objects.all(), cls.calculate_framework_control),
-            (Framework.objects.all(), cls.calculate_framework),
+            (Mechanism.objects.all(), cls.calculate_mechanism, False),
+            (InternalControl.objects.all(), cls.calculate_internal_control, True),
+            (Policy.objects.all(), cls.calculate_policy, False),
+            (GovernanceDocument.objects.all(), cls.calculate_governance_document, False),
+            (Control.objects.all(), cls.calculate_framework_control, True),
+            (Framework.objects.all(), cls.calculate_framework, True),
         ]
-        for queryset, calculator in calculation_sets:
+        for queryset, calculator, uses_cache in calculation_sets:
             for obj in queryset:
-                result = calculator(obj, mode=mode, include_details=include_details, include_gaps=include_gaps)
+                kwargs = {"mode": mode, "include_details": include_details, "include_gaps": include_gaps}
+                if uses_cache:
+                    kwargs["cache"] = cache
+                result = calculator(obj, **kwargs)
                 cls.persist_result(result)
                 summary["persisted_results"] += 1
                 summary["result_counts"][result["result_type"]] = summary["result_counts"].get(result["result_type"], 0) + 1

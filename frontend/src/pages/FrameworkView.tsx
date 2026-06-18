@@ -45,6 +45,7 @@ export default function FrameworkView() {
   const [totalFrameworks, setTotalFrameworks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,6 +80,19 @@ export default function FrameworkView() {
     setPage(1);
   }, [searchFromUrl]);
 
+  const recalculatePosture = useCallback(async () => {
+    setRecalculating(true);
+    setError(null);
+    try {
+      await governanceApi.recalculateCompliancePosture();
+      await load();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Não foi possível recalcular a postura oficial."));
+    } finally {
+      setRecalculating(false);
+    }
+  }, [load]);
+
   const scoreByFramework = useMemo(() => {
     return new Map(frameworkScores.map((score) => [String(score.framework_id), score]));
   }, [frameworkScores]);
@@ -110,14 +124,26 @@ export default function FrameworkView() {
               mecanismos e evidências que sustentam cada conclusão.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:text-indigo-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Atualizar
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void recalculatePosture()}
+              disabled={recalculating || loading}
+              title="Recalcula a postura oficial a partir dos controlos internos, mecanismos e evidências. Pode demorar alguns segundos."
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${recalculating ? "animate-spin" : ""}`} />
+              {recalculating ? "A recalcular…" : "Recalcular postura"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:text-indigo-700"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Atualizar
+            </button>
+          </div>
         </div>
       </header>
 
