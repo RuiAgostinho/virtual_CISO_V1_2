@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Virtual CISO - Plataforma de Apoio Estratégico à Decisão para CISOs"
+type: software
+authors:
+  - family-names: "Agostinho"
+    given-names: "Rui Miguel Gonçalves"
+version: "1.0"
+date-released: "2026-07-04"
+repository-code: "https://github.com/RuiAgostinho/virtual_CISO_V1_2"
+license: MIT
+keywords:
+  - CISO
+  - cybersecurity
+  - GRC
+  - risk management
+  - compliance
+  - RAG
+  - explainability
+abstract: >-
+  Decision-support platform for CISOs integrating governance, risk and
+  compliance (GRC) with explainable AI. Developed as a Master's project
+  (Trabalho de Projeto) in Cybersecurity and Digital Forensics at the
+  School of Technology and Management (ESTG), Polytechnic of Leiria,
+  Portugal. The thesis-evaluated version is frozen at tag v1.0-thesis.
