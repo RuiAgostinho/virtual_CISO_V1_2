@@ -34,8 +34,9 @@ A lógica crítica (cálculo de risco, priorização, conformidade, rastreabilid
 backend/      API Django REST (authapi, company, risk, governance, integrations, ciso_assistant, chat, core)
 frontend/     Aplicação React + TypeScript
 Scripts SQL/  Scripts de apoio à importação de referenciais
-docs/         Material de rastreabilidade do relatório (não versionado na íntegra)
 ```
+
+A documentação do trabalho de projeto e os documentos normativos não são distribuídos com o código. Os comandos de ingestão da NIS2 e do DL 125/2025 e a auditoria do catálogo de referenciais esperam, por omissão, os respetivos PDF numa pasta `docs/` na raiz do repositório (`docs/DL125_2025.pdf` e `docs/frameworks/`). Essa pasta deve ser criada localmente com cópias obtidas junto das fontes oficiais. As normas ISO/IEC exigem licença própria.
 
 ## Requisitos
 

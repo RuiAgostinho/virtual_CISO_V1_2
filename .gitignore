@@ -39,11 +39,4 @@ build/
 
 # Local thesis/demo artifacts
 .codex-artifacts/
-docs/**/*.docx
-docs/**/*.pdf
-docs/apresentacao/
-docs/figures/
-docs/build_*.py
-docs/generate_*.py
-docs/*.ps1
-docs/seguranca_owasp_asvs_virtual_ciso.md
+docs/
