@@ -28,7 +28,7 @@ type OrganizationType = "Public" | "Private" | "ThirdSector";
 type RiskAppetite = "conservative" | "balanced" | "tolerant";
 type Nis2Classification = RegulatoryContextRecord["nis2_classification"];
 type PostureAnswer = "yes" | "partial" | "no" | "unknown";
-type Dl125Annex = "annex_i" | "annex_ii" | "other" | "";
+type Dl125Annex = "annex_i" | "annex_ii" | "public_admin" | "other" | "";
 type Dl125SizeAssessment = "exceeds_medium_thresholds" | "below_medium_thresholds" | "unknown";
 
 type InstitutionalOnboardingForm = {
@@ -134,6 +134,9 @@ const dl125EntityOptions: Dl125EntityOption[] = [
   { id: "digital-services-search", annex: "annex_ii", sector: "Prestação de serviços digitais", entityType: "Prestador de motores de pesquisa em linha" },
   { id: "digital-services-social", annex: "annex_ii", sector: "Prestação de serviços digitais", entityType: "Prestador de plataformas de redes sociais" },
   { id: "research", annex: "annex_ii", sector: "Investigação", entityType: "Organismo de investigação" },
+  { id: "public-admin-central", annex: "public_admin", sector: "Administração Pública", subsector: "Administração direta ou indireta do Estado", entityType: "Serviço ou entidade da administração central do Estado", forceEssential: true },
+  { id: "public-admin-ict", annex: "public_admin", sector: "Administração Pública", subsector: "Serviços partilhados e TIC", entityType: "Entidade da Administração Pública com atribuições de serviços TIC ou elevada integração digital", forceEssential: true },
+  { id: "public-admin-local", annex: "public_admin", sector: "Administração Pública", subsector: "Administração autónoma (autarquias locais)", entityType: "Autarquia local (município ou freguesia)" },
 ];
 
 const postureQuestions = [
@@ -284,7 +287,7 @@ function asRiskAppetite(value: unknown): RiskAppetite {
 }
 
 function asDl125Annex(value: unknown): Dl125Annex {
-  return value === "annex_i" || value === "annex_ii" || value === "other" || value === "" ? value : "";
+  return value === "annex_i" || value === "annex_ii" || value === "public_admin" || value === "other" || value === "" ? value : "";
 }
 
 function asDl125SizeAssessment(value: unknown): Dl125SizeAssessment {
@@ -321,6 +324,7 @@ function dl125EntityTypes(sector: string, subsector: string) {
 function dl125AnnexLabel(annex: Dl125Annex) {
   if (annex === "annex_i") return "Anexo I - setores de importância crítica";
   if (annex === "annex_ii") return "Anexo II - outros setores críticos";
+  if (annex === "public_admin") return "âmbito da Administração Pública (artigo 3.º do DL 125/2025)";
   if (annex === "other") return "Outro / não identificado nos anexos";
   return "Por selecionar";
 }
@@ -388,6 +392,14 @@ function computeDl125Classification(form: InstitutionalOnboardingForm): {
       classification: "Essential",
       services,
       criteria: `${option.entityType} consta do ${dl125AnnexLabel(option.annex)}. Nos termos do artigo 6.º do DL 125/2025, este tipo de entidade deve ser tratado como entidade essencial independentemente da dimensão. Dados registados: ${employeeCount} trabalhadores e ${turnover} M€ de volume de negócios anual.`,
+    };
+  }
+
+  if (option.annex === "public_admin") {
+    return {
+      classification: "Important",
+      services,
+      criteria: `${option.entityType} integra a Administração Pública abrangida pelo âmbito de aplicação subjetivo do DL 125/2025 (artigo 3.º, n.º 3). Não tendo como atribuições a prestação de serviços nas áreas das tecnologias de informação e comunicação, nem apresentando um grau particularmente elevado de integração digital nos termos do artigo 6.º, a classificação calculada é entidade importante, independentemente dos limiares de dimensão aplicáveis às empresas (${employeeCount} trabalhadores registados), sem prejuízo de qualificação em sentido diferente pela autoridade competente.`,
     };
   }
 
